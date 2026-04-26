@@ -158,6 +158,18 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .auth-btn:active{opacity:.8}
 .auth-err{color:#FF6B6B;font-size:13px;text-align:center;margin-top:12px;min-height:18px}
 .auth-loading{display:flex;align-items:center;justify-content:center;gap:8px;color:rgba(255,255,255,.4);font-size:14px}
+
+/* ── CODE RECOVERY ───────────────────────────── */
+.code-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .25s}
+.code-modal-bg.vis{opacity:1;pointer-events:all}
+.code-modal-card{background:#1c1c1e;border-radius:24px;padding:32px 24px 24px;width:100%;max-width:340px;text-align:center}
+.code-display{font-size:32px;font-weight:700;letter-spacing:5px;color:#F5A623;background:rgba(245,166,35,.08);border:1.5px dashed rgba(245,166,35,.35);border-radius:14px;padding:18px 10px;margin:14px 0;font-family:"SF Mono","Courier New",monospace}
+.code-inp-big{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:12px;padding:16px;color:#fff;font-size:22px;width:100%;outline:none;text-align:center;letter-spacing:4px;font-family:"SF Mono","Courier New",monospace;text-transform:uppercase;margin-bottom:12px;transition:border-color .2s;-webkit-appearance:none}
+.code-inp-big:focus{border-color:rgba(245,166,35,.6)}
+.code-inp-big::placeholder{color:rgba(255,255,255,.2);letter-spacing:2px;font-size:18px}
+.sett-code-box{background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.2);border-radius:12px;padding:16px;text-align:center;cursor:pointer;margin-bottom:10px;transition:background .15s}
+.sett-code-box:active{background:rgba(245,166,35,.14)}
+.sett-code-val{font-size:28px;font-weight:700;letter-spacing:5px;color:#F5A623;font-family:"SF Mono","Courier New",monospace}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -165,28 +177,27 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 <div id="app">
 
 <!-- ── AUTH SCREEN ── -->
-<div class="auth-screen" id="s-auth">
+<div class="auth-screen" id="s-auth" style="display:none">
   <div class="auth-logo">🍜</div>
   <div class="auth-title">Дошик</div>
   <div class="auth-sub">Трекер доходов и расходов</div>
   <div class="auth-card">
-    <div class="auth-tabs">
-      <div class="auth-tab on" id="tab-login" onclick="authTab('login')">Войти</div>
-      <div class="auth-tab" id="tab-reg" onclick="authTab('reg')">Регистрация</div>
+    <div style="text-align:center;margin-bottom:18px">
+      <span style="font-size:14px;color:rgba(255,255,255,.5)">Введите код, чтобы восстановить данные</span>
     </div>
-    <div class="auth-field">
-      <label>Email</label>
-      <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+    <input class="code-inp-big" id="auth-code" placeholder="A3BK-9XPQ" maxlength="9"
+           autocomplete="off" autocapitalize="characters" spellcheck="false"
+           oninput="fmtCodeInput(this)" onkeydown="if(event.key==='Enter')recoverWithCode()">
+    <button class="auth-btn" onclick="recoverWithCode()">Войти по коду</button>
+    <div class="auth-err" id="auth-err" style="min-height:18px;margin-top:10px"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin:16px 0">
+      <div style="flex:1;height:1px;background:rgba(255,255,255,.1)"></div>
+      <span style="color:rgba(255,255,255,.3);font-size:13px">или</span>
+      <div style="flex:1;height:1px;background:rgba(255,255,255,.1)"></div>
     </div>
-    <div class="auth-field">
-      <label>Пароль</label>
-      <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <button class="auth-btn" id="auth-submit" onclick="authSubmit()">Войти</button>
-    <div class="auth-err" id="auth-err"></div>
+    <button class="auth-btn" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.55);margin-top:0" onclick="createNewAccount()">Начать с чистого листа</button>
   </div>
 </div>
-
 <!-- ── MAIN SCREEN ── -->
 <div class="screen" id="s-main">
   <div class="top-bar">
@@ -282,16 +293,12 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <button class="action-btn btn-primary" onclick="showCatModal()">+ Добавить категорию</button>
     </div>
     <div class="sett-sec">
+      <div class="sett-label">Код восстановления</div>
+      <div id="recovery-code-section"></div>
+    </div>
+    <div class="sett-sec">
       <div class="sett-label">Данные</div>
-      <div class="sett-card" style="margin-bottom:10px;background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.2)">
-        <div class="sett-row" style="align-items:flex-start;gap:10px">
-          <span style="font-size:18px;flex-shrink:0">⚠️</span>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <span style="font-size:13px;font-weight:600;color:rgba(255,255,255,.75)">Важно про хранение данных</span>
-            <span style="font-size:12px;color:rgba(255,255,255,.4);line-height:1.5">Ваши данные хранятся в этом браузере. Если очистите историю или данные сайтов в настройках браузера — доступ к записям будет утерян навсегда. Рекомендуем периодически делать экспорт.</span>
-          </div>
-        </div>
-      </div>
+
       <div class="sett-card">
         <div class="sett-row" style="cursor:pointer" onclick="exportData()">
           <span class="sett-row-label">Экспорт данных</span>
@@ -315,7 +322,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <div class="sett-card">
         <div class="sett-row">
           <span class="sett-row-label" style="color:rgba(255,255,255,.35);font-size:13px">Версия</span>
-          <span style="color:rgba(255,255,255,.25);font-size:13px">v1.1 · 26 апреля 2026</span>
+          <span style="color:rgba(255,255,255,.25);font-size:13px">v1.2 · 26 апреля 2026</span>
         </div>
         <div class="sett-row" style="border-top:1px solid rgba(255,255,255,.06);margin-top:2px;padding-top:10px">
           <span id="auth-user-email" style="color:rgba(255,255,255,.25);font-size:12px"></span>
@@ -333,6 +340,19 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div class="color-grid" id="color-grid"></div>
     <button class="action-btn btn-primary" onclick="saveCat()">Добавить</button>
     <button class="action-btn btn-secondary" onclick="hideCatModal()">Отмена</button>
+  </div>
+</div>
+
+<!-- ── CODE REVEAL MODAL ── -->
+<div class="code-modal-bg" id="code-reveal-modal">
+  <div class="code-modal-card">
+    <div style="font-size:40px;margin-bottom:10px">🔑</div>
+    <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:6px">Ваш код восстановления</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.45);line-height:1.5;margin-bottom:2px">Запишите или скопируйте этот код. Он позволяет войти с любого устройства или браузера.</div>
+    <div class="code-display" id="code-reveal-value"></div>
+    <div style="font-size:12px;color:rgba(255,255,255,.3);margin-bottom:20px">Без кода восстановить данные невозможно</div>
+    <button class="action-btn btn-primary" onclick="copyCodeReveal()" id="copy-code-btn" style="margin-bottom:0">Скопировать код</button>
+    <button class="action-btn btn-secondary" onclick="dismissCodeReveal()" style="margin-top:8px">Понял, сохранил ✓</button>
   </div>
 </div>
 
@@ -558,6 +578,17 @@ function renderSettings(){
     <div class="cat-item"><div class="cat-nm"><div style="width:12px;height:12px;border-radius:50%;background:${c.color}"></div>${c.name}</div>
     <button class="del-cat" onclick="deleteCat('${c.id}')">×</button></div>
   `).join(''):'<div class="sett-row"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>';
+  // Recovery code
+  const code=localStorage.getItem(K_CODE)||'';
+  const rcSec=document.getElementById('recovery-code-section');
+  if(rcSec) rcSec.innerHTML=code
+    ?`<div class="sett-code-box" onclick="copyCode()">
+        <div style="font-size:11px;color:rgba(255,255,255,.35);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Ваш код</div>
+        <div class="sett-code-val">${code}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:6px">Нажмите чтобы скопировать</div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.35);padding:0 4px 8px;line-height:1.5">Введите этот код на другом устройстве или браузере — данные восстановятся мгновенно</div>`
+    :`<div class="sett-row"><span style="color:rgba(255,255,255,.35);font-size:14px">Код не привязан</span></div>`;
 }
 function deleteCat(id){
   if(confirm('Удалить категорию?')){S.cats=S.cats.filter(c=>c.id!==id);saveLocal();pushCats();deleteCatRemote(id);renderSettings();renderCatRow();toast('Удалено');}
@@ -615,30 +646,105 @@ function toast(msg){
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);
 }
 
-// ── INIT: ANONYMOUS AUTH ──────────────────────────────────────────────────────
+// ── CODE RECOVERY AUTH ────────────────────────────────────────────────────────
+const K_CODE='tk_rccode';
+
+function generateCode(){
+  const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c='';for(let i=0;i<8;i++){if(i===4)c+='-';c+=ch[Math.floor(Math.random()*ch.length)];}
+  return c;
+}
+function fmtCodeInput(el){
+  let v=el.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,8);
+  if(v.length>4)v=v.slice(0,4)+'-'+v.slice(4);
+  el.value=v;
+}
 async function initApp(){
-  try {
-    // Try to restore existing session first
-    const {data:{session}} = await db.auth.getSession();
-    if(session && session.user){
-      currentUser = session.user;
-    } else {
-      // Create new anonymous session
-      const {data,error} = await db.auth.signInAnonymously();
-      if(error) throw error;
-      currentUser = data.user;
+  const saved=localStorage.getItem(K_CODE);
+  if(saved){
+    try{
+      const{data,error}=await db.auth.signInWithPassword({email:`${saved}@doshik.app`,password:saved});
+      if(!error&&data.user){currentUser=data.user;loadLocal();goMain();syncFromSupabase();return;}
+    }catch(e){}
+  }
+  try{
+    const{data:{session}}=await db.auth.getSession();
+    if(session&&session.user){
+      currentUser=session.user;
+      if(!saved){await generateAndLinkCode(true);}
+      else{loadLocal();goMain();syncFromSupabase();}
+      return;
     }
-    loadLocal();
-    goMain();
-    syncFromSupabase();
-  } catch(e){
-    // Offline fallback — work with localStorage only
-    loadLocal();
-    goMain();
+  }catch(e){}
+  // No session — show entry screen
+  document.getElementById('s-auth').style.display='flex';
+}
+async function generateAndLinkCode(showModal=false){
+  const code=generateCode();
+  try{
+    const{error}=await db.auth.updateUser({email:`${code}@doshik.app`,password:code});
+    if(!error){
+      localStorage.setItem(K_CODE,code);
+      loadLocal();goMain();syncFromSupabase();
+      if(showModal)setTimeout(()=>showCodeRevealModal(code),600);
+      return;
+    }
+  }catch(e){}
+  loadLocal();goMain();syncFromSupabase();
+}
+async function createNewAccount(){
+  const btn=event.currentTarget;btn.disabled=true;btn.textContent='Создаём...';
+  const code=generateCode();
+  try{
+    const{data,error}=await db.auth.signUp({email:`${code}@doshik.app`,password:code});
+    if(error)throw error;
+    localStorage.setItem(K_CODE,code);currentUser=data.user;
+    document.getElementById('s-auth').style.display='none';
+    loadLocal();goMain();syncFromSupabase();
+    setTimeout(()=>showCodeRevealModal(code),600);
+  }catch(e){
+    btn.disabled=false;btn.textContent='Начать с чистого листа';
+    document.getElementById('auth-err').textContent='Ошибка соединения с сервером';
   }
 }
+async function recoverWithCode(){
+  const raw=document.getElementById('auth-code').value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+  const code=raw.length===8?raw.slice(0,4)+'-'+raw.slice(4):'';
+  if(code.length!==9){document.getElementById('auth-err').textContent='Введите код из 8 символов';return;}
+  const btn=document.querySelector('#s-auth .auth-btn');
+  const orig=btn.textContent;btn.disabled=true;btn.textContent='Проверяем...';
+  document.getElementById('auth-err').textContent='';
+  try{
+    const{data,error}=await db.auth.signInWithPassword({email:`${code}@doshik.app`,password:code});
+    if(error||!data.user){
+      document.getElementById('auth-err').textContent='Код не найден. Проверьте правильность';
+      btn.disabled=false;btn.textContent=orig;return;
+    }
+    localStorage.setItem(K_CODE,code);currentUser=data.user;
+    document.getElementById('s-auth').style.display='none';
+    loadLocal();goMain();syncFromSupabase();toast('Данные восстановлены ✓');
+  }catch(e){
+    document.getElementById('auth-err').textContent='Ошибка соединения с сервером';
+    btn.disabled=false;btn.textContent=orig;
+  }
+}
+function showCodeRevealModal(code){
+  document.getElementById('code-reveal-value').textContent=code;
+  document.getElementById('code-reveal-modal').classList.add('vis');
+}
+function dismissCodeReveal(){document.getElementById('code-reveal-modal').classList.remove('vis');}
+function copyCodeReveal(){
+  const code=document.getElementById('code-reveal-value').textContent;
+  navigator.clipboard.writeText(code).then(()=>{
+    const b=document.getElementById('copy-code-btn');
+    b.textContent='Скопировано ✓';setTimeout(()=>b.textContent='Скопировать код',1800);
+  });
+}
+function copyCode(){
+  const code=localStorage.getItem(K_CODE);
+  if(!code)return;
+  navigator.clipboard.writeText(code).then(()=>toast('Код скопирован ✓'));
+}
 
-// Hide auth screen, start app
-document.getElementById('s-auth').style.display='none';
 initApp();
 </script></html>
