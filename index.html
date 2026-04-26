@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <title>Дошик</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;background:#111;color:#fff;overscroll-behavior:none;position:fixed;width:100%}
 #app{height:100dvh;position:relative;overflow:hidden}
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;background:#111;transition:transform .28s cubic-bezier(.16,1,.3,1),opacity .28s}
@@ -134,6 +134,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .period-check{color:#F5A623;font-size:18px;opacity:0}
 .period-item.sel .period-check{opacity:1}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -143,7 +144,10 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   <div class="top-bar">
     <button class="tb-btn" onclick="goHistory()">История</button>
     <button class="budget-pill" id="budget-pill" onclick="goBudget()">Настроить бюджет</button>
-    <button class="tb-btn" style="justify-content:flex-end" onclick="goSettings()">&#9881;</button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <div id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:#FF6B6B;transition:background .5s" title="Синхронизация..."></div>
+      <button class="tb-btn" style="justify-content:flex-end" onclick="goSettings()">&#9881;</button>
+    </div>
   </div>
   <div class="main-top">
     <div class="today-num" id="today-num">0</div>
@@ -268,6 +272,12 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 </div>
 
 <script>
+// ── SUPABASE ─────────────────────────────────────────────────────────────────
+const SUPA_URL = 'https://stfdtkorhvdmsrhelide.supabase.co';
+const SUPA_KEY = 'sb_publishable_ZnldYNzTnSujDyUW5-16Iw_RnT0uoJS';
+const { createClient } = supabase;
+const db = createClient(SUPA_URL, SUPA_KEY);
+
 // ── DATA ─────────────────────────────────────────────────────────────────────
 const K = { tx:'tk_tx', cats:'tk_cats', budget:'tk_budget' };
 const COLORS = ['#F5A623','#FF6B6B','#3DBD74','#4A9EFF','#AF6FE8','#00C2CB','#FF9500','#F06292','#78909C','#A1887F'];
@@ -283,29 +293,88 @@ const DEF_CATS = [
 ];
 
 let S = {
-  type: 'expense',
-  amount: '',
-  catId: null,
-  histCat: 'all',
-  budColor: COLORS[0],
-  budDeadline: null,
-  txs: [],
-  cats: [],
-  budget: {amount:0, deadline:null}
+  type: 'expense', amount: '', catId: null, histCat: 'all',
+  budColor: COLORS[0], budDeadline: null,
+  txs: [], cats: [], budget: {amount:0, deadline:null},
+  synced: false
 };
 
-function load() {
+// ── STORAGE: LOCAL ────────────────────────────────────────────────────────────
+function loadLocal() {
   try {
     S.txs = JSON.parse(localStorage.getItem(K.tx)||'[]');
     S.cats = JSON.parse(localStorage.getItem(K.cats)||'null') || [...DEF_CATS];
     S.budget = JSON.parse(localStorage.getItem(K.budget)||'null') || {amount:0,deadline:null};
-  } catch(e) {
-    S.txs=[]; S.cats=[...DEF_CATS]; S.budget={amount:0,deadline:null};
-  }
+  } catch(e) { S.txs=[]; S.cats=[...DEF_CATS]; S.budget={amount:0,deadline:null}; }
 }
-function saveTx(){ localStorage.setItem(K.tx, JSON.stringify(S.txs)); }
-function saveCats(){ localStorage.setItem(K.cats, JSON.stringify(S.cats)); }
-function saveBudgetStore(){ localStorage.setItem(K.budget, JSON.stringify(S.budget)); }
+function saveLocal() {
+  localStorage.setItem(K.tx, JSON.stringify(S.txs));
+  localStorage.setItem(K.cats, JSON.stringify(S.cats));
+  localStorage.setItem(K.budget, JSON.stringify(S.budget));
+}
+
+// ── STORAGE: SUPABASE ────────────────────────────────────────────────────────
+async function syncFromSupabase() {
+  try {
+    const [txRes, catRes, budRes] = await Promise.all([
+      db.from('transactions').select('*').order('date', {ascending:false}),
+      db.from('categories').select('*').order('sort_order'),
+      db.from('budget_settings').select('*').eq('id',1).single()
+    ]);
+    if (txRes.data && txRes.data.length > 0) {
+      S.txs = txRes.data.map(r=>({id:r.id,amount:r.amount,type:r.type,catId:r.cat_id,note:r.note||'',date:r.date}));
+    }
+    if (catRes.data && catRes.data.length > 0) {
+      S.cats = catRes.data.map(r=>({id:r.id,name:r.name,color:r.color}));
+    }
+    if (budRes.data) {
+      S.budget = {amount:budRes.data.amount||0, deadline:budRes.data.deadline||null};
+    }
+    saveLocal();
+    S.synced = true;
+    setSyncDot(true);
+    renderMain();
+  } catch(e) { setSyncDot(false); }
+}
+
+async function pushTx(tx) {
+  try {
+    await db.from('transactions').upsert({
+      id:tx.id, amount:tx.amount, type:tx.type,
+      cat_id:tx.catId, note:tx.note||'', date:tx.date
+    });
+    setSyncDot(true);
+  } catch(e) { setSyncDot(false); }
+}
+
+async function deleteTxRemote(id) {
+  try { await db.from('transactions').delete().eq('id',id); } catch(e){}
+}
+
+async function pushCats() {
+  try {
+    await db.from('categories').upsert(
+      S.cats.map((c,i)=>({id:c.id,name:c.name,color:c.color,sort_order:i}))
+    );
+  } catch(e){}
+}
+
+async function deleteCatRemote(id) {
+  try { await db.from('categories').delete().eq('id',id); } catch(e){}
+}
+
+async function pushBudget() {
+  try {
+    await db.from('budget_settings').upsert({
+      id:1, amount:S.budget.amount, deadline:S.budget.deadline
+    });
+  } catch(e){}
+}
+
+function setSyncDot(ok) {
+  const d = document.getElementById('sync-dot');
+  if(d) { d.style.background = ok ? '#3DBD74' : '#FF6B6B'; d.title = ok ? 'Синхронизировано' : 'Нет связи'; }
+}
 
 // ── SCREENS ──────────────────────────────────────────────────────────────────
 function show(id) {
@@ -323,16 +392,12 @@ function renderMain(){
   const today = todayStr();
   const exp = S.txs.filter(t=>t.date.startsWith(today)&&t.type==='expense').reduce((s,t)=>s+t.amount,0);
   document.getElementById('today-num').textContent = fmt(exp);
-
-  // budget pill
   const pill = document.getElementById('budget-pill');
   if(S.budget.amount && S.budget.deadline){
     const d = daysUntil(S.budget.deadline);
     const pd = d>0?Math.round(S.budget.amount/d):S.budget.amount;
     pill.textContent = fmt(S.budget.amount)+' · '+fmt(pd)+' в день';
   } else { pill.textContent = 'Настроить бюджет'; }
-
-  // breakdown by category this month
   const mon = monthStr();
   const byCat = {};
   S.txs.filter(t=>t.date.startsWith(mon)&&t.type==='expense').forEach(t=>{
@@ -344,7 +409,6 @@ function renderMain(){
     const c=getCat(cid);
     return `<div class="cb-chip"><div class="cb-dot" style="background:${c.color}"></div>${c.name} ${fmt(amt)}</div>`;
   }).join('');
-
   renderCatRow();
 }
 
@@ -354,9 +418,7 @@ function renderCatRow(){
     <button class="cat-pill${S.catId===c.id?' sel':''}" onclick="selCat('${c.id}')">${c.name}</button>
   `).join('')+`<button class="cat-pill add" onclick="goSettings()">+ Ещё</button>`;
 }
-
 function selCat(id){ S.catId=id; renderCatRow(); }
-
 function setType(t){
   S.type=t;
   document.getElementById('btn-exp').className='type-btn exp'+(t==='expense'?' on':'');
@@ -371,7 +433,6 @@ function np(v){
   if(v==='.'&&S.amount.includes('.')) return;
   if(S.amount.length>=10) return;
   S.amount = (S.amount==='0'&&v!=='.')?v : S.amount+v;
-  if(S.amount==='') S.amount='';
   document.getElementById('amount-row').textContent = S.amount||'0';
 }
 function npDel(){
@@ -383,8 +444,10 @@ function confirm_(){
   if(!amt||amt<=0){toast('Введите сумму');return;}
   const note=document.getElementById('note-inp').value.trim();
   const catId=S.catId||(S.type==='income'?'salary':'other');
-  S.txs.unshift({id:Date.now()+'',amount:amt,type:S.type,catId,note,date:new Date().toISOString()});
-  saveTx();
+  const tx={id:Date.now()+'',amount:amt,type:S.type,catId,note,date:new Date().toISOString()};
+  S.txs.unshift(tx);
+  saveLocal();
+  pushTx(tx);
   S.amount='';
   document.getElementById('note-inp').value='';
   document.getElementById('amount-row').textContent='0';
@@ -395,7 +458,6 @@ function confirm_(){
 
 // ── HISTORY ──────────────────────────────────────────────────────────────────
 function renderHistory(){
-  // tabs
   const tabs=[{id:'all',name:'Все'},...S.cats];
   document.getElementById('hist-tabs').innerHTML=tabs.map(t=>`
     <button class="ctab${S.histCat===t.id?' on':''}" onclick="selHistTab('${t.id}')">${t.name}</button>
@@ -403,7 +465,6 @@ function renderHistory(){
   renderHistContent();
 }
 function selHistTab(id){ S.histCat=id; renderHistory(); }
-
 function renderHistContent(){
   const con=document.getElementById('hist-content');
   let txs=[...S.txs];
@@ -440,19 +501,18 @@ function renderHistContent(){
     </div><div class="divider" style="margin:8px 0"></div>`;
   }).join('');
 }
-
 function delTx(id){
   if(confirm('Удалить запись?')){
-    S.txs=S.txs.filter(t=>t.id!==id); saveTx(); renderHistory(); toast('Удалено');
+    S.txs=S.txs.filter(t=>t.id!==id);
+    saveLocal(); deleteTxRemote(id); renderHistory(); toast('Удалено');
   }
 }
 
-// ── BUDGET SCREEN ────────────────────────────────────────────────────────────
+// ── BUDGET ────────────────────────────────────────────────────────────────────
 function renderBudgetScreen(){
   document.getElementById('bud-amount').value = S.budget.amount||'';
   S.budDeadline = S.budget.deadline||null;
-  updateBudgetPreview();
-  renderPeriodList();
+  updateBudgetPreview(); renderPeriodList();
 }
 function updateBudgetPreview(){
   const amt=parseFloat(document.getElementById('bud-amount').value)||0;
@@ -461,9 +521,7 @@ function updateBudgetPreview(){
     const d=daysUntil(S.budDeadline);
     const pd=d>0?Math.round(amt/d):amt;
     document.getElementById('bud-perday-display').textContent=fmt(pd)+' ₽ в день';
-  } else {
-    document.getElementById('bud-perday-display').textContent='— ₽ в день';
-  }
+  } else { document.getElementById('bud-perday-display').textContent='— ₽ в день'; }
 }
 function renderPeriodList(){
   const list=document.getElementById('period-list');
@@ -472,30 +530,24 @@ function renderPeriodList(){
   for(let i=0;i<30;i++){
     const d=new Date(today); d.setDate(d.getDate()+i);
     const ds=d.toISOString().slice(0,10);
-    const days=i;
-    const label=i===0?'Сегодня — 1 день':fmtDateShort(ds)+' — '+(days+1)+' '+pluralDays(days+1);
-    items.push({ds,label,days:days+1});
+    const label=i===0?'Сегодня — 1 день':fmtDateShort(ds)+' — '+(i+1)+' '+pluralDays(i+1);
+    items.push({ds,label,days:i+1});
   }
   list.innerHTML=items.map(it=>`
-    <div class="period-item${S.budDeadline===it.ds?' sel':''}" onclick="selDeadline('${it.ds}',${it.days})">
+    <div class="period-item${S.budDeadline===it.ds?' sel':''}" onclick="selDeadline('${it.ds}')">
       <span class="period-date">${it.label}</span>
       <span class="period-check">✓</span>
     </div>
   `).join('');
 }
-function selDeadline(ds,days){
-  S.budDeadline=ds;
-  renderPeriodList();
-  updateBudgetPreview();
-}
+function selDeadline(ds){ S.budDeadline=ds; renderPeriodList(); updateBudgetPreview(); }
 function saveBudget(){
   const amt=parseFloat(document.getElementById('bud-amount').value);
   if(!amt){toast('Введите сумму');return;}
   if(!S.budDeadline){toast('Выберите срок');return;}
   S.budget={amount:amt,deadline:S.budDeadline};
-  saveBudgetStore();
-  toast('Бюджет сохранён ✓');
-  goMain();
+  saveLocal(); pushBudget();
+  toast('Бюджет сохранён ✓'); goMain();
 }
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────────
@@ -511,19 +563,21 @@ function renderSettings(){
 }
 function deleteCat(id){
   if(confirm('Удалить категорию?')){
-    S.cats=S.cats.filter(c=>c.id!==id); saveCats(); renderSettings(); renderCatRow(); toast('Удалено');
+    S.cats=S.cats.filter(c=>c.id!==id);
+    saveLocal(); pushCats(); deleteCatRemote(id);
+    renderSettings(); renderCatRow(); toast('Удалено');
   }
 }
 function exportData(){
   const blob=new Blob([JSON.stringify({txs:S.txs,cats:S.cats,budget:S.budget,date:new Date().toISOString()},null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='tracker-'+todayStr()+'.json'; a.click(); URL.revokeObjectURL(a.href);
+  a.download='doshik-'+todayStr()+'.json'; a.click(); URL.revokeObjectURL(a.href);
   toast('Экспортировано');
 }
 function clearAll(){
   if(confirm('Удалить ВСЕ данные? Это нельзя отменить.')){
     [K.tx,K.cats,K.budget].forEach(k=>localStorage.removeItem(k));
-    load(); toast('Данные удалены'); goMain();
+    loadLocal(); toast('Данные удалены'); goMain();
   }
 }
 
@@ -549,7 +603,7 @@ function saveCat(){
   const name=document.getElementById('cat-name-inp').value.trim();
   if(!name){toast('Введите название');return;}
   S.cats.push({id:'c'+Date.now(),name,color:S.budColor});
-  saveCats(); hideCatModal(); renderSettings(); renderCatRow();
+  saveLocal(); pushCats(); hideCatModal(); renderSettings(); renderCatRow();
   toast('"'+name+'" добавлена ✓');
 }
 
@@ -583,8 +637,7 @@ function toast(msg){
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
-load();
+loadLocal();
 renderMain();
-</script>
-</body>
-</html>
+syncFromSupabase();
+</script></html>
