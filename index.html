@@ -484,6 +484,9 @@ async function syncFromSupabase(){
 }
 async function seedDefaultCats(){
   if(!currentUser) return;
+  // Проверяем — есть ли уже категории в БД (защита от дублей)
+  const {data:existing}=await db.from('categories').select('id').eq('user_id',currentUser.id);
+  if(existing&&existing.length>0) return; // уже есть — не сеять повторно
   const rows=DEF_CATS.map((c,i)=>({id:c.id+'_'+currentUser.id.slice(0,8),user_id:currentUser.id,name:c.name,color:c.color,sort_order:i}));
   const {error}=await db.from('categories').upsert(rows);
   if(!error){ S.cats=DEF_CATS.map((c,i)=>({...c,id:c.id+'_'+currentUser.id.slice(0,8),ctype:c.ctype||'expense'})); saveLocal(); }
@@ -535,8 +538,15 @@ function renderMain(){
   if(S.budget.amount&&S.budget.deadline){
     const remaining=S.budget.amount-totalExp;
     numEl.textContent=fmt(Math.abs(remaining));
-    numEl.style.color=remaining>=0?'rgba(255,255,255,.9)':'#FF6B6B';
-    lblEl.textContent=remaining>=0?'Осталось':'Перерасход';
+    if(remaining>0){
+      numEl.style.color='rgba(255,255,255,.9)';
+      lblEl.textContent='Осталось';
+      lblEl.style.cursor=''; lblEl.onclick=null;
+    } else {
+      numEl.style.color='#FF7B54';
+      lblEl.textContent='🍜 Пора покупать дошики';
+      lblEl.style.cursor=''; lblEl.onclick=null;
+    }
     const d=daysUntil(S.budget.deadline);
     const perday=d>0?Math.round(Math.max(0,remaining)/d):0;
     pill.textContent='до '+fmtDateShort(S.budget.deadline)+' · '+fmt(perday)+' ₽/день';
@@ -581,6 +591,10 @@ function npDel(){ S.amount=S.amount.slice(0,-1); document.getElementById('amount
 function confirm_(){
   const amt=parseFloat(S.amount);
   if(!amt||amt<=0){toast('Введите сумму');return;}
+  if(S.type==='expense'&&(!S.budget.amount||S.budget.amount<=0)){
+    toast('Сначала задайте бюджет ↑');
+    goBudget(); return;
+  }
   const note=document.getElementById('note-inp').value.trim();
   const defCat=S.cats.find(c=>(c.ctype||'expense')===S.type); const catId=S.catId||(defCat?defCat.id:(S.type==='income'?'salary':'other'));
   const tx={id:Date.now()+'',amount:amt,type:S.type,catId,note,date:new Date().toISOString()};
@@ -727,7 +741,8 @@ async function clearAll(){
     // Затем посеять дефолтные категории заново
     await seedDefaultCats();
   }
-  toast('Данные сброшены ✓');goMain();
+  toast('Данные сброшены ✓');
+  setTimeout(()=>location.reload(),800);
 }
 
 // ── CAT MODAL ─────────────────────────────────────────────────────────────────
@@ -793,7 +808,7 @@ async function initApp(){
   if(saved){
     try{
       const{data,error}=await db.auth.signInWithPassword({email:`${saved}@doshik.app`,password:saved});
-      if(!error&&data.user){currentUser=data.user;loadLocal();goMain();syncFromSupabase();return;}
+      if(!error&&data.user){currentUser=data.user;loadLocal();goMain();syncFromSupabase().then(()=>renderMain());return;}
     }catch(e){}
   }
 
@@ -806,7 +821,7 @@ async function initApp(){
       const metaCode=session.user.user_metadata?.code;
       if(metaCode&&!saved){
         localStorage.setItem(K_CODE,metaCode);
-        loadLocal();goMain();syncFromSupabase();
+        loadLocal();goMain();syncFromSupabase().then(()=>renderMain());
         return;
       }
       // Если кода нет совсем — создаём новый через updateUser
@@ -949,5 +964,15 @@ async function submitEnterCode(){
   }
 }
 
+
+// Синхронизация при возврате на вкладку / разблокировке экрана
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&currentUser){
+    syncFromSupabase().then(()=>{
+      renderMain();
+      if(!document.getElementById('s-history').classList.contains('hidden')) renderHistory();
+    }).catch(()=>{});
+  }
+});
 initApp();
 </script></html>
