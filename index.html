@@ -176,6 +176,16 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .code-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .25s}
 .code-modal-bg.vis{opacity:1;pointer-events:all}
 .code-modal-card{background:#1c1c1e;border-radius:24px;padding:32px 24px 24px;width:100%;max-width:340px;text-align:center}
+/* CUSTOM CONFIRM */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:400;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s}
+.confirm-overlay.vis{opacity:1;pointer-events:all}
+.confirm-box{background:#1e1e1e;border-radius:20px;padding:24px 20px 20px;width:100%;max-width:300px;text-align:center;transform:scale(.94);transition:transform .2s}
+.confirm-overlay.vis .confirm-box{transform:scale(1)}
+.confirm-row{display:flex;gap:10px;margin-top:20px}
+.conf-btn{flex:1;padding:13px;border-radius:12px;border:none;cursor:pointer;font-size:14px;font-weight:600;transition:opacity .15s}
+.conf-btn:active{opacity:.7}
+.conf-cancel{background:rgba(255,255,255,.1);color:rgba(255,255,255,.65)}
+.conf-ok{color:#fff}
 .code-display{font-size:32px;font-weight:700;letter-spacing:5px;color:#F5A623;background:rgba(245,166,35,.08);border:1.5px dashed rgba(245,166,35,.35);border-radius:14px;padding:18px 10px;margin:14px 0;font-family:"SF Mono","Courier New",monospace}
 .code-inp-big{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:12px;padding:16px;color:#fff;font-size:22px;width:100%;outline:none;text-align:center;letter-spacing:4px;font-family:"SF Mono","Courier New",monospace;text-transform:uppercase;margin-bottom:12px;transition:border-color .2s;-webkit-appearance:none}
 .code-inp-big:focus{border-color:rgba(245,166,35,.6)}
@@ -208,7 +218,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <span style="color:rgba(255,255,255,.3);font-size:13px">или</span>
       <div style="flex:1;height:1px;background:rgba(255,255,255,.1)"></div>
     </div>
-    <button class="auth-btn" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.55);margin-top:0" onclick="createNewAccount()">Начать с чистого листа</button>
+    <button class="auth-btn" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.55);margin-top:0" onclick="createNewAccount(this)">Начать с чистого листа</button>
   </div>
 </div>
 <!-- ── MAIN SCREEN ── -->
@@ -287,7 +297,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <div class="sett-card">
         <div class="sett-row">
           <span class="sett-row-label">Сумма ₽</span>
-          <input type="number" inputmode="numeric" class="sett-inp" id="bud-amount" placeholder="0" oninput="updateBudgetPreview()">
+          <input type="number" inputmode="numeric" class="sett-inp" id="bud-amount" placeholder="0" oninput="debouncedPreview()">
         </div>
       </div>
     </div>
@@ -346,7 +356,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <div class="sett-card">
         <div class="sett-row">
           <span class="sett-row-label" style="color:rgba(255,255,255,.35);font-size:13px">Версия</span>
-          <span style="color:rgba(255,255,255,.25);font-size:13px">v1.4 · 26 апреля 2026</span>
+          <span style="color:rgba(255,255,255,.25);font-size:13px">v1.7 · 26 апреля 2026</span>
         </div>
       </div>
     </div>
@@ -389,6 +399,17 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div style="font-size:12px;color:rgba(255,255,255,.3);margin-bottom:20px">Без кода восстановить данные невозможно</div>
     <button class="action-btn btn-primary" onclick="copyCodeReveal()" id="copy-code-btn" style="margin-bottom:0">Скопировать код</button>
     <button class="action-btn btn-secondary" onclick="dismissCodeReveal()" style="margin-top:8px">Понял, сохранил ✓</button>
+  </div>
+</div>
+
+<!-- CUSTOM CONFIRM MODAL -->
+<div id="confirm-modal" class="confirm-overlay" onclick="if(event.target===this)_confNo()">
+  <div class="confirm-box">
+    <div id="confirm-msg" style="font-size:15px;color:rgba(255,255,255,.88);line-height:1.55;padding:0 4px"></div>
+    <div class="confirm-row">
+      <button class="conf-btn conf-cancel" onclick="_confNo()">Отмена</button>
+      <button class="conf-btn conf-ok" id="confirm-ok-btn" onclick="_confOk()">Удалить</button>
+    </div>
   </div>
 </div>
 
@@ -445,8 +466,26 @@ function determineCtype(catId, oldCats){
 let S = {
   type:'expense', amount:'', catId:null, histCat:'all', histType:'all', catSettTab:'expense',
   budColor:COLORS[0], budDeadline:null,
-  txs:[], cats:[], budget:{amount:0,deadline:null}
+  txs:[], cats:[], budget:{amount:0,deadline:null,set_at:null}
 };
+
+// ── OFFLINE QUEUE ─────────────────────────────────────────────────────────────
+let offlineQueue=[];
+function saveQueue(){ try{localStorage.setItem('tk_oq',JSON.stringify(offlineQueue));}catch(e){} }
+function loadQueue(){ try{offlineQueue=JSON.parse(localStorage.getItem('tk_oq')||'[]');}catch(e){offlineQueue=[];} }
+async function processQueue(){
+  if(!currentUser||!navigator.onLine||!offlineQueue.length) return;
+  const q=[...offlineQueue]; offlineQueue=[]; saveQueue();
+  for(const item of q){
+    try{
+      if(item.op==='pushTx') await pushTx(item.data,true);
+      else if(item.op==='pushCats') await pushCats();
+      else if(item.op==='pushBudget') await pushBudget();
+    }catch(e){ offlineQueue.push(item); }
+  }
+  saveQueue(); if(offlineQueue.length===0) setSyncDot(true);
+}
+window.addEventListener('online',()=>{ setSyncDot(null); processQueue(); });
 
 // ── LOCAL STORAGE ─────────────────────────────────────────────────────────────
 function loadLocal(){
@@ -474,12 +513,11 @@ async function syncFromSupabase(){
     if(txRes.data&&txRes.data.length>0)
       S.txs=txRes.data.map(r=>({id:r.id,amount:r.amount,type:r.type,catId:r.cat_id,note:r.note||'',date:r.date}));
     if(catRes.data&&catRes.data.length>0){
-      const oldCats=[...S.cats];
-      S.cats=catRes.data.map(r=>({id:r.id,name:r.name,color:r.color,ctype:determineCtype(r.id,oldCats)}));
+      S.cats=catRes.data.map(r=>({id:r.id,name:r.name,color:r.color,ctype:r.ctype||determineCtype(r.id,[...S.cats])}));
     }
     else await seedDefaultCats();
-    if(budRes.data) S.budget={amount:budRes.data.amount||0,deadline:budRes.data.deadline||null};
-    saveLocal(); setSyncDot(true); renderMain();
+    if(budRes.data) S.budget={amount:budRes.data.amount||0,deadline:budRes.data.deadline||null,set_at:budRes.data.set_at||null};
+    saveLocal(); setSyncDot(true); renderMain(); processQueue();
   } catch(e){ setSyncDot(false); }
 }
 async function seedDefaultCats(){
@@ -487,14 +525,14 @@ async function seedDefaultCats(){
   // Проверяем — есть ли уже категории в БД (защита от дублей)
   const {data:existing}=await db.from('categories').select('id').eq('user_id',currentUser.id);
   if(existing&&existing.length>0) return; // уже есть — не сеять повторно
-  const rows=DEF_CATS.map((c,i)=>({id:c.id+'_'+currentUser.id.slice(0,8),user_id:currentUser.id,name:c.name,color:c.color,sort_order:i}));
+  const rows=DEF_CATS.map((c,i)=>({id:c.id+'_'+currentUser.id.slice(0,8),user_id:currentUser.id,name:c.name,color:c.color,ctype:c.ctype||'expense',sort_order:i}));
   const {error}=await db.from('categories').upsert(rows);
   if(!error){ S.cats=DEF_CATS.map((c,i)=>({...c,id:c.id+'_'+currentUser.id.slice(0,8),ctype:c.ctype||'expense'})); saveLocal(); }
 }
-async function pushTx(tx){
+async function pushTx(tx,isRetry=false){
   if(!currentUser) return;
   try { await db.from('transactions').upsert({id:tx.id,user_id:currentUser.id,amount:tx.amount,type:tx.type,cat_id:tx.catId,note:tx.note||'',date:tx.date}); setSyncDot(true); }
-  catch(e){ setSyncDot(false); }
+  catch(e){ setSyncDot(false); if(!isRetry){offlineQueue.push({op:'pushTx',data:tx}); saveQueue();} }
 }
 async function deleteTxRemote(id){
   if(!currentUser) return;
@@ -502,7 +540,7 @@ async function deleteTxRemote(id){
 }
 async function pushCats(){
   if(!currentUser) return;
-  try { await db.from('categories').upsert(S.cats.map((c,i)=>({id:c.id,user_id:currentUser.id,name:c.name,color:c.color,sort_order:i}))); } catch(e){}
+  try { await db.from('categories').upsert(S.cats.map((c,i)=>({id:c.id,user_id:currentUser.id,name:c.name,color:c.color,ctype:c.ctype||'expense',sort_order:i}))); setSyncDot(true); } catch(e){ setSyncDot(false); offlineQueue.push({op:'pushCats'}); saveQueue(); }
 }
 async function deleteCatRemote(id){
   if(!currentUser) return;
@@ -510,11 +548,14 @@ async function deleteCatRemote(id){
 }
 async function pushBudget(){
   if(!currentUser) return;
-  try { await db.from('budget_settings').upsert({user_id:currentUser.id,amount:S.budget.amount,deadline:S.budget.deadline}); } catch(e){}
+  try { await db.from('budget_settings').upsert({user_id:currentUser.id,amount:S.budget.amount,deadline:S.budget.deadline,set_at:S.budget.set_at||todayStr()}); setSyncDot(true); }
+  catch(e){ setSyncDot(false); offlineQueue.push({op:'pushBudget'}); saveQueue(); }
 }
 function setSyncDot(ok){
   const d=document.getElementById('sync-dot');
-  if(d) d.style.background=ok?'#3DBD74':'#FF6B6B';
+  if(!d) return;
+  if(ok===null) d.style.background='#F5A623';
+  else d.style.background=ok?'#3DBD74':'#FF6B6B';
 }
 
 // ── SCREENS ───────────────────────────────────────────────────────────────────
@@ -533,8 +574,12 @@ function renderMain(){
   const numEl=document.getElementById('today-num');
   const lblEl=document.getElementById('today-label');
   const pill=document.getElementById('budget-pill');
-  const mon=monthStr();
-  const totalExp=S.txs.filter(t=>t.date.startsWith(mon)&&t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const totalExp=S.txs.filter(t=>{
+    if(t.type!=='expense') return false;
+    if(S.budget.set_at&&t.date.slice(0,10)<S.budget.set_at) return false;
+    if(S.budget.deadline&&t.date.slice(0,10)>S.budget.deadline) return false;
+    return true;
+  }).reduce((s,t)=>s+t.amount,0);
   if(S.budget.amount&&S.budget.deadline){
     const remaining=S.budget.amount-totalExp;
     numEl.textContent=fmt(Math.abs(remaining));
@@ -557,17 +602,22 @@ function renderMain(){
     pill.textContent='Настроить бюджет';
   }
   const byCat={};
-  S.txs.filter(t=>t.date.startsWith(mon)&&t.type==='expense').forEach(t=>{byCat[t.catId]=(byCat[t.catId]||0)+t.amount;});
+  S.txs.filter(t=>{
+    if(t.type!=='expense') return false;
+    if(S.budget.set_at&&t.date.slice(0,10)<S.budget.set_at) return false;
+    if(S.budget.deadline&&t.date.slice(0,10)>S.budget.deadline) return false;
+    return true;
+  }).forEach(t=>{byCat[t.catId]=(byCat[t.catId]||0)+t.amount;});
   document.getElementById('cat-breakdown').innerHTML=Object.entries(byCat).sort(([,a],[,b])=>b-a).slice(0,5).map(([cid,amt])=>{
     const c=getCat(cid);
-    return `<div class="cb-chip"><div class="cb-dot" style="background:${c.color}"></div>${c.name} ${fmt(amt)}</div>`;
+    return `<div class="cb-chip"><div class="cb-dot" style="background:${esc(c.color)}"></div>${esc(c.name)} ${fmt(amt)}</div>`;
   }).join('');
   renderCatRow();
 }
 function renderCatRow(){
   const filtered=S.cats.filter(c=>(c.ctype||'expense')===S.type);
   document.getElementById('cat-row').innerHTML=filtered.map(c=>`
-    <button class="cat-pill${S.catId===c.id?' sel':''}" onclick="selCat('${c.id}')">${c.name}</button>
+    <button class="cat-pill${S.catId===c.id?' sel':''}" onclick="selCat('${c.id}')">${esc(c.name)}</button>
   `).join('')+`<button class="cat-pill add" onclick="showCatModal()">+ Новая</button>`;
 }
 function selCat(id){ S.catId=(S.catId===id?null:id); renderCatRow(); }
@@ -638,15 +688,16 @@ function renderHistContent(){
       <div class="day-hdr"><span class="day-date">${fmtDate(day)}</span><div class="day-totals">${exp>0?`<span class="day-exp">${fmt(exp)}</span>`:''}${inc>0?`<span class="day-inc">+${fmt(inc)}</span>`:''}</div></div>
       ${dtxs.map(t=>{const c=getCat(t.catId);const tm=new Date(t.date).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
         return `<div class="tx-item" onclick="delTx('${t.id}')">
-          <div class="tx-left"><div class="tx-dot" style="background:${c.color}"></div>
-          <div class="tx-meta"><span class="tx-cat">${c.name}</span>${t.note?`<span class="tx-note">${t.note}</span>`:''}<span class="tx-time">${tm}</span></div></div>
+          <div class="tx-left"><div class="tx-dot" style="background:${esc(c.color)}"></div>
+          <div class="tx-meta"><span class="tx-cat">${esc(c.name)}</span>${t.note?`<span class="tx-note">${esc(t.note)}</span>`:''}<span class="tx-time">${tm}</span></div></div>
           <span class="tx-amt ${t.type}">${t.type==='income'?'+':''}${fmt(t.amount)}</span>
         </div>`;}).join('')}
     </div><div class="divider" style="margin:8px 0"></div>`;
   }).join('');
 }
-function delTx(id){
-  if(confirm('Удалить запись?')){S.txs=S.txs.filter(t=>t.id!==id);saveLocal();deleteTxRemote(id);renderHistory();toast('Удалено');}
+async function delTx(id){
+  if(!await customConfirm('Удалить запись?')) return;
+  S.txs=S.txs.filter(t=>t.id!==id); saveLocal(); deleteTxRemote(id); renderHistory(); toast('Удалено');
 }
 
 // ── BUDGET ────────────────────────────────────────────────────────────────────
@@ -654,6 +705,8 @@ function renderBudgetScreen(){
   document.getElementById('bud-amount').value=S.budget.amount||'';
   S.budDeadline=S.budget.deadline||null; updateBudgetPreview(); renderPeriodList();
 }
+let _prevTimer=null;
+function debouncedPreview(){ clearTimeout(_prevTimer); _prevTimer=setTimeout(updateBudgetPreview,200); }
 function updateBudgetPreview(){
   const amt=parseFloat(document.getElementById('bud-amount').value)||0;
   document.getElementById('bud-total-display').textContent=fmt(amt);
@@ -673,7 +726,7 @@ function selDeadline(ds){ S.budDeadline=ds; renderPeriodList(); updateBudgetPrev
 function saveBudget(){
   const amt=parseFloat(document.getElementById('bud-amount').value);
   if(!amt){toast('Введите сумму');return;}if(!S.budDeadline){toast('Выберите срок');return;}
-  S.budget={amount:amt,deadline:S.budDeadline};saveLocal();pushBudget();toast('Бюджет сохранён ✓');goMain();
+  S.budget={amount:amt,deadline:S.budDeadline,set_at:todayStr()};saveLocal();pushBudget();toast('Бюджет сохранён ✓');goMain();
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
@@ -686,7 +739,7 @@ function renderSettings(){
     <button class="cat-type-tab${S.catSettTab==='income'?' on':''}" onclick="selCatSettTab('income')">Доходы</button>
   </div>`;
   cl.innerHTML=tabs+(filteredCats.length
-    ? filteredCats.map(c=>`<div class="cat-item"><div class="cat-nm"><div style="width:12px;height:12px;border-radius:50%;background:${c.color}"></div>${c.name}</div><button class="del-cat" onclick="deleteCat('${c.id}')">Удалить</button></div>`).join('')
+    ? filteredCats.map(c=>`<div class="cat-item"><div class="cat-nm"><div style="width:12px;height:12px;border-radius:50%;background:${esc(c.color)}"></div>${esc(c.name)}</div><button class="del-cat" onclick="deleteCat('${c.id}')">Удалить</button></div>`).join('')
     : '<div class="sett-row"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>');
   // Recovery code
   const code=localStorage.getItem(K_CODE)||'';
@@ -701,7 +754,7 @@ function renderSettings(){
     :`<div class="sett-row"><span style="color:rgba(255,255,255,.35);font-size:14px">Код не привязан</span></div>`;
 }
 function deleteCat(id){
-  if(confirm('Удалить категорию?')){S.cats=S.cats.filter(c=>c.id!==id);saveLocal();pushCats();deleteCatRemote(id);renderSettings();renderCatRow();toast('Удалено');}
+  customConfirm('Удалить категорию?').then(ok=>{ if(!ok) return; S.cats=S.cats.filter(c=>c.id!==id);saveLocal();pushCats();deleteCatRemote(id);renderSettings();renderCatRow();toast('Удалено'); });
 }
 function exportData(){
   const blob=new Blob([JSON.stringify({txs:S.txs,cats:S.cats,budget:S.budget,date:new Date().toISOString()},null,2)],{type:'application/json'});
@@ -710,11 +763,11 @@ function exportData(){
 function importData(e){
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
-  reader.onload=function(ev){
+  reader.onload=async function(ev){
     try{
       const d=JSON.parse(ev.target.result);
       if(!d.txs||!d.cats){toast('Неверный формат файла');return;}
-      if(!confirm('Заменить все текущие данные данными из файла?')) return;
+      if(!await customConfirm('Заменить все текущие данные данными из файла?','Заменить')) return;
       S.txs=d.txs||[];
       S.cats=(d.cats||[]).map(c=>({...c,ctype:c.ctype||'expense'}));
       S.budget=d.budget||{amount:0,deadline:null};
@@ -730,7 +783,7 @@ function importData(e){
   e.target.value='';
 }
 async function clearAll(){
-  if(!confirm('Сбросить всё до заводских настроек? Транзакции и бюджет удалятся, категории вернутся к стандартным.')) return;
+  if(!await customConfirm('Сбросить всё? Все транзакции и бюджет удалятся, категории вернутся к стандартным.','Сбросить')) return;
   S.txs=[];S.cats=[...DEF_CATS];S.budget={amount:0,deadline:null};
   saveLocal();
   if(currentUser){
@@ -767,6 +820,7 @@ function saveCat(){
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function getCat(id){ return S.cats.find(c=>c.id===id)||{name:'Другое',color:'#78909C'}; }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function monthStr(){ return new Date().toISOString().slice(0,7); }
@@ -783,6 +837,20 @@ function pluralDays(n){
   if([2,3,4].includes(n%10)&&![12,13,14].includes(n%100))return'дня';
   return'дней';
 }
+// ── CUSTOM CONFIRM ───────────────────────────────────────────────────────────
+let _confirmCb=null;
+function customConfirm(msg,okText='Удалить',dangerOk=true){
+  const el=document.getElementById('confirm-modal');
+  document.getElementById('confirm-msg').textContent=msg;
+  const ok=document.getElementById('confirm-ok-btn');
+  ok.textContent=okText;
+  ok.style.background=dangerOk?'#FF6B6B':'#3DBD74';
+  el.classList.add('vis');
+  return new Promise(r=>{_confirmCb=r;});
+}
+function _confOk(){ document.getElementById('confirm-modal').classList.remove('vis'); if(_confirmCb){_confirmCb(true);_confirmCb=null;} }
+function _confNo(){ document.getElementById('confirm-modal').classList.remove('vis'); if(_confirmCb){_confirmCb(false);_confirmCb=null;} }
+
 function toast(msg){
   const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);
@@ -802,6 +870,7 @@ function fmtCodeInput(el){
   el.value=v;
 }
 async function initApp(){
+  loadQueue(); // Загружаем offline queue при старте
   const saved=localStorage.getItem(K_CODE);
 
   // Путь 1: K_CODE есть — входим
@@ -858,8 +927,8 @@ async function generateAndLinkCode(showModal=false){
   loadLocal();goMain();syncFromSupabase();
   if(showModal)setTimeout(()=>showCodeRevealModal(code),600);
 }
-async function createNewAccount(){
-  const btn=event.currentTarget;btn.disabled=true;btn.textContent='Создаём...';
+async function createNewAccount(btn){
+  btn.disabled=true;btn.textContent='Создаём...';
   const code=generateCode();
   // Сохраняем код СРАЗУ — до сетевого вызова
   localStorage.setItem(K_CODE,code);
