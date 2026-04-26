@@ -524,7 +524,7 @@ function renderMain(){
     if(lblEl) lblEl.textContent='Задайте бюджет →';
     pill.textContent='Настроить бюджет';
   }
-  const mon=monthStr(); const byCat={};
+  const byCat={};
   S.txs.filter(t=>t.date.startsWith(mon)&&t.type==='expense').forEach(t=>{byCat[t.catId]=(byCat[t.catId]||0)+t.amount;});
   document.getElementById('cat-breakdown').innerHTML=Object.entries(byCat).sort(([,a],[,b])=>b-a).slice(0,5).map(([cid,amt])=>{
     const c=getCat(cid);
