@@ -124,6 +124,9 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .hist-all-pill.on{color:#F5A623;border-bottom-color:#F5A623}
 .htab-sep{width:1px;height:16px;background:rgba(255,255,255,.12);align-self:center;margin:0 2px;flex-shrink:0}
 
+.cat-type-tabs{display:flex;gap:0;margin-bottom:12px;background:rgba(255,255,255,.05);border-radius:10px;padding:3px}
+.cat-type-tab{flex:1;padding:7px;background:none;border:none;color:rgba(255,255,255,.4);font-size:13px;cursor:pointer;border-radius:8px;transition:all .18s}
+.cat-type-tab.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600}
 /* TOAST */
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(10px);background:rgba(40,40,40,.95);border:1px solid rgba(255,255,255,.1);color:#fff;padding:9px 18px;border-radius:20px;font-size:14px;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:999}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -421,7 +424,7 @@ const DEF_CATS_INC = [
 ];
 const DEF_CATS = [...DEF_CATS_EXP, ...DEF_CATS_INC];
 let S = {
-  type:'expense', amount:'', catId:null, histCat:'all', histType:'all',
+  type:'expense', amount:'', catId:null, histCat:'all', histType:'all', catSettTab:'expense',
   budColor:COLORS[0], budDeadline:null,
   txs:[], cats:[], budget:{amount:0,deadline:null}
 };
@@ -447,7 +450,7 @@ async function syncFromSupabase(){
     const [txRes,catRes,budRes]=await Promise.all([
       db.from('transactions').select('*').eq('user_id',currentUser.id).order('date',{ascending:false}),
       db.from('categories').select('*').eq('user_id',currentUser.id).order('sort_order'),
-      db.from('budget_settings').select('*').eq('user_id',currentUser.id).single()
+      db.from('budget_settings').select('*').eq('user_id',currentUser.id).maybeSingle()
     ]);
     if(txRes.data&&txRes.data.length>0)
       S.txs=txRes.data.map(r=>({id:r.id,amount:r.amount,type:r.type,catId:r.cat_id,note:r.note||'',date:r.date}));
@@ -499,7 +502,7 @@ function show(id){
   });
 }
 function goMain(){ show('s-main'); renderMain(); }
-function goHistory(){ show('s-history'); renderHistory(); }
+function goHistory(){ S.histType='all'; S.histCat='all'; show('s-history'); renderHistory(); }
 function goBudget(){ show('s-budget'); renderBudgetScreen(); }
 function goSettings(){ show('s-settings'); renderSettings(); }
 
@@ -521,7 +524,7 @@ function renderMain(){
   } else {
     numEl.textContent='0';
     numEl.style.color='#FF9500';
-    if(lblEl) lblEl.textContent='Задайте бюджет →';
+    if(lblEl){lblEl.textContent='Задайте бюджет →';lblEl.style.cursor='pointer';lblEl.onclick=()=>goBudget();} 
     pill.textContent='Настроить бюджет';
   }
   const byCat={};
@@ -538,7 +541,7 @@ function renderCatRow(){
     <button class="cat-pill${S.catId===c.id?' sel':''}" onclick="selCat('${c.id}')">${c.name}</button>
   `).join('')+`<button class="cat-pill add" onclick="goSettings()">+ Ещё</button>`;
 }
-function selCat(id){ S.catId=id; renderCatRow(); }
+function selCat(id){ S.catId=(S.catId===id?null:id); renderCatRow(); }
 function setType(t){
   S.type=t; S.catId=null;
   document.getElementById('btn-exp').className='type-btn exp'+(t==='expense'?' on':'');
@@ -570,11 +573,16 @@ function confirm_(){
 // ── HISTORY ───────────────────────────────────────────────────────────────────
 function selHistType(tp){
   S.histType=tp; S.histCat='all';
-  ['all','exp','inc'].forEach(k=>document.getElementById('htab-'+k)?.classList.remove('on'));
-  document.getElementById('htab-'+tp.replace('expense','exp').replace('income','inc'))?.classList.add('on');
+  updateHistTypeTabs();
   renderHistory();
 }
+function updateHistTypeTabs(){
+  ['all','exp','inc'].forEach(k=>document.getElementById('htab-'+k)?.classList.remove('on'));
+  const key=S.histType==='expense'?'exp':S.histType==='income'?'inc':'all';
+  document.getElementById('htab-'+key)?.classList.add('on');
+}
 function renderHistory(){
+  updateHistTypeTabs();
   const visibleCats=S.histType==='all'?S.cats:S.cats.filter(c=>(c.ctype||'expense')===S.histType);
   document.getElementById('hist-tabs').innerHTML=[{id:'all',name:'Все'},...visibleCats].map(t=>`
     <button class="ctab${S.histCat===t.id?' on':''}" onclick="selHistTab('${t.id}')">${t.name}</button>
@@ -584,8 +592,9 @@ function renderHistory(){
 function selHistTab(id){ S.histCat=id; renderHistory(); }
 function renderHistContent(){
   const con=document.getElementById('hist-content');
-  let txs=S.histType!=='all'?S.txs.filter(t=>t.type===S.histType):S.txs;
-  if(S.histCat!=='all') txs=txs.filter(t=>t.catId===S.histCat);
+  let txs=[...S.txs];
+  if(S.histType&&S.histType!=='all') txs=txs.filter(t=>t.type===S.histType);
+  if(S.histCat&&S.histCat!=='all') txs=txs.filter(t=>t.catId===S.histCat);
   if(!txs.length){con.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><p>Записей пока нет</p></div>`;return;}
   const groups={};
   txs.forEach(t=>{const d=t.date.slice(0,10);if(!groups[d])groups[d]=[];groups[d].push(t);});
@@ -635,17 +644,17 @@ function saveBudget(){
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
+function selCatSettTab(t){S.catSettTab=t;renderSettings();}
 function renderSettings(){
   const cl=document.getElementById('cat-list');
-  const expCats=S.cats.filter(c=>(c.ctype||'expense')==='expense');
-  const incCats=S.cats.filter(c=>c.ctype==='income');
-  cl.innerHTML=`
-    <div style="padding:8px 16px 4px;font-size:11px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.8px">Расходы</div>
-    ${expCats.map(c=>`<div class="cat-item"><div class="cat-nm"><div style="width:12px;height:12px;border-radius:50%;background:${c.color}"></div>${c.name}</div><button class="del-cat" onclick="deleteCat('${c.id}')">Удалить</button></div>`).join('')}
-    <div style="padding:12px 16px 4px;font-size:11px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.8px;border-top:1px solid rgba(255,255,255,.07);margin-top:6px">Доходы</div>
-    ${incCats.map(c=>`<div class="cat-item"><div class="cat-nm"><div style="width:12px;height:12px;border-radius:50%;background:${c.color}"></div>${c.name}</div><button class="del-cat" onclick="deleteCat('${c.id}')">Удалить</button></div>`).join('')}
-  `;
-  if(!expCats.length&&!incCats.length) cl.innerHTML='<div class="sett-row"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>';
+  const filteredCats=S.cats.filter(c=>(c.ctype||'expense')===S.catSettTab);
+  const tabs=`<div class="cat-type-tabs">
+    <button class="cat-type-tab${S.catSettTab==='expense'?' on':''}" onclick="selCatSettTab('expense')">Расходы</button>
+    <button class="cat-type-tab${S.catSettTab==='income'?' on':''}" onclick="selCatSettTab('income')">Доходы</button>
+  </div>`;
+  cl.innerHTML=tabs+(filteredCats.length
+    ? filteredCats.map(c=>`<div class="cat-item"><div class="cat-nm"><div style="width:12px;height:12px;border-radius:50%;background:${c.color}"></div>${c.name}</div><button class="del-cat" onclick="deleteCat('${c.id}')">Удалить</button></div>`).join('')
+    : '<div class="sett-row"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>');
   // Recovery code
   const code=localStorage.getItem(K_CODE)||'';
   const rcSec=document.getElementById('recovery-code-section');
@@ -688,9 +697,15 @@ function importData(e){
   e.target.value='';
 }
 function clearAll(){
-  if(confirm('Удалить ВСЕ данные? Это нельзя отменить.')){
-    [K.tx,K.cats,K.budget].forEach(k=>localStorage.removeItem(k));
-    S.txs=[];S.cats=[...DEF_CATS];S.budget={amount:0,deadline:null};toast('Данные удалены');goMain();
+  if(confirm('Сбросить всё до заводских настроек? Транзакции и бюджет удалятся, категории вернутся к стандартным.')){
+    S.txs=[];S.cats=[...DEF_CATS];S.budget={amount:0,deadline:null};
+    saveLocal();
+    if(currentUser){
+      db.from('transactions').delete().eq('user_id',currentUser.id).then(()=>{});
+      db.from('budget_settings').delete().eq('user_id',currentUser.id).then(()=>{});
+      seedDefaultCats();
+    }
+    toast('Данные сброшены ✓');goMain();
   }
 }
 
@@ -772,13 +787,20 @@ async function initApp(){
 async function generateAndLinkCode(showModal=false){
   const code=generateCode();
   try{
-    const{error}=await db.auth.updateUser({email:`${code}@doshik.app`,password:code});
-    if(!error){
+    // Try signUp directly (more reliable than anonymous→updateUser)
+    const{data,error}=await db.auth.signUp({email:`${code}@doshik.app`,password:code});
+    if(!error&&data.user){
+      currentUser=data.user;
       localStorage.setItem(K_CODE,code);
-      loadLocal();goMain();syncFromSupabase();
+      loadLocal();goMain();await syncFromSupabase();await seedDefaultCats();
       if(showModal)setTimeout(()=>showCodeRevealModal(code),600);
-      return;
+      setSyncDot(true);return;
     }
+  }catch(e){}
+  // Fallback: try updateUser on existing anonymous session
+  try{
+    const{error}=await db.auth.updateUser({email:`${code}@doshik.app`,password:code});
+    if(!error){localStorage.setItem(K_CODE,code);loadLocal();goMain();syncFromSupabase();if(showModal)setTimeout(()=>showCodeRevealModal(code),600);return;}
   }catch(e){}
   loadLocal();goMain();syncFromSupabase();
 }
