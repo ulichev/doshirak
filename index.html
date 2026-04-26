@@ -133,11 +133,59 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .period-days{font-size:14px;color:rgba(255,255,255,.4)}
 .period-check{color:#F5A623;font-size:18px;opacity:0}
 .period-item.sel .period-check{opacity:1}
+
+/* ── AUTH SCREEN ── */
+.auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100dvh;padding:40px 24px;background:#111;}
+.auth-logo{font-size:48px;margin-bottom:8px}
+.auth-title{font-size:28px;font-weight:700;color:#fff;margin-bottom:4px;letter-spacing:-.5px}
+.auth-sub{font-size:14px;color:rgba(255,255,255,.4);margin-bottom:40px}
+.auth-card{width:100%;max-width:360px;background:#1c1c1e;border-radius:20px;padding:28px 24px}
+.auth-tabs{display:flex;background:#111;border-radius:12px;padding:3px;margin-bottom:24px}
+.auth-tab{flex:1;padding:8px;text-align:center;font-size:14px;font-weight:600;border-radius:10px;
+  cursor:pointer;color:rgba(255,255,255,.4);transition:all .2s}
+.auth-tab.on{background:#2c2c2e;color:#fff}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:12px;color:rgba(255,255,255,.4);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.auth-field input{width:100%;background:#111;border:1.5px solid rgba(255,255,255,.1);
+  border-radius:12px;padding:14px 16px;font-size:16px;color:#fff;outline:none;
+  transition:border-color .2s}
+.auth-field input:focus{border-color:rgba(255,255,255,.3)}
+.auth-btn{width:100%;padding:16px;border-radius:14px;font-size:16px;font-weight:700;
+  background:#F5A623;color:#111;margin-top:8px;cursor:pointer;border:none;
+  transition:opacity .15s}
+.auth-btn:active{opacity:.8}
+.auth-err{color:#FF6B6B;font-size:13px;text-align:center;margin-top:12px;min-height:18px}
+.auth-loading{display:flex;align-items:center;justify-content:center;gap:8px;color:rgba(255,255,255,.4);font-size:14px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div id="app">
+
+<!-- ── AUTH SCREEN ── -->
+<div class="auth-screen" id="s-auth">
+  <div class="auth-logo">🍜</div>
+  <div class="auth-title">Дошик</div>
+  <div class="auth-sub">Трекер доходов и расходов</div>
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <div class="auth-tab on" id="tab-login" onclick="authTab('login')">Войти</div>
+      <div class="auth-tab" id="tab-reg" onclick="authTab('reg')">Регистрация</div>
+    </div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label>Пароль</label>
+      <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="auth-btn" id="auth-submit" onclick="authSubmit()">Войти</button>
+    <div class="auth-err" id="auth-err"></div>
+  </div>
+</div>
 
 <!-- ── MAIN SCREEN ── -->
 <div class="screen" id="s-main">
@@ -235,6 +283,15 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     </div>
     <div class="sett-sec">
       <div class="sett-label">Данные</div>
+      <div class="sett-card" style="margin-bottom:10px;background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.2)">
+        <div class="sett-row" style="align-items:flex-start;gap:10px">
+          <span style="font-size:18px;flex-shrink:0">⚠️</span>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:13px;font-weight:600;color:rgba(255,255,255,.75)">Важно про хранение данных</span>
+            <span style="font-size:12px;color:rgba(255,255,255,.4);line-height:1.5">Ваши данные хранятся в этом браузере. Если очистите историю или данные сайтов в настройках браузера — доступ к записям будет утерян навсегда. Рекомендуем периодически делать экспорт.</span>
+          </div>
+        </div>
+      </div>
       <div class="sett-card">
         <div class="sett-row" style="cursor:pointer" onclick="exportData()">
           <span class="sett-row-label">Экспорт данных</span>
@@ -248,9 +305,20 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     </div>
     <div class="sett-sec">
       <div class="sett-card">
+        <div class="sett-row" style="cursor:pointer" onclick="authSignOut()">
+          <span class="sett-row-label" style="color:#FF9500">Выйти из аккаунта</span>
+          <span style="color:rgba(255,255,255,.3)">→</span>
+        </div>
+      </div>
+    </div>
+    <div class="sett-sec">
+      <div class="sett-card">
         <div class="sett-row">
           <span class="sett-row-label" style="color:rgba(255,255,255,.35);font-size:13px">Версия</span>
-          <span style="color:rgba(255,255,255,.25);font-size:13px">v1.0 · 26 апреля 2026</span>
+          <span style="color:rgba(255,255,255,.25);font-size:13px">v1.1 · 26 апреля 2026</span>
+        </div>
+        <div class="sett-row" style="border-top:1px solid rgba(255,255,255,.06);margin-top:2px;padding-top:10px">
+          <span id="auth-user-email" style="color:rgba(255,255,255,.25);font-size:12px"></span>
         </div>
       </div>
     </div>
@@ -272,13 +340,14 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 </div>
 
 <script>
-// ── SUPABASE ─────────────────────────────────────────────────────────────────
+// ── SUPABASE ──────────────────────────────────────────────────────────────────
 const SUPA_URL = 'https://stfdtkorhvdmsrhelide.supabase.co';
 const SUPA_KEY = 'sb_publishable_ZnldYNzTnSujDyUW5-16Iw_RnT0uoJS';
 const { createClient } = supabase;
 const db = createClient(SUPA_URL, SUPA_KEY);
+let currentUser = null;
 
-// ── DATA ─────────────────────────────────────────────────────────────────────
+// ── DATA ──────────────────────────────────────────────────────────────────────
 const K = { tx:'tk_tx', cats:'tk_cats', budget:'tk_budget' };
 const COLORS = ['#F5A623','#FF6B6B','#3DBD74','#4A9EFF','#AF6FE8','#00C2CB','#FF9500','#F06292','#78909C','#A1887F'];
 const DEF_CATS = [
@@ -291,95 +360,80 @@ const DEF_CATS = [
   {id:'salary',name:'Зарплата',color:'#3DBD74'},
   {id:'other',name:'Другое',color:'#78909C'},
 ];
-
 let S = {
-  type: 'expense', amount: '', catId: null, histCat: 'all',
-  budColor: COLORS[0], budDeadline: null,
-  txs: [], cats: [], budget: {amount:0, deadline:null},
-  synced: false
+  type:'expense', amount:'', catId:null, histCat:'all',
+  budColor:COLORS[0], budDeadline:null,
+  txs:[], cats:[], budget:{amount:0,deadline:null}
 };
 
-// ── STORAGE: LOCAL ────────────────────────────────────────────────────────────
-function loadLocal() {
+// ── LOCAL STORAGE ─────────────────────────────────────────────────────────────
+function loadLocal(){
   try {
-    S.txs = JSON.parse(localStorage.getItem(K.tx)||'[]');
-    S.cats = JSON.parse(localStorage.getItem(K.cats)||'null') || [...DEF_CATS];
-    S.budget = JSON.parse(localStorage.getItem(K.budget)||'null') || {amount:0,deadline:null};
-  } catch(e) { S.txs=[]; S.cats=[...DEF_CATS]; S.budget={amount:0,deadline:null}; }
+    S.txs=JSON.parse(localStorage.getItem(K.tx)||'[]');
+    S.cats=JSON.parse(localStorage.getItem(K.cats)||'null')||[...DEF_CATS];
+    S.budget=JSON.parse(localStorage.getItem(K.budget)||'null')||{amount:0,deadline:null};
+  } catch(e){ S.txs=[]; S.cats=[...DEF_CATS]; S.budget={amount:0,deadline:null}; }
 }
-function saveLocal() {
-  localStorage.setItem(K.tx, JSON.stringify(S.txs));
-  localStorage.setItem(K.cats, JSON.stringify(S.cats));
-  localStorage.setItem(K.budget, JSON.stringify(S.budget));
+function saveLocal(){
+  localStorage.setItem(K.tx,JSON.stringify(S.txs));
+  localStorage.setItem(K.cats,JSON.stringify(S.cats));
+  localStorage.setItem(K.budget,JSON.stringify(S.budget));
 }
 
-// ── STORAGE: SUPABASE ────────────────────────────────────────────────────────
-async function syncFromSupabase() {
+// ── SUPABASE SYNC ─────────────────────────────────────────────────────────────
+async function syncFromSupabase(){
+  if(!currentUser) return;
   try {
-    const [txRes, catRes, budRes] = await Promise.all([
-      db.from('transactions').select('*').order('date', {ascending:false}),
-      db.from('categories').select('*').order('sort_order'),
-      db.from('budget_settings').select('*').eq('id',1).single()
+    const [txRes,catRes,budRes]=await Promise.all([
+      db.from('transactions').select('*').eq('user_id',currentUser.id).order('date',{ascending:false}),
+      db.from('categories').select('*').eq('user_id',currentUser.id).order('sort_order'),
+      db.from('budget_settings').select('*').eq('user_id',currentUser.id).single()
     ]);
-    if (txRes.data && txRes.data.length > 0) {
-      S.txs = txRes.data.map(r=>({id:r.id,amount:r.amount,type:r.type,catId:r.cat_id,note:r.note||'',date:r.date}));
-    }
-    if (catRes.data && catRes.data.length > 0) {
-      S.cats = catRes.data.map(r=>({id:r.id,name:r.name,color:r.color}));
-    }
-    if (budRes.data) {
-      S.budget = {amount:budRes.data.amount||0, deadline:budRes.data.deadline||null};
-    }
-    saveLocal();
-    S.synced = true;
-    setSyncDot(true);
-    renderMain();
-  } catch(e) { setSyncDot(false); }
+    if(txRes.data&&txRes.data.length>0)
+      S.txs=txRes.data.map(r=>({id:r.id,amount:r.amount,type:r.type,catId:r.cat_id,note:r.note||'',date:r.date}));
+    if(catRes.data&&catRes.data.length>0)
+      S.cats=catRes.data.map(r=>({id:r.id,name:r.name,color:r.color}));
+    else await seedDefaultCats();
+    if(budRes.data) S.budget={amount:budRes.data.amount||0,deadline:budRes.data.deadline||null};
+    saveLocal(); setSyncDot(true); renderMain();
+  } catch(e){ setSyncDot(false); }
+}
+async function seedDefaultCats(){
+  if(!currentUser) return;
+  const rows=DEF_CATS.map((c,i)=>({id:c.id+'_'+currentUser.id.slice(0,8),user_id:currentUser.id,name:c.name,color:c.color,sort_order:i}));
+  const {error}=await db.from('categories').upsert(rows);
+  if(!error){ S.cats=DEF_CATS.map((c,i)=>({...c,id:c.id+'_'+currentUser.id.slice(0,8)})); saveLocal(); }
+}
+async function pushTx(tx){
+  if(!currentUser) return;
+  try { await db.from('transactions').upsert({id:tx.id,user_id:currentUser.id,amount:tx.amount,type:tx.type,cat_id:tx.catId,note:tx.note||'',date:tx.date}); setSyncDot(true); }
+  catch(e){ setSyncDot(false); }
+}
+async function deleteTxRemote(id){
+  if(!currentUser) return;
+  try { await db.from('transactions').delete().eq('id',id).eq('user_id',currentUser.id); } catch(e){}
+}
+async function pushCats(){
+  if(!currentUser) return;
+  try { await db.from('categories').upsert(S.cats.map((c,i)=>({id:c.id,user_id:currentUser.id,name:c.name,color:c.color,sort_order:i}))); } catch(e){}
+}
+async function deleteCatRemote(id){
+  if(!currentUser) return;
+  try { await db.from('categories').delete().eq('id',id).eq('user_id',currentUser.id); } catch(e){}
+}
+async function pushBudget(){
+  if(!currentUser) return;
+  try { await db.from('budget_settings').upsert({user_id:currentUser.id,amount:S.budget.amount,deadline:S.budget.deadline}); } catch(e){}
+}
+function setSyncDot(ok){
+  const d=document.getElementById('sync-dot');
+  if(d) d.style.background=ok?'#3DBD74':'#FF6B6B';
 }
 
-async function pushTx(tx) {
-  try {
-    await db.from('transactions').upsert({
-      id:tx.id, amount:tx.amount, type:tx.type,
-      cat_id:tx.catId, note:tx.note||'', date:tx.date
-    });
-    setSyncDot(true);
-  } catch(e) { setSyncDot(false); }
-}
-
-async function deleteTxRemote(id) {
-  try { await db.from('transactions').delete().eq('id',id); } catch(e){}
-}
-
-async function pushCats() {
-  try {
-    await db.from('categories').upsert(
-      S.cats.map((c,i)=>({id:c.id,name:c.name,color:c.color,sort_order:i}))
-    );
-  } catch(e){}
-}
-
-async function deleteCatRemote(id) {
-  try { await db.from('categories').delete().eq('id',id); } catch(e){}
-}
-
-async function pushBudget() {
-  try {
-    await db.from('budget_settings').upsert({
-      id:1, amount:S.budget.amount, deadline:S.budget.deadline
-    });
-  } catch(e){}
-}
-
-function setSyncDot(ok) {
-  const d = document.getElementById('sync-dot');
-  if(d) { d.style.background = ok ? '#3DBD74' : '#FF6B6B'; d.title = ok ? 'Синхронизировано' : 'Нет связи'; }
-}
-
-// ── SCREENS ──────────────────────────────────────────────────────────────────
-function show(id) {
+// ── SCREENS ───────────────────────────────────────────────────────────────────
+function show(id){
   ['s-main','s-history','s-budget','s-settings'].forEach(s=>{
-    document.getElementById(s).classList.toggle('hidden', s!==id);
+    document.getElementById(s).classList.toggle('hidden',s!==id);
   });
 }
 function goMain(){ show('s-main'); renderMain(); }
@@ -387,34 +441,26 @@ function goHistory(){ show('s-history'); renderHistory(); }
 function goBudget(){ show('s-budget'); renderBudgetScreen(); }
 function goSettings(){ show('s-settings'); renderSettings(); }
 
-// ── MAIN ─────────────────────────────────────────────────────────────────────
+// ── MAIN ──────────────────────────────────────────────────────────────────────
 function renderMain(){
-  const today = todayStr();
-  const exp = S.txs.filter(t=>t.date.startsWith(today)&&t.type==='expense').reduce((s,t)=>s+t.amount,0);
-  document.getElementById('today-num').textContent = fmt(exp);
-  const pill = document.getElementById('budget-pill');
-  if(S.budget.amount && S.budget.deadline){
-    const d = daysUntil(S.budget.deadline);
-    const pd = d>0?Math.round(S.budget.amount/d):S.budget.amount;
-    pill.textContent = fmt(S.budget.amount)+' · '+fmt(pd)+' в день';
-  } else { pill.textContent = 'Настроить бюджет'; }
-  const mon = monthStr();
-  const byCat = {};
-  S.txs.filter(t=>t.date.startsWith(mon)&&t.type==='expense').forEach(t=>{
-    byCat[t.catId]=(byCat[t.catId]||0)+t.amount;
-  });
-  const top = Object.entries(byCat).sort(([,a],[,b])=>b-a).slice(0,5);
-  const bd = document.getElementById('cat-breakdown');
-  bd.innerHTML = top.map(([cid,amt])=>{
+  const today=todayStr();
+  const exp=S.txs.filter(t=>t.date.startsWith(today)&&t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('today-num').textContent=fmt(exp);
+  const pill=document.getElementById('budget-pill');
+  if(S.budget.amount&&S.budget.deadline){
+    const d=daysUntil(S.budget.deadline);
+    pill.textContent=fmt(S.budget.amount)+' · '+fmt(d>0?Math.round(S.budget.amount/d):S.budget.amount)+' в день';
+  } else { pill.textContent='Настроить бюджет'; }
+  const mon=monthStr(); const byCat={};
+  S.txs.filter(t=>t.date.startsWith(mon)&&t.type==='expense').forEach(t=>{byCat[t.catId]=(byCat[t.catId]||0)+t.amount;});
+  document.getElementById('cat-breakdown').innerHTML=Object.entries(byCat).sort(([,a],[,b])=>b-a).slice(0,5).map(([cid,amt])=>{
     const c=getCat(cid);
     return `<div class="cb-chip"><div class="cb-dot" style="background:${c.color}"></div>${c.name} ${fmt(amt)}</div>`;
   }).join('');
   renderCatRow();
 }
-
 function renderCatRow(){
-  const r = document.getElementById('cat-row');
-  r.innerHTML = S.cats.map(c=>`
+  document.getElementById('cat-row').innerHTML=S.cats.map(c=>`
     <button class="cat-pill${S.catId===c.id?' sel':''}" onclick="selCat('${c.id}')">${c.name}</button>
   `).join('')+`<button class="cat-pill add" onclick="goSettings()">+ Ещё</button>`;
 }
@@ -423,43 +469,32 @@ function setType(t){
   S.type=t;
   document.getElementById('btn-exp').className='type-btn exp'+(t==='expense'?' on':'');
   document.getElementById('btn-inc').className='type-btn inc'+(t==='income'?' on':'');
-  const e=document.getElementById('np-enter');
-  e.className='np-btn np-enter'+(t==='income'?' inc-mode':'');
+  document.getElementById('np-enter').className='np-btn np-enter'+(t==='income'?' inc-mode':'');
   document.getElementById('amount-row').style.color=t==='income'?'#3DBD74':'rgba(255,255,255,.9)';
 }
 
-// ── NUMPAD ───────────────────────────────────────────────────────────────────
+// ── NUMPAD ────────────────────────────────────────────────────────────────────
 function np(v){
   if(v==='.'&&S.amount.includes('.')) return;
   if(S.amount.length>=10) return;
-  S.amount = (S.amount==='0'&&v!=='.')?v : S.amount+v;
-  document.getElementById('amount-row').textContent = S.amount||'0';
-}
-function npDel(){
-  S.amount=S.amount.slice(0,-1);
+  S.amount=(S.amount==='0'&&v!=='.')?v:S.amount+v;
   document.getElementById('amount-row').textContent=S.amount||'0';
 }
+function npDel(){ S.amount=S.amount.slice(0,-1); document.getElementById('amount-row').textContent=S.amount||'0'; }
 function confirm_(){
   const amt=parseFloat(S.amount);
   if(!amt||amt<=0){toast('Введите сумму');return;}
   const note=document.getElementById('note-inp').value.trim();
   const catId=S.catId||(S.type==='income'?'salary':'other');
   const tx={id:Date.now()+'',amount:amt,type:S.type,catId,note,date:new Date().toISOString()};
-  S.txs.unshift(tx);
-  saveLocal();
-  pushTx(tx);
-  S.amount='';
-  document.getElementById('note-inp').value='';
-  document.getElementById('amount-row').textContent='0';
-  renderMain();
-  const c=getCat(catId);
-  toast((S.type==='expense'?'− ':'+ ')+fmt(amt)+' · '+c.name);
+  S.txs.unshift(tx); saveLocal(); pushTx(tx);
+  S.amount=''; document.getElementById('note-inp').value=''; document.getElementById('amount-row').textContent='0';
+  renderMain(); toast((S.type==='expense'?'− ':'+ ')+fmt(amt)+' · '+getCat(catId).name);
 }
 
-// ── HISTORY ──────────────────────────────────────────────────────────────────
+// ── HISTORY ───────────────────────────────────────────────────────────────────
 function renderHistory(){
-  const tabs=[{id:'all',name:'Все'},...S.cats];
-  document.getElementById('hist-tabs').innerHTML=tabs.map(t=>`
+  document.getElementById('hist-tabs').innerHTML=[{id:'all',name:'Все'},...S.cats].map(t=>`
     <button class="ctab${S.histCat===t.id?' on':''}" onclick="selHistTab('${t.id}')">${t.name}</button>
   `).join('');
   renderHistContent();
@@ -467,127 +502,81 @@ function renderHistory(){
 function selHistTab(id){ S.histCat=id; renderHistory(); }
 function renderHistContent(){
   const con=document.getElementById('hist-content');
-  let txs=[...S.txs];
-  if(S.histCat!=='all') txs=txs.filter(t=>t.catId===S.histCat);
-  if(!txs.length){
-    con.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><p>Записей пока нет</p></div>`;
-    return;
-  }
+  let txs=S.histCat==='all'?[...S.txs]:S.txs.filter(t=>t.catId===S.histCat);
+  if(!txs.length){con.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><p>Записей пока нет</p></div>`;return;}
   const groups={};
   txs.forEach(t=>{const d=t.date.slice(0,10);if(!groups[d])groups[d]=[];groups[d].push(t);});
   con.innerHTML=Object.entries(groups).sort(([a],[b])=>b.localeCompare(a)).map(([day,dtxs])=>{
     const exp=dtxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
     const inc=dtxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-    const tots=(exp>0?`<span class="day-exp">${fmt(exp)}</span>`:'')+
-               (inc>0?`<span class="day-inc">+${fmt(inc)}</span>`:'');
-    const items=dtxs.map(t=>{
-      const c=getCat(t.catId);
-      const tm=new Date(t.date).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
-      return `<div class="tx-item" onclick="delTx('${t.id}')">
-        <div class="tx-left">
-          <div class="tx-dot" style="background:${c.color}"></div>
-          <div class="tx-meta">
-            <span class="tx-cat">${c.name}</span>
-            ${t.note?`<span class="tx-note">${t.note}</span>`:''}
-            <span class="tx-time">${tm}</span>
-          </div>
-        </div>
-        <span class="tx-amt ${t.type}">${t.type==='income'?'+':''}${fmt(t.amount)}</span>
-      </div>`;
-    }).join('');
     return `<div class="day-group">
-      <div class="day-hdr"><span class="day-date">${fmtDate(day)}</span><div class="day-totals">${tots}</div></div>
-      ${items}
+      <div class="day-hdr"><span class="day-date">${fmtDate(day)}</span><div class="day-totals">${exp>0?`<span class="day-exp">${fmt(exp)}</span>`:''}${inc>0?`<span class="day-inc">+${fmt(inc)}</span>`:''}</div></div>
+      ${dtxs.map(t=>{const c=getCat(t.catId);const tm=new Date(t.date).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+        return `<div class="tx-item" onclick="delTx('${t.id}')">
+          <div class="tx-left"><div class="tx-dot" style="background:${c.color}"></div>
+          <div class="tx-meta"><span class="tx-cat">${c.name}</span>${t.note?`<span class="tx-note">${t.note}</span>`:''}<span class="tx-time">${tm}</span></div></div>
+          <span class="tx-amt ${t.type}">${t.type==='income'?'+':''}${fmt(t.amount)}</span>
+        </div>`;}).join('')}
     </div><div class="divider" style="margin:8px 0"></div>`;
   }).join('');
 }
 function delTx(id){
-  if(confirm('Удалить запись?')){
-    S.txs=S.txs.filter(t=>t.id!==id);
-    saveLocal(); deleteTxRemote(id); renderHistory(); toast('Удалено');
-  }
+  if(confirm('Удалить запись?')){S.txs=S.txs.filter(t=>t.id!==id);saveLocal();deleteTxRemote(id);renderHistory();toast('Удалено');}
 }
 
 // ── BUDGET ────────────────────────────────────────────────────────────────────
 function renderBudgetScreen(){
-  document.getElementById('bud-amount').value = S.budget.amount||'';
-  S.budDeadline = S.budget.deadline||null;
-  updateBudgetPreview(); renderPeriodList();
+  document.getElementById('bud-amount').value=S.budget.amount||'';
+  S.budDeadline=S.budget.deadline||null; updateBudgetPreview(); renderPeriodList();
 }
 function updateBudgetPreview(){
   const amt=parseFloat(document.getElementById('bud-amount').value)||0;
   document.getElementById('bud-total-display').textContent=fmt(amt);
-  if(S.budDeadline&&amt){
-    const d=daysUntil(S.budDeadline);
-    const pd=d>0?Math.round(amt/d):amt;
-    document.getElementById('bud-perday-display').textContent=fmt(pd)+' ₽ в день';
-  } else { document.getElementById('bud-perday-display').textContent='— ₽ в день'; }
+  if(S.budDeadline&&amt){const d=daysUntil(S.budDeadline);document.getElementById('bud-perday-display').textContent=fmt(d>0?Math.round(amt/d):amt)+' ₽ в день';}
+  else document.getElementById('bud-perday-display').textContent='— ₽ в день';
 }
 function renderPeriodList(){
-  const list=document.getElementById('period-list');
-  const today=new Date(); today.setHours(0,0,0,0);
-  const items=[];
-  for(let i=0;i<30;i++){
-    const d=new Date(today); d.setDate(d.getDate()+i);
-    const ds=d.toISOString().slice(0,10);
-    const label=i===0?'Сегодня — 1 день':fmtDateShort(ds)+' — '+(i+1)+' '+pluralDays(i+1);
-    items.push({ds,label,days:i+1});
-  }
-  list.innerHTML=items.map(it=>`
-    <div class="period-item${S.budDeadline===it.ds?' sel':''}" onclick="selDeadline('${it.ds}')">
-      <span class="period-date">${it.label}</span>
-      <span class="period-check">✓</span>
-    </div>
-  `).join('');
+  const today=new Date();today.setHours(0,0,0,0);
+  document.getElementById('period-list').innerHTML=Array.from({length:30},(_,i)=>{
+    const d=new Date(today);d.setDate(d.getDate()+i);const ds=d.toISOString().slice(0,10);
+    return `<div class="period-item${S.budDeadline===ds?' sel':''}" onclick="selDeadline('${ds}')">
+      <span class="period-date">${i===0?'Сегодня — 1 день':fmtDateShort(ds)+' — '+(i+1)+' '+pluralDays(i+1)}</span>
+      <span class="period-check">✓</span></div>`;
+  }).join('');
 }
 function selDeadline(ds){ S.budDeadline=ds; renderPeriodList(); updateBudgetPreview(); }
 function saveBudget(){
   const amt=parseFloat(document.getElementById('bud-amount').value);
-  if(!amt){toast('Введите сумму');return;}
-  if(!S.budDeadline){toast('Выберите срок');return;}
-  S.budget={amount:amt,deadline:S.budDeadline};
-  saveLocal(); pushBudget();
-  toast('Бюджет сохранён ✓'); goMain();
+  if(!amt){toast('Введите сумму');return;}if(!S.budDeadline){toast('Выберите срок');return;}
+  S.budget={amount:amt,deadline:S.budDeadline};saveLocal();pushBudget();toast('Бюджет сохранён ✓');goMain();
 }
 
-// ── SETTINGS ─────────────────────────────────────────────────────────────────
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
 function renderSettings(){
   const cl=document.getElementById('cat-list');
-  if(!S.cats.length){cl.innerHTML='<div class="sett-row"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>';return;}
-  cl.innerHTML=S.cats.map(c=>`
-    <div class="cat-item">
-      <div class="cat-nm"><div style="width:12px;height:12px;border-radius:50%;background:${c.color}"></div>${c.name}</div>
-      <button class="del-cat" onclick="deleteCat('${c.id}')">×</button>
-    </div>
-  `).join('');
+  cl.innerHTML=S.cats.length?S.cats.map(c=>`
+    <div class="cat-item"><div class="cat-nm"><div style="width:12px;height:12px;border-radius:50%;background:${c.color}"></div>${c.name}</div>
+    <button class="del-cat" onclick="deleteCat('${c.id}')">×</button></div>
+  `).join(''):'<div class="sett-row"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>';
 }
 function deleteCat(id){
-  if(confirm('Удалить категорию?')){
-    S.cats=S.cats.filter(c=>c.id!==id);
-    saveLocal(); pushCats(); deleteCatRemote(id);
-    renderSettings(); renderCatRow(); toast('Удалено');
-  }
+  if(confirm('Удалить категорию?')){S.cats=S.cats.filter(c=>c.id!==id);saveLocal();pushCats();deleteCatRemote(id);renderSettings();renderCatRow();toast('Удалено');}
 }
 function exportData(){
   const blob=new Blob([JSON.stringify({txs:S.txs,cats:S.cats,budget:S.budget,date:new Date().toISOString()},null,2)],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='doshik-'+todayStr()+'.json'; a.click(); URL.revokeObjectURL(a.href);
-  toast('Экспортировано');
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='doshik-'+todayStr()+'.json';a.click();URL.revokeObjectURL(a.href);toast('Экспортировано');
 }
 function clearAll(){
   if(confirm('Удалить ВСЕ данные? Это нельзя отменить.')){
     [K.tx,K.cats,K.budget].forEach(k=>localStorage.removeItem(k));
-    loadLocal(); toast('Данные удалены'); goMain();
+    S.txs=[];S.cats=[...DEF_CATS];S.budget={amount:0,deadline:null};toast('Данные удалены');goMain();
   }
 }
 
-// ── CAT MODAL ────────────────────────────────────────────────────────────────
+// ── CAT MODAL ─────────────────────────────────────────────────────────────────
 function showCatModal(){
-  S.budColor=COLORS[0];
-  document.getElementById('cat-name-inp').value='';
-  document.getElementById('color-grid').innerHTML=COLORS.map(c=>`
-    <div class="clr-dot${c===S.budColor?' sel':''}" style="background:${c}" onclick="selColor('${c}')"></div>
-  `).join('');
+  S.budColor=COLORS[0];document.getElementById('cat-name-inp').value='';
+  document.getElementById('color-grid').innerHTML=COLORS.map(c=>`<div class="clr-dot${c===S.budColor?' sel':''}" style="background:${c}" onclick="selColor('${c}')"></div>`).join('');
   document.getElementById('cat-modal').classList.add('vis');
   setTimeout(()=>document.getElementById('cat-name-inp').focus(),300);
 }
@@ -595,49 +584,61 @@ function hideCatModal(){ document.getElementById('cat-modal').classList.remove('
 function modalBgClick(e){ if(e.target===document.getElementById('cat-modal')) hideCatModal(); }
 function selColor(c){
   S.budColor=c;
-  document.querySelectorAll('.clr-dot').forEach(el=>{
-    el.classList.toggle('sel', el.style.background===c||el.style.backgroundColor===c);
-  });
+  document.querySelectorAll('.clr-dot').forEach(el=>el.classList.toggle('sel',el.style.background===c||el.style.backgroundColor===c));
 }
 function saveCat(){
   const name=document.getElementById('cat-name-inp').value.trim();
   if(!name){toast('Введите название');return;}
   S.cats.push({id:'c'+Date.now(),name,color:S.budColor});
-  saveLocal(); pushCats(); hideCatModal(); renderSettings(); renderCatRow();
-  toast('"'+name+'" добавлена ✓');
+  saveLocal();pushCats();hideCatModal();renderSettings();renderCatRow();toast('"'+name+'" добавлена ✓');
 }
 
-// ── UTILS ────────────────────────────────────────────────────────────────────
+// ── UTILS ─────────────────────────────────────────────────────────────────────
 function getCat(id){ return S.cats.find(c=>c.id===id)||{name:'Другое',color:'#78909C'}; }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function monthStr(){ return new Date().toISOString().slice(0,7); }
-function daysUntil(ds){
-  const t=new Date(ds),n=new Date(); n.setHours(0,0,0,0);
-  return Math.max(1,Math.ceil((t-n)/(864e5)));
-}
+function daysUntil(ds){ const t=new Date(ds),n=new Date();n.setHours(0,0,0,0);return Math.max(1,Math.ceil((t-n)/864e5)); }
 function fmt(n){ return Math.round(n).toLocaleString('ru-RU'); }
 function fmtDate(ds){
-  const t=todayStr(),y=new Date();y.setDate(y.getDate()-1);
-  const ys=y.toISOString().slice(0,10);
+  const t=todayStr(),y=new Date();y.setDate(y.getDate()-1);const ys=y.toISOString().slice(0,10);
   if(ds===t)return'Сегодня';if(ds===ys)return'Вчера';
   return new Date(ds+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
 }
-function fmtDateShort(ds){
-  return new Date(ds+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
-}
+function fmtDateShort(ds){ return new Date(ds+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'}); }
 function pluralDays(n){
   if(n%10===1&&n%100!==11)return'день';
   if([2,3,4].includes(n%10)&&![12,13,14].includes(n%100))return'дня';
   return'дней';
 }
 function toast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
-  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200);
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);
 }
 
-// ── INIT ─────────────────────────────────────────────────────────────────────
-loadLocal();
-renderMain();
-syncFromSupabase();
+// ── INIT: ANONYMOUS AUTH ──────────────────────────────────────────────────────
+async function initApp(){
+  try {
+    // Try to restore existing session first
+    const {data:{session}} = await db.auth.getSession();
+    if(session && session.user){
+      currentUser = session.user;
+    } else {
+      // Create new anonymous session
+      const {data,error} = await db.auth.signInAnonymously();
+      if(error) throw error;
+      currentUser = data.user;
+    }
+    loadLocal();
+    goMain();
+    syncFromSupabase();
+  } catch(e){
+    // Offline fallback — work with localStorage only
+    loadLocal();
+    goMain();
+  }
+}
+
+// Hide auth screen, start app
+document.getElementById('s-auth').style.display='none';
+initApp();
 </script></html>
