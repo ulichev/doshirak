@@ -176,6 +176,9 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .code-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .25s}
 .code-modal-bg.vis{opacity:1;pointer-events:all}
 .code-modal-card{background:#1c1c1e;border-radius:24px;padding:32px 24px 24px;width:100%;max-width:340px;text-align:center}
+.assign-cat-btn{background:rgba(255,165,0,.15);color:#F5A623;border:1px solid rgba(255,165,0,.3);border-radius:8px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap}
+.assign-cat-item{display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(255,255,255,.06);border:none;border-radius:12px;color:rgba(255,255,255,.88);font-size:15px;cursor:pointer;text-align:left;width:100%}
+.assign-cat-item:active{background:rgba(255,255,255,.12)}
 /* CUSTOM CONFIRM */
 .confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:400;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s}
 .confirm-overlay.vis{opacity:1;pointer-events:all}
@@ -289,17 +292,13 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <button class="tb-btn" style="color:#F5A623;justify-content:flex-end;font-weight:600" onclick="saveBudget()">Сохранить</button>
   </div>
   <div class="budget-screen-content">
-    <div class="budget-big" style="cursor:pointer" onclick="document.getElementById('bud-amount').focus()">
-      <div class="budget-total" id="bud-total-display">0</div>
-      <div class="budget-per-day" id="bud-perday-display">— ₽ в день</div>
-    </div>
-    <div class="budget-section" style="margin-bottom:16px">
-      <div class="sett-card">
-        <div class="sett-row">
-          <span class="sett-row-label">Сумма ₽</span>
-          <input type="number" inputmode="numeric" class="sett-inp" id="bud-amount" placeholder="0" oninput="debouncedPreview()">
-        </div>
-      </div>
+    <div class="budget-big" style="position:relative;cursor:pointer" onclick="document.getElementById('bud-amount').focus()">
+      <div class="budget-total" id="bud-total-display" style="pointer-events:none">0</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px;letter-spacing:.5px;pointer-events:none">Нажмите чтобы ввести сумму</div>
+      <div class="budget-per-day" id="bud-perday-display" style="pointer-events:none">— ₽ в день</div>
+      <input type="number" id="bud-amount" inputmode="numeric"
+             style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;font-size:0;border:none;background:none"
+             oninput="debouncedPreview()" placeholder="0">
     </div>
     <div class="budget-section">
       <div class="sett-label">Выберите срок</div>
@@ -356,7 +355,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <div class="sett-card">
         <div class="sett-row">
           <span class="sett-row-label" style="color:rgba(255,255,255,.35);font-size:13px">Версия</span>
-          <span style="color:rgba(255,255,255,.25);font-size:13px">v1.7 · 26 апреля 2026</span>
+          <span style="color:rgba(255,255,255,.25);font-size:13px">v0.9 · 26 апреля 2026</span>
         </div>
       </div>
     </div>
@@ -399,6 +398,15 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div style="font-size:12px;color:rgba(255,255,255,.3);margin-bottom:20px">Без кода восстановить данные невозможно</div>
     <button class="action-btn btn-primary" onclick="copyCodeReveal()" id="copy-code-btn" style="margin-bottom:0">Скопировать код</button>
     <button class="action-btn btn-secondary" onclick="dismissCodeReveal()" style="margin-top:8px">Понял, сохранил ✓</button>
+  </div>
+</div>
+
+<!-- ASSIGN CATEGORY MODAL -->
+<div id="assign-cat-modal" class="modal-bg" onclick="if(event.target===this)hideAssignCat()">
+  <div class="modal-sheet">
+    <div class="modal-title" style="font-size:16px">Выберите категорию</div>
+    <div id="assign-cat-list" style="display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow-y:auto"></div>
+    <button onclick="hideAssignCat()" style="margin-top:14px;width:100%;padding:13px;border-radius:12px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.6);border:none;cursor:pointer;font-size:14px">Отмена</button>
   </div>
 </div>
 
@@ -469,6 +477,7 @@ let S = {
   txs:[], cats:[], budget:{amount:0,deadline:null,set_at:null}
 };
 
+let _budDirtyTs=0; // timestamp последнего локального сохранения бюджета
 // ── OFFLINE QUEUE ─────────────────────────────────────────────────────────────
 let offlineQueue=[];
 function saveQueue(){ try{localStorage.setItem('tk_oq',JSON.stringify(offlineQueue));}catch(e){} }
@@ -516,7 +525,7 @@ async function syncFromSupabase(){
       S.cats=catRes.data.map(r=>({id:r.id,name:r.name,color:r.color,ctype:r.ctype||determineCtype(r.id,[...S.cats])}));
     }
     else await seedDefaultCats();
-    if(budRes.data) S.budget={amount:budRes.data.amount||0,deadline:budRes.data.deadline||null,set_at:budRes.data.set_at||null};
+    if(budRes.data&&(Date.now()-_budDirtyTs>5000)) S.budget={amount:budRes.data.amount||0,deadline:budRes.data.deadline||null,set_at:budRes.data.set_at||null};
     saveLocal(); setSyncDot(true); renderMain(); processQueue();
   } catch(e){ setSyncDot(false); }
 }
@@ -582,14 +591,14 @@ function renderMain(){
   }).reduce((s,t)=>s+t.amount,0);
   if(S.budget.amount&&S.budget.deadline){
     const remaining=S.budget.amount-totalExp;
-    numEl.textContent=fmt(Math.abs(remaining));
+    numEl.textContent=(remaining<0?'−':'')+fmt(Math.abs(remaining));
     if(remaining>0){
       numEl.style.color='rgba(255,255,255,.9)';
       lblEl.textContent='Осталось';
       lblEl.style.cursor=''; lblEl.onclick=null;
     } else {
       numEl.style.color='#FF7B54';
-      lblEl.textContent='🍜 Пора покупать дошики';
+      lblEl.textContent='🍜 Пора покупать дошики — вводите траты, смотрите насколько превысили бюджет';
       lblEl.style.cursor=''; lblEl.onclick=null;
     }
     const d=daysUntil(S.budget.deadline);
@@ -642,15 +651,19 @@ function confirm_(){
   const amt=parseFloat(S.amount);
   if(!amt||amt<=0){toast('Введите сумму');return;}
   if(S.type==='expense'&&(!S.budget.amount||S.budget.amount<=0)){
-    toast('Сначала задайте бюджет ↑');
-    goBudget(); return;
+    const lbl=document.getElementById('today-label');
+    lbl.textContent='⬆ Сначала задайте бюджет';
+    lbl.style.cssText='cursor:pointer;color:#FF9500;font-weight:700;font-size:15px';
+    lbl.onclick=()=>goBudget();
+    setTimeout(()=>{ if(!S.budget.amount){ lbl.textContent='Задайте бюджет →'; lbl.style.cssText='cursor:pointer'; } },2500);
+    return;
   }
   const note=document.getElementById('note-inp').value.trim();
-  const defCat=S.cats.find(c=>(c.ctype||'expense')===S.type); const catId=S.catId||(defCat?defCat.id:(S.type==='income'?'salary':'other'));
+  const catId=S.catId||null; // null = без категории
   const tx={id:Date.now()+'',amount:amt,type:S.type,catId,note,date:new Date().toISOString()};
   S.txs.unshift(tx); saveLocal(); pushTx(tx);
   S.amount=''; document.getElementById('note-inp').value=''; document.getElementById('amount-row').textContent='0';
-  renderMain(); toast((S.type==='expense'?'− ':'+ ')+fmt(amt)+' · '+getCat(catId).name);
+  renderMain(); toast((S.type==='expense'?'− ':'+ ')+fmt(amt)+(catId?' · '+getCat(catId).name:''));
 }
 
 // ── HISTORY ───────────────────────────────────────────────────────────────────
@@ -687,10 +700,15 @@ function renderHistContent(){
     return `<div class="day-group">
       <div class="day-hdr"><span class="day-date">${fmtDate(day)}</span><div class="day-totals">${exp>0?`<span class="day-exp">${fmt(exp)}</span>`:''}${inc>0?`<span class="day-inc">+${fmt(inc)}</span>`:''}</div></div>
       ${dtxs.map(t=>{const c=getCat(t.catId);const tm=new Date(t.date).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
-        return `<div class="tx-item" onclick="delTx('${t.id}')">
-          <div class="tx-left"><div class="tx-dot" style="background:${esc(c.color)}"></div>
-          <div class="tx-meta"><span class="tx-cat">${esc(c.name)}</span>${t.note?`<span class="tx-note">${esc(t.note)}</span>`:''}<span class="tx-time">${tm}</span></div></div>
-          <span class="tx-amt ${t.type}">${t.type==='income'?'+':''}${fmt(t.amount)}</span>
+        const noCat=!t.catId;
+        return `<div class="tx-item">
+          <div class="tx-left" onclick="delTx('${t.id}')"><div class="tx-dot" style="background:${esc(c.color)}"></div>
+          <div class="tx-meta">
+            ${noCat?`<button class="assign-cat-btn" onclick="event.stopPropagation();showAssignCat('${t.id}','${t.type}')">+ категория</button>`:`<span class="tx-cat">${esc(c.name)}</span>`}
+            ${t.note?`<span class="tx-note">${esc(t.note)}</span>`:''}
+            <span class="tx-time">${tm}</span>
+          </div></div>
+          <span class="tx-amt ${t.type}" onclick="delTx('${t.id}')">${t.type==='income'?'+':''}${fmt(t.amount)}</span>
         </div>`;}).join('')}
     </div><div class="divider" style="margin:8px 0"></div>`;
   }).join('');
@@ -702,7 +720,8 @@ async function delTx(id){
 
 // ── BUDGET ────────────────────────────────────────────────────────────────────
 function renderBudgetScreen(){
-  document.getElementById('bud-amount').value=S.budget.amount||'';
+  const inp=document.getElementById('bud-amount');
+  inp.value=S.budget.amount||'';
   S.budDeadline=S.budget.deadline||null; updateBudgetPreview(); renderPeriodList();
 }
 let _prevTimer=null;
@@ -723,10 +742,15 @@ function renderPeriodList(){
   }).join('');
 }
 function selDeadline(ds){ S.budDeadline=ds; renderPeriodList(); updateBudgetPreview(); }
-function saveBudget(){
+async function saveBudget(){
   const amt=parseFloat(document.getElementById('bud-amount').value);
   if(!amt){toast('Введите сумму');return;}if(!S.budDeadline){toast('Выберите срок');return;}
-  S.budget={amount:amt,deadline:S.budDeadline,set_at:todayStr()};saveLocal();pushBudget();toast('Бюджет сохранён ✓');goMain();
+  S.budget={amount:amt,deadline:S.budDeadline,set_at:todayStr()};
+  _budDirtyTs=Date.now();
+  saveLocal();
+  toast('Бюджет сохранён ✓');
+  goMain();
+  await pushBudget(); // await ПОСЛЕ goMain — не блокируем UI
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
@@ -816,12 +840,14 @@ function saveCat(){
   if(!name){toast('Введите название');return;}
   const _sfx=S.type==='income'?'_inc':'_exp';
   S.cats.unshift({id:'c'+Date.now()+_sfx,name,color:S.budColor,ctype:S.type});
-  saveLocal();pushCats();hideCatModal();renderSettings();renderCatRow();toast('"'+name+'" добавлена ✓');
+  saveLocal();pushCats();hideCatModal();renderSettings();renderCatRow();
+  setTimeout(()=>{ const r=document.getElementById('cat-row'); if(r) r.scrollLeft=0; },60);
+  toast('"'+name+'" добавлена ✓');
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-function getCat(id){ return S.cats.find(c=>c.id===id)||{name:'Другое',color:'#78909C'}; }
+function getCat(id){ if(!id) return {name:'Без категории',color:'#9E9E9E'}; return S.cats.find(c=>c.id===id)||{name:'Без категории',color:'#9E9E9E'}; }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function monthStr(){ return new Date().toISOString().slice(0,7); }
 function daysUntil(ds){ const t=new Date(ds),n=new Date();n.setHours(0,0,0,0);return Math.max(1,Math.ceil((t-n)/864e5)); }
@@ -837,6 +863,25 @@ function pluralDays(n){
   if([2,3,4].includes(n%10)&&![12,13,14].includes(n%100))return'дня';
   return'дней';
 }
+// ── ASSIGN CATEGORY MODAL ────────────────────────────────────────────────────
+function showAssignCat(txId,txType){
+  const cats=S.cats.filter(c=>(c.ctype||'expense')===txType);
+  const modal=document.getElementById('assign-cat-modal');
+  document.getElementById('assign-cat-list').innerHTML=cats.map(c=>`
+    <button class="assign-cat-item" onclick="assignCat('${txId}','${c.id}')">
+      <div style="width:10px;height:10px;border-radius:50%;background:${esc(c.color)};flex-shrink:0"></div>
+      <span>${esc(c.name)}</span>
+    </button>`).join('');
+  modal.classList.add('vis');
+}
+function hideAssignCat(){ document.getElementById('assign-cat-modal').classList.remove('vis'); }
+function assignCat(txId,catId){
+  const tx=S.txs.find(t=>t.id===txId);
+  if(tx){ tx.catId=catId; saveLocal(); pushTx(tx); renderHistory(); renderMain(); }
+  hideAssignCat();
+  toast('Категория назначена ✓');
+}
+
 // ── CUSTOM CONFIRM ───────────────────────────────────────────────────────────
 let _confirmCb=null;
 function customConfirm(msg,okText='Удалить',dangerOk=true){
