@@ -788,57 +788,84 @@ function fmtCodeInput(el){
 }
 async function initApp(){
   const saved=localStorage.getItem(K_CODE);
+
+  // Путь 1: K_CODE есть — входим
   if(saved){
     try{
       const{data,error}=await db.auth.signInWithPassword({email:`${saved}@doshik.app`,password:saved});
       if(!error&&data.user){currentUser=data.user;loadLocal();goMain();syncFromSupabase();return;}
     }catch(e){}
   }
+
+  // Путь 2: Есть сессия браузера
   try{
     const{data:{session}}=await db.auth.getSession();
     if(session&&session.user){
       currentUser=session.user;
-      if(!saved){await generateAndLinkCode(true);}
-      else{loadLocal();goMain();syncFromSupabase();}
+      // Пробуем восстановить код из user_metadata (резервный уровень)
+      const metaCode=session.user.user_metadata?.code;
+      if(metaCode&&!saved){
+        localStorage.setItem(K_CODE,metaCode);
+        loadLocal();goMain();syncFromSupabase();
+        return;
+      }
+      // Если кода нет совсем — создаём новый через updateUser
+      if(!saved&&!metaCode){
+        await generateAndLinkCode(true);
+      } else {
+        loadLocal();goMain();syncFromSupabase();
+      }
       return;
     }
   }catch(e){}
-  // No session — show entry screen
+
+  // Путь 3: Нет ничего — экран входа
   document.getElementById('s-auth').style.display='flex';
 }
 async function generateAndLinkCode(showModal=false){
   const code=generateCode();
+  // Сохраняем в localStorage СРАЗУ — до любых сетевых вызовов
+  localStorage.setItem(K_CODE,code);
   try{
-    // Try signUp directly (more reliable than anonymous→updateUser)
-    const{data,error}=await db.auth.signUp({email:`${code}@doshik.app`,password:code});
-    if(!error&&data.user){
-      currentUser=data.user;
-      localStorage.setItem(K_CODE,code);
+    // updateUser обновляет ТЕКУЩЕГО юзера (не создаёт нового)
+    const{error}=await db.auth.updateUser({
+      email:`${code}@doshik.app`,
+      password:code,
+      data:{code} // резервная копия в user_metadata
+    });
+    if(!error){
       loadLocal();goMain();await syncFromSupabase();await seedDefaultCats();
       if(showModal)setTimeout(()=>showCodeRevealModal(code),600);
       setSyncDot(true);return;
     }
   }catch(e){}
-  // Fallback: try updateUser on existing anonymous session
-  try{
-    const{error}=await db.auth.updateUser({email:`${code}@doshik.app`,password:code});
-    if(!error){localStorage.setItem(K_CODE,code);loadLocal();goMain();syncFromSupabase();if(showModal)setTimeout(()=>showCodeRevealModal(code),600);return;}
-  }catch(e){}
+  // Даже если Supabase недоступен — код сохранён в localStorage
   loadLocal();goMain();syncFromSupabase();
+  if(showModal)setTimeout(()=>showCodeRevealModal(code),600);
 }
 async function createNewAccount(){
   const btn=event.currentTarget;btn.disabled=true;btn.textContent='Создаём...';
   const code=generateCode();
+  // Сохраняем код СРАЗУ — до сетевого вызова
+  localStorage.setItem(K_CODE,code);
   try{
-    const{data,error}=await db.auth.signUp({email:`${code}@doshik.app`,password:code});
+    const{data,error}=await db.auth.signUp({
+      email:`${code}@doshik.app`,
+      password:code,
+      options:{data:{code}} // резервная копия в user_metadata
+    });
     if(error)throw error;
-    localStorage.setItem(K_CODE,code);currentUser=data.user;
+    currentUser=data.user||data.session?.user;
     document.getElementById('s-auth').style.display='none';
     loadLocal();goMain();
-    await seedDefaultCats();
-    setSyncDot(true);
+    if(currentUser){await seedDefaultCats();setSyncDot(true);}
     setTimeout(()=>showCodeRevealModal(code),600);
   }catch(e){
+    // Даже при ошибке сети — код в localStorage, показываем его
+    document.getElementById('s-auth').style.display='none';
+    loadLocal();goMain();
+    setTimeout(()=>showCodeRevealModal(code),600);
+    setSyncDot(false);
     btn.disabled=false;btn.textContent='Начать с чистого листа';
     document.getElementById('auth-err').textContent='Ошибка соединения с сервером';
   }
