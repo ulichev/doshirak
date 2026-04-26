@@ -1,4 +1,7 @@
 {
+  "rewrites": [
+    { "source": "/", "destination": "/doshik.html" }
+  ],
   "headers": [
     {
       "source": "/(.*).html",
