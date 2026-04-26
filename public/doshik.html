@@ -12,7 +12,7 @@
 <title>Дошик</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;background:#111;color:#fff}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;background:#111;color:#fff;overscroll-behavior:none;position:fixed;width:100%}
 #app{height:100dvh;position:relative;overflow:hidden}
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;background:#111;transition:transform .28s cubic-bezier(.16,1,.3,1),opacity .28s}
 .screen.hidden{transform:translateX(100%);pointer-events:none}
@@ -63,7 +63,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .cat-tabs::-webkit-scrollbar{display:none}
 .ctab{flex-shrink:0;padding:11px 13px;background:none;border:none;color:rgba(255,255,255,.38);font-size:14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .18s;white-space:nowrap}
 .ctab.on{color:#F5A623;border-bottom-color:#F5A623}
-.hist-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.hist-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .day-group{padding:16px 20px 0}
 .day-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
 .day-date{font-size:13px;color:rgba(255,255,255,.38)}
@@ -85,7 +85,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .empty p{font-size:15px;max-width:200px;margin:0 auto}
 
 /* SETTINGS */
-.sett-scroll{flex:1;overflow-y:auto;padding:20px}
+.sett-scroll{flex:1;overflow-y:auto;padding:20px;overscroll-behavior:contain}
 .sett-sec{margin-bottom:26px}
 .sett-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:10px}
 .sett-card{background:rgba(255,255,255,.05);border-radius:14px;overflow:hidden}
@@ -119,7 +119,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* BUDGET SCREEN */
-.budget-screen-content{flex:1;overflow-y:auto;padding:0}
+.budget-screen-content{flex:1;overflow-y:auto;padding:0;overscroll-behavior:contain}
 .budget-big{padding:24px 20px 16px}
 .budget-total{font-size:58px;font-weight:700;letter-spacing:-1.5px;color:#fff}
 .budget-per-day{font-size:16px;color:rgba(255,255,255,.45);margin-top:4px}
