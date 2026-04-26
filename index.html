@@ -312,8 +312,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     </div>
     <div class="sett-sec">
       <div class="sett-card">
-        <div class="sett-row" style="cursor:pointer" onclick="authSignOut()">
-          <span class="sett-row-label" style="color:#FF9500">Выйти из аккаунта</span>
+        <div class="sett-row" style="cursor:pointer" onclick="showEnterCodeModal()">
+          <span class="sett-row-label" style="color:#4A9EFF">Войти с другим кодом</span>
           <span style="color:rgba(255,255,255,.3)">→</span>
         </div>
       </div>
@@ -322,7 +322,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <div class="sett-card">
         <div class="sett-row">
           <span class="sett-row-label" style="color:rgba(255,255,255,.35);font-size:13px">Версия</span>
-          <span style="color:rgba(255,255,255,.25);font-size:13px">v1.2 · 26 апреля 2026</span>
+          <span style="color:rgba(255,255,255,.25);font-size:13px">v1.3 · 26 апреля 2026</span>
         </div>
         <div class="sett-row" style="border-top:1px solid rgba(255,255,255,.06);margin-top:2px;padding-top:10px">
           <span id="auth-user-email" style="color:rgba(255,255,255,.25);font-size:12px"></span>
@@ -340,6 +340,21 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div class="color-grid" id="color-grid"></div>
     <button class="action-btn btn-primary" onclick="saveCat()">Добавить</button>
     <button class="action-btn btn-secondary" onclick="hideCatModal()">Отмена</button>
+  </div>
+</div>
+
+<!-- ── ENTER CODE MODAL ── -->
+<div class="code-modal-bg" id="enter-code-modal">
+  <div class="code-modal-card">
+    <div style="font-size:36px;margin-bottom:10px">🔄</div>
+    <div style="font-size:19px;font-weight:700;color:#fff;margin-bottom:6px">Войти с другим кодом</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.45);margin-bottom:16px;line-height:1.5">Введите код с другого устройства — данные переключатся</div>
+    <input class="code-inp-big" id="enter-code-inp" placeholder="A3BK-9XPQ" maxlength="9"
+           autocomplete="off" autocapitalize="characters" spellcheck="false"
+           oninput="fmtCodeInput(this)" onkeydown="if(event.key==='Enter')submitEnterCode()">
+    <div class="auth-err" id="enter-code-err" style="min-height:16px;margin-bottom:8px;font-size:13px;text-align:center;color:#FF6B6B"></div>
+    <button class="action-btn btn-primary" onclick="submitEnterCode()" id="enter-code-btn" style="margin-bottom:0">Войти</button>
+    <button class="action-btn btn-secondary" onclick="hideEnterCodeModal()" style="margin-top:8px">Отмена</button>
   </div>
 </div>
 
@@ -744,6 +759,44 @@ function copyCode(){
   const code=localStorage.getItem(K_CODE);
   if(!code)return;
   navigator.clipboard.writeText(code).then(()=>toast('Код скопирован ✓'));
+}
+
+
+function showEnterCodeModal(){
+  document.getElementById('enter-code-inp').value='';
+  document.getElementById('enter-code-err').textContent='';
+  document.getElementById('enter-code-modal').classList.add('vis');
+  setTimeout(()=>document.getElementById('enter-code-inp').focus(),300);
+}
+function hideEnterCodeModal(){
+  document.getElementById('enter-code-modal').classList.remove('vis');
+}
+async function submitEnterCode(){
+  const raw=document.getElementById('enter-code-inp').value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+  const code=raw.length===8?raw.slice(0,4)+'-'+raw.slice(4):'';
+  if(code.length!==9){document.getElementById('enter-code-err').textContent='Введите код из 8 символов';return;}
+  const btn=document.getElementById('enter-code-btn');
+  btn.disabled=true;btn.textContent='Проверяем...';
+  document.getElementById('enter-code-err').textContent='';
+  try{
+    const{data,error}=await db.auth.signInWithPassword({email:`${code}@doshik.app`,password:code});
+    if(error||!data.user){
+      document.getElementById('enter-code-err').textContent='Код не найден. Проверьте правильность';
+      btn.disabled=false;btn.textContent='Войти';return;
+    }
+    localStorage.setItem(K_CODE,code);
+    currentUser=data.user;
+    hideEnterCodeModal();
+    // Reset local data and sync from server
+    S.txs=[];S.cats=[];S.budget={amount:0,deadline:null};
+    saveLocal();
+    await syncFromSupabase();
+    renderMain();
+    toast('Данные восстановлены ✓');
+  }catch(e){
+    document.getElementById('enter-code-err').textContent='Ошибка соединения';
+    btn.disabled=false;btn.textContent='Войти';
+  }
 }
 
 initApp();
