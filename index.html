@@ -423,6 +423,25 @@ const DEF_CATS_INC = [
   {id:'other_inc',name:'Другое',color:'#78909C',ctype:'income'},
 ];
 const DEF_CATS = [...DEF_CATS_EXP, ...DEF_CATS_INC];
+
+// Определяем тип категории без хранения в Supabase
+function determineCtype(catId, oldCats){
+  const src = oldCats || S.cats;
+  // 1. Из локального кэша
+  const loc = src.find(c=>c.id===catId);
+  if(loc?.ctype) return loc.ctype;
+  // 2. Суффикс в ID (_inc / _exp) — для новых пользовательских категорий
+  if(catId.endsWith('_inc')) return 'income';
+  if(catId.endsWith('_exp')) return 'expense';
+  // 3. Точное совпадение в DEF_CATS
+  const def = DEF_CATS.find(c=>c.id===catId);
+  if(def) return def.ctype||'expense';
+  // 4. Префикс DEF_CATS + пользовательский суффикс (food_abc12345)
+  for(const d of DEF_CATS){
+    if(catId.startsWith(d.id+'_')) return d.ctype||'expense';
+  }
+  return 'expense';
+}
 let S = {
   type:'expense', amount:'', catId:null, histCat:'all', histType:'all', catSettTab:'expense',
   budColor:COLORS[0], budDeadline:null,
@@ -455,8 +474,8 @@ async function syncFromSupabase(){
     if(txRes.data&&txRes.data.length>0)
       S.txs=txRes.data.map(r=>({id:r.id,amount:r.amount,type:r.type,catId:r.cat_id,note:r.note||'',date:r.date}));
     if(catRes.data&&catRes.data.length>0){
-      const ctypeMap=Object.fromEntries([...DEF_CATS,...S.cats].map(c=>[c.id,c.ctype||'expense']));
-      S.cats=catRes.data.map(r=>({id:r.id,name:r.name,color:r.color,ctype:ctypeMap[r.id]||'expense'}));
+      const oldCats=[...S.cats];
+      S.cats=catRes.data.map(r=>({id:r.id,name:r.name,color:r.color,ctype:determineCtype(r.id,oldCats)}));
     }
     else await seedDefaultCats();
     if(budRes.data) S.budget={amount:budRes.data.amount||0,deadline:budRes.data.deadline||null};
@@ -539,7 +558,7 @@ function renderCatRow(){
   const filtered=S.cats.filter(c=>(c.ctype||'expense')===S.type);
   document.getElementById('cat-row').innerHTML=filtered.map(c=>`
     <button class="cat-pill${S.catId===c.id?' sel':''}" onclick="selCat('${c.id}')">${c.name}</button>
-  `).join('')+`<button class="cat-pill add" onclick="goSettings()">+ Ещё</button>`;
+  `).join('')+`<button class="cat-pill add" onclick="showCatModal()">+ Новая</button>`;
 }
 function selCat(id){ S.catId=(S.catId===id?null:id); renderCatRow(); }
 function setType(t){
@@ -696,23 +715,25 @@ function importData(e){
   reader.readAsText(file);
   e.target.value='';
 }
-function clearAll(){
-  if(confirm('Сбросить всё до заводских настроек? Транзакции и бюджет удалятся, категории вернутся к стандартным.')){
-    S.txs=[];S.cats=[...DEF_CATS];S.budget={amount:0,deadline:null};
-    saveLocal();
-    if(currentUser){
-      db.from('transactions').delete().eq('user_id',currentUser.id).then(()=>{});
-      db.from('budget_settings').delete().eq('user_id',currentUser.id).then(()=>{});
-      seedDefaultCats();
-    }
-    toast('Данные сброшены ✓');goMain();
+async function clearAll(){
+  if(!confirm('Сбросить всё до заводских настроек? Транзакции и бюджет удалятся, категории вернутся к стандартным.')) return;
+  S.txs=[];S.cats=[...DEF_CATS];S.budget={amount:0,deadline:null};
+  saveLocal();
+  if(currentUser){
+    // Сначала удалить ВСЁ из Supabase (sequentially, не fire-and-forget)
+    await db.from('transactions').delete().eq('user_id',currentUser.id);
+    await db.from('budget_settings').delete().eq('user_id',currentUser.id);
+    await db.from('categories').delete().eq('user_id',currentUser.id);
+    // Затем посеять дефолтные категории заново
+    await seedDefaultCats();
   }
+  toast('Данные сброшены ✓');goMain();
 }
 
 // ── CAT MODAL ─────────────────────────────────────────────────────────────────
 function showCatModal(){
   S.budColor=COLORS[0];document.getElementById('cat-name-inp').value='';
-  document.getElementById('color-grid').innerHTML=COLORS.map(c=>`<div class="clr-dot${c===S.budColor?' sel':''}" style="background:${c}" onclick="selColor('${c}')"></div>`).join('');
+  document.getElementById('color-grid').innerHTML=COLORS.map(c=>`<div class="clr-dot${c===S.budColor?' sel':''}" data-clr="${c}" style="background:${c}" onclick="selColor('${c}')"></div>`).join('');
   document.getElementById('cat-modal').classList.add('vis');
   setTimeout(()=>document.getElementById('cat-name-inp').focus(),300);
 }
@@ -720,12 +741,13 @@ function hideCatModal(){ document.getElementById('cat-modal').classList.remove('
 function modalBgClick(e){ if(e.target===document.getElementById('cat-modal')) hideCatModal(); }
 function selColor(c){
   S.budColor=c;
-  document.querySelectorAll('.clr-dot').forEach(el=>el.classList.toggle('sel',el.style.background===c||el.style.backgroundColor===c));
+  document.querySelectorAll('.clr-dot').forEach(el=>el.classList.toggle('sel',el.dataset.clr===c));
 }
 function saveCat(){
   const name=document.getElementById('cat-name-inp').value.trim();
   if(!name){toast('Введите название');return;}
-  S.cats.push({id:'c'+Date.now(),name,color:S.budColor,ctype:S.type});
+  const _sfx=S.type==='income'?'_inc':'_exp';
+  S.cats.unshift({id:'c'+Date.now()+_sfx,name,color:S.budColor,ctype:S.type});
   saveLocal();pushCats();hideCatModal();renderSettings();renderCatRow();toast('"'+name+'" добавлена ✓');
 }
 
@@ -812,7 +834,9 @@ async function createNewAccount(){
     if(error)throw error;
     localStorage.setItem(K_CODE,code);currentUser=data.user;
     document.getElementById('s-auth').style.display='none';
-    loadLocal();goMain();syncFromSupabase();
+    loadLocal();goMain();
+    await seedDefaultCats();
+    setSyncDot(true);
     setTimeout(()=>showCodeRevealModal(code),600);
   }catch(e){
     btn.disabled=false;btn.textContent='Начать с чистого листа';
@@ -834,7 +858,9 @@ async function recoverWithCode(){
     }
     localStorage.setItem(K_CODE,code);currentUser=data.user;
     document.getElementById('s-auth').style.display='none';
-    loadLocal();goMain();syncFromSupabase();toast('Данные восстановлены ✓');
+    loadLocal();goMain();
+    await seedDefaultCats();
+    setSyncDot(true);toast('Данные восстановлены ✓');
   }catch(e){
     document.getElementById('auth-err').textContent='Ошибка соединения с сервером';
     btn.disabled=false;btn.textContent=orig;
