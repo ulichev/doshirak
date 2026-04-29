@@ -214,73 +214,6 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   -webkit-tap-highlight-color:transparent;transition:color .2s}
 .sign-toggle.inc{color:#3DBD74}
 /* history tiles */
-
-/* ── HISTORY FILTERS & SUMMARY ───────────────────────────────── */
-.hist-filters-row{
-  display:flex;gap:10px;align-items:center;padding:10px 16px 6px;
-}
-.hist-filter-btn{
-  flex:1;display:flex;align-items:center;gap:8px;
-  padding:9px 12px;border-radius:999px;border:none;cursor:pointer;
-  background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);
-  font-size:13px;font-weight:500;letter-spacing:-.2px;
-  -webkit-tap-highlight-color:transparent;
-}
-.hist-filter-btn:active{background:rgba(255,255,255,.12)}
-.hist-filter-icon{font-size:16px}
-.hist-filter-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-.hist-filter-pill{
-  padding:9px 14px;border-radius:999px;border:none;cursor:pointer;
-  background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);
-  font-size:13px;font-weight:500;white-space:nowrap;
-  -webkit-tap-highlight-color:transparent;
-}
-.hist-filter-pill:active{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85)}
-
-.hist-summary-row{
-  display:flex;gap:10px;padding:4px 16px 10px;flex-shrink:0;
-}
-.hist-summary-card{
-  flex:1;border-radius:18px;padding:12px 12px 10px;
-  background:rgba(255,255,255,.06);
-  display:flex;flex-direction:column;gap:4px;align-items:flex-start;
-}
-.hist-summary-exp{background:linear-gradient(135deg,rgba(255,80,80,.22),rgba(255,80,80,.06));}
-.hist-summary-inc{background:linear-gradient(135deg,rgba(61,189,116,.22),rgba(61,189,116,.06));}
-.hs-icon{font-size:20px}
-.hs-main{font-size:18px;font-weight:600;color:#fff;letter-spacing:-.3px}
-.hs-label{font-size:12px;color:rgba(255,255,255,.55)}
-
-/* ── HISTORY TX ROWS ─────────────────────────────────────────── */
-.tx-item{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:10px 0;border-top:1px solid rgba(255,255,255,.05);
-  cursor:pointer;
-}
-.tx-left{display:flex;align-items:center;gap:10px}
-.tx-dot{
-  width:30px;height:30px;border-radius:999px;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-  font-size:16px;color:#111;font-weight:600;
-}
-.tx-meta{display:flex;flex-direction:column;gap:2px}
-.tx-cat{font-size:14px;color:#fff;letter-spacing:-.2px}
-.tx-note{font-size:13px;color:rgba(255,255,255,.5)}
-.tx-time{font-size:12px;color:rgba(255,255,255,.35)}
-.tx-right{text-align:right;display:flex;flex-direction:column;gap:2px;align-items:flex-end}
-.tx-amt{font-size:15px;font-weight:600}
-.tx-amt.exp{color:rgba(255,255,255,.9)}
-.tx-amt.inc{color:#3DBD74}
-.tx-type{font-size:12px;color:rgba(255,255,255,.35)}
-
-.day-group{padding:8px 16px 0}
-.day-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;position:sticky;top:0;background:#111;z-index:5;padding:8px 0 6px}
-.day-date{font-size:13px;color:rgba(255,255,255,.5)}
-.day-totals{display:flex;gap:10px;align-items:baseline}
-.day-exp{font-size:16px;font-weight:600;color:rgba(255,255,255,.7)}
-.day-inc{font-size:16px;font-weight:600;color:#3DBD74}
-
 .hist-tiles-row{display:flex;gap:10px;padding:10px 16px 6px;flex-shrink:0}
 .hist-tile{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
   padding:12px 8px;border-radius:16px;border:none;cursor:pointer;
@@ -308,73 +241,6 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .mode-btn{flex:1;padding:11px;border-radius:14px;border:none;cursor:pointer;font-size:15px;font-weight:700;background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);transition:all .2s;-webkit-tap-highlight-color:transparent}
 .mode-btn.exp.on{background:#F5A623;color:#000}
 .mode-btn.inc.on{background:#3DBD74;color:#fff}
-
-/* ── HISTORY FILTERS & SUMMARY ───────────────────────────────── */
-.hist-filters-row{
-  display:flex;gap:10px;align-items:center;padding:10px 16px 6px;
-}
-.hist-filter-btn{
-  flex:1;display:flex;align-items:center;gap:8px;
-  padding:9px 12px;border-radius:999px;border:none;cursor:pointer;
-  background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);
-  font-size:13px;font-weight:500;letter-spacing:-.2px;
-  -webkit-tap-highlight-color:transparent;
-}
-.hist-filter-btn:active{background:rgba(255,255,255,.12)}
-.hist-filter-icon{font-size:16px}
-.hist-filter-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-.hist-filter-pill{
-  padding:9px 14px;border-radius:999px;border:none;cursor:pointer;
-  background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);
-  font-size:13px;font-weight:500;white-space:nowrap;
-  -webkit-tap-highlight-color:transparent;
-}
-.hist-filter-pill:active{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85)}
-
-.hist-summary-row{
-  display:flex;gap:10px;padding:4px 16px 10px;flex-shrink:0;
-}
-.hist-summary-card{
-  flex:1;border-radius:18px;padding:12px 12px 10px;
-  background:rgba(255,255,255,.06);
-  display:flex;flex-direction:column;gap:4px;align-items:flex-start;
-}
-.hist-summary-exp{background:linear-gradient(135deg,rgba(255,80,80,.22),rgba(255,80,80,.06));}
-.hist-summary-inc{background:linear-gradient(135deg,rgba(61,189,116,.22),rgba(61,189,116,.06));}
-.hs-icon{font-size:20px}
-.hs-main{font-size:18px;font-weight:600;color:#fff;letter-spacing:-.3px}
-.hs-label{font-size:12px;color:rgba(255,255,255,.55)}
-
-/* ── HISTORY TX ROWS ─────────────────────────────────────────── */
-.tx-item{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:10px 0;border-top:1px solid rgba(255,255,255,.05);
-  cursor:pointer;
-}
-.tx-left{display:flex;align-items:center;gap:10px}
-.tx-dot{
-  width:30px;height:30px;border-radius:999px;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-  font-size:16px;color:#111;font-weight:600;
-}
-.tx-meta{display:flex;flex-direction:column;gap:2px}
-.tx-cat{font-size:14px;color:#fff;letter-spacing:-.2px}
-.tx-note{font-size:13px;color:rgba(255,255,255,.5)}
-.tx-time{font-size:12px;color:rgba(255,255,255,.35)}
-.tx-right{text-align:right;display:flex;flex-direction:column;gap:2px;align-items:flex-end}
-.tx-amt{font-size:15px;font-weight:600}
-.tx-amt.exp{color:rgba(255,255,255,.9)}
-.tx-amt.inc{color:#3DBD74}
-.tx-type{font-size:12px;color:rgba(255,255,255,.35)}
-
-.day-group{padding:8px 16px 0}
-.day-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;position:sticky;top:0;background:#111;z-index:5;padding:8px 0 6px}
-.day-date{font-size:13px;color:rgba(255,255,255,.5)}
-.day-totals{display:flex;gap:10px;align-items:baseline}
-.day-exp{font-size:16px;font-weight:600;color:rgba(255,255,255,.7)}
-.day-inc{font-size:16px;font-weight:600;color:#3DBD74}
-
 .hist-tiles-row{display:flex;gap:10px;padding:10px 16px 8px;flex-shrink:0}
 .hist-tile{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border-radius:16px;border:none;cursor:pointer;background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);font-size:13px;font-weight:600;transition:all .2s;-webkit-tap-highlight-color:transparent}
 .hist-tile-icon{font-size:22px;line-height:1}
@@ -672,30 +538,14 @@ html,body,#app,.screen{max-width:100vw}
     <span class="tb-title">История</span>
     <div style="width:60px"></div>
   </div>
-
-  <!-- Фильтры */-->
-  <div class="hist-filters-row">
-    <button class="hist-filter-btn" onclick="toggleHistType()">
-      <span class="hist-filter-icon">⚙️</span>
-      <span class="hist-filter-label" id="hist-type-label">Все операции</span>
+  <div class="hist-tiles-row">
+    <button class="hist-tile exp" id="htile-exp" onclick="selHistType('expense')">
+      <span class="hist-tile-icon">💸</span><span>Расходы</span>
     </button>
-    <button class="hist-filter-pill" onclick="cycleHistPeriod()" id="hist-period-pill">Этот месяц</button>
+    <button class="hist-tile inc" id="htile-inc" onclick="selHistType('income')">
+      <span class="hist-tile-icon">💰</span><span>Доходы</span>
+    </button>
   </div>
-
-  <!-- Summary по периоду -->
-  <div class="hist-summary-row" id="hist-summary-row">
-    <div class="hist-summary-card hist-summary-exp">
-      <div class="hs-icon">💸</div>
-      <div class="hs-main" id="hs-exp-main">−0 ₽</div>
-      <div class="hs-label">Списания</div>
-    </div>
-    <div class="hist-summary-card hist-summary-inc">
-      <div class="hs-icon">💰</div>
-      <div class="hs-main" id="hs-inc-main">+0 ₽</div>
-      <div class="hs-label">Поступления</div>
-    </div>
-  </div>
-
   <div class="cat-tabs" id="hist-tabs" style="padding:0 16px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0;overflow-x:auto;display:flex;scrollbar-width:none"></div>
   <div class="hist-scroll" id="hist-content"></div>
 </div>
@@ -1325,59 +1175,7 @@ function updateHistTypeTabs(){
   if(eEl) eEl.classList.toggle('on', S.histType==='expense');
   if(iEl) iEl.classList.toggle('on', S.histType==='income');
 }
-var HistPeriod='month'; // 'day' | 'week' | 'month'
-
-function cycleHistPeriod(){
-  if(HistPeriod==='day') HistPeriod='week';
-  else if(HistPeriod==='week') HistPeriod='month';
-  else HistPeriod='day';
-  renderHistory();
-}
-
-function histPeriodLabel(){
-  if(HistPeriod==='day') return 'Сегодня';
-  if(HistPeriod==='week') return 'Эта неделя';
-  return 'Этот месяц';
-}
-
-function applyHistPeriod(txs){
-  var today = new Date();
-  function startOfDay(d){ var x=new Date(d); x.setHours(0,0,0,0); return x; }
-  var from;
-  if(HistPeriod==='day'){
-    from=startOfDay(today);
-  } else if(HistPeriod==='week'){
-    var day=today.getDay()||7; // понедельник как начало
-    from=startOfDay(new Date(today.getFullYear(),today.getMonth(),today.getDate()-day+1));
-  } else {
-    from=startOfDay(new Date(today.getFullYear(),today.getMonth(),1));
-  }
-  return txs.filter(function(t){
-    var dt=new Date(t.date);
-    return dt>=from && dt<=today;
-  });
-}
-
-function toggleHistType(){
-  if(!S.histType||S.histType==='all') S.histType='expense';
-  else if(S.histType==='expense') S.histType='income';
-  else S.histType='all';
-  renderHistory();
-}
-
-function histTypeLabel(){
-  if(!S.histType||S.histType==='all') return 'Все операции';
-  if(S.histType==='expense') return 'Только расходы';
-  if(S.histType==='income') return 'Только доходы';
-  return 'Фильтр';
-}
-
 function renderHistory(){
-  var periodPill=document.getElementById('hist-period-pill');
-  if(periodPill) periodPill.textContent=histPeriodLabel();
-  var typeLabel=document.getElementById('hist-type-label');
-  if(typeLabel) typeLabel.textContent=histTypeLabel();
-
   updateHistTypeTabs();
   var visCats=S.histType?S.cats.filter(function(x){return (x.ctype||'expense')===S.histType;}):S.cats;
   var tabs=document.getElementById('hist-tabs');
@@ -1394,16 +1192,6 @@ function renderHistContent(){
   var txs=S.txs.slice();
   if(S.histType && S.histType!=='all') txs=txs.filter(function(t){ return t.type===S.histType; });
   if(S.histCat && S.histCat!=='all') txs=txs.filter(function(t){ return t.catId===S.histCat; });
-  txs=applyHistPeriod(txs);
-
-  // summary по периоду
-  var expSum=0, incSum=0;
-  txs.forEach(function(t){ if(t.type==='expense') expSum+=t.amount; else if(t.type==='income') incSum+=t.amount; });
-  var hsExp=document.getElementById('hs-exp-main');
-  var hsInc=document.getElementById('hs-inc-main');
-  if(hsExp) hsExp.textContent = (expSum>0? '−'+fmt(expSum):'−0 ₽');
-  if(hsInc) hsInc.textContent = (incSum>0? '+'+fmt(incSum):'+0 ₽');
-
   if(!txs.length){
     con.innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>Записей пока нет</p></div>';
     return;
@@ -1428,15 +1216,12 @@ function renderHistContent(){
       var cat=getCat(t.catId);
       var tm=new Date(t.date).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
       html += '<div class="tx-item'+(t.type==='income'?' income-row':'')+'" data-id="'+t.id+'" onclick="delTx(this.dataset.id)">';
-      var icon = cat.icon || '';
-      html += '<div class="tx-left"><div class="tx-dot" style="background:'+esc(cat.color)+'">'+icon+'</div><div class="tx-meta">';
-      html += '<span class="tx-cat">'+esc(cat.name)+'</span>';
+      html += '<div class="tx-left"><div class="tx-dot" style="background:'+esc(cat.color)+'"></div><div class="tx-meta">';
+      html += '<span class="tx-cat">'+(cat.icon?cat.icon+' ':'')+esc(cat.name)+'</span>';
       if(t.note) html += '<span class="tx-note">'+esc(t.note)+'</span>';
       html += '<span class="tx-time">'+tm+'</span></div></div>';
       html += '<div class="tx-right">';
-      html += '<div class="tx-amt '+(t.type==='income'?'inc':'exp')+'">'+(t.type==='income'?'+':'−')+fmt(t.amount)+'</div>';
-      html += '<div class="tx-type">'+(t.type==='income'?'Поступление':'Списание')+'</div>'; 
-      '+t.id+'" data-type="'+t.type+'" onclick="event.stopPropagation();showAssignCat(this.dataset.id,this.dataset.type)">+ кат.</button>';
+      if(!t.catId) html += '<button class="assign-cat-btn" data-id="'+t.id+'" data-type="'+t.type+'" onclick="event.stopPropagation();showAssignCat(this.dataset.id,this.dataset.type)">+ кат.</button>';
       html += '<span class="tx-amt '+t.type+'">'+(t.type==='income'?'+':'−')+fmt(t.amount)+'</span>';
       html += '</div></div>';
     });
