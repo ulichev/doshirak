@@ -12,7 +12,7 @@
 <title>Дошик</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;background:#111;color:#fff;overscroll-behavior:none;position:fixed;width:100%}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Arial,sans-serif;background:#111;color:#fff;overscroll-behavior:none;position:fixed;width:100%}
 #app{height:100dvh;position:relative;overflow:hidden}
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;background:#111;transition:transform .28s cubic-bezier(.16,1,.3,1),opacity .28s}
 .screen.hidden{transform:translateX(100%);pointer-events:none}
@@ -20,7 +20,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 /* TOP BAR */
 .top-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
 .tb-btn{background:none;border:none;color:rgba(255,255,255,.55);font-size:14px;cursor:pointer;min-height:44px;min-width:44px;display:flex;align-items:center;padding:0 2px}
-.tb-title{font-size:17px;font-weight:600;color:#fff}
+.tb-title{font-size:17px;font-weight:600;color:#fff;letter-spacing:-.4px}
 .budget-pill{background:none;border:none;color:rgba(255,255,255,.55);font-size:14px;cursor:pointer;text-align:right}
 
 /* MAIN SCREEN */
@@ -98,30 +98,30 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .empty p{font-size:15px;max-width:200px;margin:0 auto}
 
 /* SETTINGS */
-.sett-scroll{flex:1;overflow-y:auto;padding:20px;overscroll-behavior:contain}
-.sett-sec{margin-bottom:26px}
-.sett-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:10px}
-.sett-card{background:rgba(255,255,255,.05);border-radius:14px;overflow:hidden}
-.sett-row{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.05)}
+.sett-scroll{flex:1;overflow-y:auto;padding:16px var(--screen-pad) calc(96px + env(safe-area-inset-bottom,0px));overscroll-behavior:contain;display:flex;flex-direction:column;gap:14px}
+.sett-sec{margin-bottom:0}
+.sett-label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.35);margin-bottom:10px}
+.sett-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.sett-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 16px;border-bottom:1px solid rgba(255,255,255,.06);min-height:56px}
 .sett-row:last-child{border-bottom:none}
-.sett-row-label{font-size:15px}
+.sett-row-label{font-size:15px;letter-spacing:-.2px;color:#fff}
 .sett-inp{background:none;border:none;color:#F5A623;font-size:15px;text-align:right;outline:none;width:160px}
 .sett-inp::placeholder{color:rgba(255,255,255,.18)}
-.cat-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.05)}
+.cat-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);min-height:56px}
 .cat-item:last-child{border-bottom:none}
-.cat-nm{display:flex;align-items:center;gap:10px;font-size:15px}
-.del-cat{background:#FF3B30;border:none;color:#fff;font-size:13px;font-weight:600;padding:7px 16px;border-radius:8px;cursor:pointer;white-space:nowrap;min-width:72px;transition:opacity .18s}.del-cat:active{opacity:.65}
-.action-btn{width:100%;padding:13px;border-radius:13px;border:none;font-size:15px;font-weight:600;cursor:pointer;margin-top:10px}
-.btn-primary{background:#F5A623;color:#000}
-.btn-secondary{background:rgba(255,255,255,.07);color:rgba(255,255,255,.6);margin-top:7px}
-.btn-danger{background:#FF3B30;color:#fff;margin-top:7px}
+.cat-nm{display:flex;align-items:center;gap:12px;font-size:15px;letter-spacing:-.2px}
+.del-cat{background:rgba(255,59,48,.14);border:1px solid rgba(255,59,48,.24);color:#FF5B52;font-size:13px;font-weight:700;padding:8px 14px;border-radius:12px;cursor:pointer;white-space:nowrap;min-width:72px;transition:opacity .18s,transform .18s}.del-cat:active{opacity:.7;transform:scale(.98)}
+.action-btn{width:100%;padding:15px 16px;border-radius:16px;border:none;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px;letter-spacing:-.2px;transition:transform .18s,opacity .18s}.action-btn:active{transform:scale(.985)}
+.btn-primary{background:#F5A623;color:#000;box-shadow:0 10px 24px rgba(245,166,35,.16)}
+.btn-secondary{background:rgba(255,255,255,.07);color:rgba(255,255,255,.72);margin-top:8px;border:1px solid rgba(255,255,255,.06)}
+.btn-danger{background:rgba(255,59,48,.14);color:#FF5B52;margin-top:8px;border:1px solid rgba(255,59,48,.2)}
 
 /* MODAL */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .22s}
 .modal-bg.vis{opacity:1;pointer-events:all}
 .modal-sheet{background:#1c1c1c;border-radius:20px 20px 0 0;padding:20px 20px 32px;width:100%;transform:translateY(100%);transition:transform .28s cubic-bezier(.16,1,.3,1)}
 .modal-bg.vis .modal-sheet{transform:translateY(0)}
-.modal-title{font-size:18px;font-weight:600;text-align:center;margin-bottom:16px}
+.modal-title{font-size:17px;font-weight:600;letter-spacing:-.3px;text-align:center;margin-bottom:16px}
 .modal-inp{background:rgba(255,255,255,.08);border:none;border-radius:12px;padding:13px 15px;color:#fff;font-size:16px;width:100%;outline:none;margin-bottom:12px}
 .color-grid{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
 .clr-dot{width:36px;height:36px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .15s,box-shadow .15s,transform .1s;-webkit-tap-highlight-color:transparent}
@@ -145,11 +145,11 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}.toast-undo{background:none;border:none;color:#F5A623;font-size:14px;font-weight:600;cursor:pointer;padding:2px 8px;border-left:1px solid rgba(255,255,255,.15);margin-left:2px}
 
 /* BUDGET SCREEN */
-.budget-screen-content{flex:1;overflow-y:auto;padding:0 0 80px;overscroll-behavior:contain;display:flex;flex-direction:column}
-.budget-big{padding:24px 20px 20px;display:flex;flex-direction:column;align-items:flex-start;text-align:left}
+.budget-screen-content{flex:1;overflow-y:auto;padding:16px 16px 90px;overscroll-behavior:contain;display:flex;flex-direction:column;gap:12px}
+.budget-big{background:rgba(255,255,255,.07);border-radius:20px;padding:22px 18px 20px;display:flex;flex-direction:column;align-items:flex-start;text-align:left}
 .budget-per-day{font-size:14px;color:rgba(255,255,255,.45);margin-top:6px;min-height:18px}
-.budget-section{padding:0 20px;margin-bottom:8px}
-.budget-divider{height:1px;background:rgba(255,255,255,.06);margin:4px 20px 20px}
+.budget-section{background:rgba(255,255,255,.05);border-radius:18px;padding:16px 16px 8px;margin-bottom:0}
+.budget-divider{display:none}
 .period-list{background:rgba(255,255,255,.05);border-radius:14px;overflow:hidden;max-height:55vh;overflow-y:auto}
 .period-item{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;transition:background .15s}
 .period-item:last-child{border-bottom:none}
@@ -164,7 +164,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;
   min-height:100dvh;padding:40px 24px;background:#111;}
 .auth-logo{font-size:48px;margin-bottom:8px}
-.auth-title{font-size:28px;font-weight:700;color:#fff;margin-bottom:4px;letter-spacing:-.5px}
+.auth-title{font-size:28px;font-weight:700;color:#fff;margin-bottom:4px;letter-spacing:-.6px}
 .auth-sub{font-size:14px;color:rgba(255,255,255,.4);margin-bottom:40px}
 .auth-card{width:100%;max-width:360px;background:#1c1c1e;border-radius:20px;padding:28px 24px}
 .auth-tabs{display:flex;background:#111;border-radius:12px;padding:3px;margin-bottom:24px}
@@ -189,13 +189,23 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .code-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .25s}
 .code-modal-bg.vis{opacity:1;pointer-events:all}
 .code-modal-card{background:#1c1c1e;border-radius:24px;padding:32px 24px 24px;width:100%;max-width:340px;text-align:center}
-.code-display{font-size:32px;font-weight:700;letter-spacing:5px;color:#F5A623;background:rgba(245,166,35,.08);border:1.5px dashed rgba(245,166,35,.35);border-radius:14px;padding:18px 10px;margin:14px 0;font-family:"SF Mono","Courier New",monospace}
-.code-inp-big{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:12px;padding:16px;color:#fff;font-size:22px;width:100%;outline:none;text-align:center;letter-spacing:4px;font-family:"SF Mono","Courier New",monospace;text-transform:uppercase;margin-bottom:12px;transition:border-color .2s;-webkit-appearance:none}
+.code-display{font-size:32px;font-weight:700;letter-spacing:5px;color:#F5A623;background:rgba(245,166,35,.08);border:1.5px dashed rgba(245,166,35,.35);border-radius:14px;padding:18px 10px;margin:14px 0;font-family:"SF Mono","Menlo","Courier New",monospace}
+.code-inp-big{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:12px;padding:16px;color:#fff;font-size:22px;width:100%;outline:none;text-align:center;letter-spacing:4px;font-family:"SF Mono","Menlo","Courier New",monospace;text-transform:uppercase;margin-bottom:12px;transition:border-color .2s;-webkit-appearance:none}
 .code-inp-big:focus{border-color:rgba(245,166,35,.6)}
 .code-inp-big::placeholder{color:rgba(255,255,255,.2);letter-spacing:2px;font-size:18px}
 .sett-code-box{background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.2);border-radius:12px;padding:16px;text-align:center;cursor:pointer;margin-bottom:10px;transition:background .15s}
 .sett-code-box:active{background:rgba(245,166,35,.14)}
-.sett-code-val{font-size:28px;font-weight:700;letter-spacing:5px;color:#F5A623;font-family:"SF Mono","Courier New",monospace}
+.sett-code-val{font-size:28px;font-weight:700;letter-spacing:5px;color:#F5A623;font-family:"SF Mono","Menlo","Courier New",monospace}
+.settings-hero{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:18px 18px 16px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.settings-hero-title{font-size:24px;font-weight:700;letter-spacing:-.7px;color:#fff;line-height:1.05}
+.settings-hero-sub{font-size:14px;color:rgba(255,255,255,.52);margin-top:6px;line-height:1.45}
+.sett-sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.sett-badge{font-size:12px;font-weight:700;color:rgba(255,255,255,.45);background:rgba(255,255,255,.06);padding:6px 10px;border-radius:999px}
+#recovery-code-section>.sett-code-box{margin-bottom:0}
+.sett-card + .action-btn{margin-top:12px}
+.sett-row:active,.cat-item:active{background:rgba(255,255,255,.035)}
+.sett-row span[style*="JSON"], .sett-row span[style*="→"]{font-weight:600}
+
 
 /* sign toggle */
 .main-num-row{display:flex;align-items:center;gap:6px}
@@ -204,6 +214,73 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   -webkit-tap-highlight-color:transparent;transition:color .2s}
 .sign-toggle.inc{color:#3DBD74}
 /* history tiles */
+
+/* ── HISTORY FILTERS & SUMMARY ───────────────────────────────── */
+.hist-filters-row{
+  display:flex;gap:10px;align-items:center;padding:10px 16px 6px;
+}
+.hist-filter-btn{
+  flex:1;display:flex;align-items:center;gap:8px;
+  padding:9px 12px;border-radius:999px;border:none;cursor:pointer;
+  background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);
+  font-size:13px;font-weight:500;letter-spacing:-.2px;
+  -webkit-tap-highlight-color:transparent;
+}
+.hist-filter-btn:active{background:rgba(255,255,255,.12)}
+.hist-filter-icon{font-size:16px}
+.hist-filter-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.hist-filter-pill{
+  padding:9px 14px;border-radius:999px;border:none;cursor:pointer;
+  background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);
+  font-size:13px;font-weight:500;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+}
+.hist-filter-pill:active{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85)}
+
+.hist-summary-row{
+  display:flex;gap:10px;padding:4px 16px 10px;flex-shrink:0;
+}
+.hist-summary-card{
+  flex:1;border-radius:18px;padding:12px 12px 10px;
+  background:rgba(255,255,255,.06);
+  display:flex;flex-direction:column;gap:4px;align-items:flex-start;
+}
+.hist-summary-exp{background:linear-gradient(135deg,rgba(255,80,80,.22),rgba(255,80,80,.06));}
+.hist-summary-inc{background:linear-gradient(135deg,rgba(61,189,116,.22),rgba(61,189,116,.06));}
+.hs-icon{font-size:20px}
+.hs-main{font-size:18px;font-weight:600;color:#fff;letter-spacing:-.3px}
+.hs-label{font-size:12px;color:rgba(255,255,255,.55)}
+
+/* ── HISTORY TX ROWS ─────────────────────────────────────────── */
+.tx-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 0;border-top:1px solid rgba(255,255,255,.05);
+  cursor:pointer;
+}
+.tx-left{display:flex;align-items:center;gap:10px}
+.tx-dot{
+  width:30px;height:30px;border-radius:999px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:#111;font-weight:600;
+}
+.tx-meta{display:flex;flex-direction:column;gap:2px}
+.tx-cat{font-size:14px;color:#fff;letter-spacing:-.2px}
+.tx-note{font-size:13px;color:rgba(255,255,255,.5)}
+.tx-time{font-size:12px;color:rgba(255,255,255,.35)}
+.tx-right{text-align:right;display:flex;flex-direction:column;gap:2px;align-items:flex-end}
+.tx-amt{font-size:15px;font-weight:600}
+.tx-amt.exp{color:rgba(255,255,255,.9)}
+.tx-amt.inc{color:#3DBD74}
+.tx-type{font-size:12px;color:rgba(255,255,255,.35)}
+
+.day-group{padding:8px 16px 0}
+.day-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;position:sticky;top:0;background:#111;z-index:5;padding:8px 0 6px}
+.day-date{font-size:13px;color:rgba(255,255,255,.5)}
+.day-totals{display:flex;gap:10px;align-items:baseline}
+.day-exp{font-size:16px;font-weight:600;color:rgba(255,255,255,.7)}
+.day-inc{font-size:16px;font-weight:600;color:#3DBD74}
+
 .hist-tiles-row{display:flex;gap:10px;padding:10px 16px 6px;flex-shrink:0}
 .hist-tile{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
   padding:12px 8px;border-radius:16px;border:none;cursor:pointer;
@@ -231,6 +308,73 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .mode-btn{flex:1;padding:11px;border-radius:14px;border:none;cursor:pointer;font-size:15px;font-weight:700;background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);transition:all .2s;-webkit-tap-highlight-color:transparent}
 .mode-btn.exp.on{background:#F5A623;color:#000}
 .mode-btn.inc.on{background:#3DBD74;color:#fff}
+
+/* ── HISTORY FILTERS & SUMMARY ───────────────────────────────── */
+.hist-filters-row{
+  display:flex;gap:10px;align-items:center;padding:10px 16px 6px;
+}
+.hist-filter-btn{
+  flex:1;display:flex;align-items:center;gap:8px;
+  padding:9px 12px;border-radius:999px;border:none;cursor:pointer;
+  background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);
+  font-size:13px;font-weight:500;letter-spacing:-.2px;
+  -webkit-tap-highlight-color:transparent;
+}
+.hist-filter-btn:active{background:rgba(255,255,255,.12)}
+.hist-filter-icon{font-size:16px}
+.hist-filter-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.hist-filter-pill{
+  padding:9px 14px;border-radius:999px;border:none;cursor:pointer;
+  background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);
+  font-size:13px;font-weight:500;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+}
+.hist-filter-pill:active{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85)}
+
+.hist-summary-row{
+  display:flex;gap:10px;padding:4px 16px 10px;flex-shrink:0;
+}
+.hist-summary-card{
+  flex:1;border-radius:18px;padding:12px 12px 10px;
+  background:rgba(255,255,255,.06);
+  display:flex;flex-direction:column;gap:4px;align-items:flex-start;
+}
+.hist-summary-exp{background:linear-gradient(135deg,rgba(255,80,80,.22),rgba(255,80,80,.06));}
+.hist-summary-inc{background:linear-gradient(135deg,rgba(61,189,116,.22),rgba(61,189,116,.06));}
+.hs-icon{font-size:20px}
+.hs-main{font-size:18px;font-weight:600;color:#fff;letter-spacing:-.3px}
+.hs-label{font-size:12px;color:rgba(255,255,255,.55)}
+
+/* ── HISTORY TX ROWS ─────────────────────────────────────────── */
+.tx-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 0;border-top:1px solid rgba(255,255,255,.05);
+  cursor:pointer;
+}
+.tx-left{display:flex;align-items:center;gap:10px}
+.tx-dot{
+  width:30px;height:30px;border-radius:999px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:#111;font-weight:600;
+}
+.tx-meta{display:flex;flex-direction:column;gap:2px}
+.tx-cat{font-size:14px;color:#fff;letter-spacing:-.2px}
+.tx-note{font-size:13px;color:rgba(255,255,255,.5)}
+.tx-time{font-size:12px;color:rgba(255,255,255,.35)}
+.tx-right{text-align:right;display:flex;flex-direction:column;gap:2px;align-items:flex-end}
+.tx-amt{font-size:15px;font-weight:600}
+.tx-amt.exp{color:rgba(255,255,255,.9)}
+.tx-amt.inc{color:#3DBD74}
+.tx-type{font-size:12px;color:rgba(255,255,255,.35)}
+
+.day-group{padding:8px 16px 0}
+.day-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;position:sticky;top:0;background:#111;z-index:5;padding:8px 0 6px}
+.day-date{font-size:13px;color:rgba(255,255,255,.5)}
+.day-totals{display:flex;gap:10px;align-items:baseline}
+.day-exp{font-size:16px;font-weight:600;color:rgba(255,255,255,.7)}
+.day-inc{font-size:16px;font-weight:600;color:#3DBD74}
+
 .hist-tiles-row{display:flex;gap:10px;padding:10px 16px 8px;flex-shrink:0}
 .hist-tile{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border-radius:16px;border:none;cursor:pointer;background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);font-size:13px;font-weight:600;transition:all .2s;-webkit-tap-highlight-color:transparent}
 .hist-tile-icon{font-size:22px;line-height:1}
@@ -261,7 +405,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 #s-main .input-area{position:relative;z-index:1}
 
 
-.bud-days-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 0 16px}
+.bud-days-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:6px 0 12px}
 .bud-day-btn{background:rgba(255,255,255,.07);border:2px solid transparent;border-radius:14px;color:rgba(255,255,255,.6);font-size:14px;font-weight:600;padding:12px 4px;cursor:pointer;transition:all .18s;-webkit-tap-highlight-color:transparent}
 .bud-day-btn.sel{background:rgba(245,166,35,.15);border-color:#F5A623;color:#F5A623}
 .bud-day-btn:active{transform:scale(.95)}
@@ -286,19 +430,162 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .amount-int{font-size:72px;font-weight:700;letter-spacing:-2px;line-height:1;transition:none}
 .amount-dec{font-size:36px;font-weight:600;letter-spacing:-0.5px;line-height:1;opacity:.7;align-self:flex-end;padding-bottom:6px}
 #amount-row{display:flex;align-items:baseline;justify-content:flex-end;gap:1px}
-.bud-reset-hint{margin:14px 20px 0;font-size:11px;line-height:1.5;color:rgba(255,255,255,.5)}
-.bud-amount-wrap{display:block;width:100%;cursor:text}
-.bud-amount-hero{font-size:58px;font-weight:700;letter-spacing:-1.5px;color:#fff;background:none;border:none;outline:none;text-align:left;width:100%;caret-color:#F5A623;padding:0;font-family:inherit;line-height:1.05}
+.bud-reset-hint{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:12px 14px;font-size:12px;line-height:1.5;color:rgba(255,255,255,.5);margin:0}
+.bud-amount-wrap{display:inline-flex;align-items:baseline;cursor:text;max-width:100%;overflow:hidden}
+.bud-amount-hero{font-size:var(--hero-input-size,58px);font-weight:700;letter-spacing:-1.5px;color:#fff;background:none;border:none;outline:none;text-align:left;width:0;min-width:0;caret-color:#F5A623;padding:0;font-family:inherit;line-height:1.05}
 .bud-amount-hero::placeholder{color:rgba(255,255,255,.18)}
-.bud-reset-hint{margin:14px 20px 0;font-size:11px;line-height:1.5;color:rgba(255,255,255,.5)}
+.bud-mirror{font-size:var(--hero-input-size,58px);font-weight:700;letter-spacing:-1.5px;font-family:inherit;line-height:1.05;visibility:hidden;position:absolute;white-space:pre;pointer-events:none;top:0;left:0}
+.bud-ruble{font-size:var(--hero-input-size,58px);font-weight:700;letter-spacing:-1.5px;color:rgba(255,255,255,.18);line-height:1.05;padding-left:6px;flex-shrink:0;pointer-events:none;transition:color .18s;font-family:inherit}
+.bud-reset-hint{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:12px 14px;font-size:12px;line-height:1.5;color:rgba(255,255,255,.5);margin:0}
 .bud-reset-hint:before{content:'↺';color:#F5A623;font-size:14px;line-height:1.2;flex:0 0 auto;margin-top:1px}
 .bud-quote{margin:18px 20px 0;padding:16px 16px 14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.05);border-radius:16px}
 .bud-quote-text{font-size:13px;line-height:1.5;color:rgba(255,255,255,.72)}
 .bud-quote-src{font-size:11px;color:rgba(255,255,255,.28);margin-top:8px}
-.bud-sublabel{font-size:11px;font-weight:500;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.28);margin-bottom:6px}
-.bud-deadline-row{display:flex;align-items:center;gap:8px;margin-top:12px;padding:10px 14px;background:rgba(255,255,255,.05);border-radius:12px}
+.bud-sublabel{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px}
+.bud-deadline-row{display:flex;align-items:center;gap:8px;margin-top:14px;margin-bottom:12px;padding:8px 2px 8px}
 .bud-deadline-ico{font-size:15px;line-height:1}
-.bud-deadline-text{font-size:14px;color:rgba(255,255,255,.78)}
+.bud-deadline-text{font-size:14px;font-weight:500;color:rgba(255,255,255,.85)}
+
+:root{
+  --screen-pad:clamp(16px,4.2vw,22px);
+  --card-pad:clamp(16px,4.6vw,22px);
+  --card-radius-xl:clamp(18px,5vw,22px);
+  --card-radius-lg:clamp(16px,4.2vw,18px);
+  --today-size:clamp(68px,20vw,82px);
+  --budget-size:clamp(52px,14vw,64px);
+  --hero-input-size:clamp(48px,13vw,58px);
+}
+html,body,#app,.screen{max-width:100vw}
+.top-bar{padding:14px var(--screen-pad) 10px}
+.main-top{padding:20px var(--screen-pad) 8px!important}
+.input-area{padding:10px calc(var(--screen-pad) - 4px) 6px}
+.hist-type-bar,.hist-tiles-row,.mode-row{padding-left:var(--screen-pad);padding-right:var(--screen-pad)}
+.day-hdr,.tx-item,.cat-tabs{padding-left:var(--screen-pad);padding-right:var(--screen-pad)}
+.sett-scroll{padding:20px var(--screen-pad)}
+.budget-screen-content{padding:clamp(14px,4vw,18px) var(--screen-pad) calc(90px + env(safe-area-inset-bottom,0px))}
+.budget-big{padding:var(--card-pad);border-radius:var(--card-radius-xl)}
+.budget-section{padding:16px var(--card-pad) 8px;border-radius:var(--card-radius-lg)}
+.bud-reset-hint{padding:12px var(--card-pad);border-radius:16px}
+.today-num{font-size:var(--today-size);line-height:.95}
+.budget-total{font-size:var(--budget-size)!important}
+.bud-amount-hero{font-size:var(--hero-input-size)}
+.bud-days-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.bud-day-btn{min-height:48px;padding:12px 6px;font-size:14px}
+.note-input,.modal-inp,.sett-inp,.auth-field input{font-size:16px}
+
+@media (max-width: 390px){
+  :root{
+    --screen-pad:16px;
+    --today-size:clamp(62px,18vw,72px);
+    --budget-size:clamp(46px,13vw,56px);
+    --hero-input-size:clamp(42px,12vw,52px);
+  }
+  .bud-days-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bud-day-btn{font-size:13px;padding:12px 8px}
+  .today-label{font-size:15px!important}
+  .tb-btn,.budget-pill{font-size:13px}
+}
+
+@media (min-width: 430px){
+  :root{
+    --screen-pad:20px;
+    --today-size:clamp(76px,18vw,90px);
+    --budget-size:clamp(58px,13vw,70px);
+    --hero-input-size:clamp(54px,12vw,62px);
+  }
+  .bud-days-grid{gap:10px}
+  .bud-day-btn{font-size:15px}
+}
+
+@media (max-height: 760px){
+  .top-bar{padding-top:12px}
+  .main-top{padding-top:16px!important}
+  .today-num{font-size:clamp(58px,17vw,72px)}
+  .input-area{gap:6px}
+  .bud-reset-hint{font-size:11px}
+}
+
+@media (min-height: 900px){
+  .main-top{padding-top:24px!important}
+  .budget-screen-content{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+}
+
+
+@media (max-width: 350px){
+  :root{
+    --screen-pad:14px;
+    --card-pad:14px;
+    --today-size:56px;
+    --budget-size:44px;
+    --hero-input-size:40px;
+  }
+  .top-bar{padding:12px var(--screen-pad) 8px}
+  .tb-title{font-size:16px}
+  .bud-day-btn{min-height:46px;font-size:12px}
+}
+
+@media (orientation: landscape) and (max-height: 500px){
+  html,body{position:static;overflow:auto}
+  #app{height:auto;min-height:100dvh}
+  .screen{position:relative;min-height:100dvh}
+  .main-top{padding-top:14px!important}
+  .today-num{font-size:52px}
+  .input-area{padding-top:8px}
+  .numpad .np-btn{min-height:50px}
+  .budget-screen-content{padding-top:12px;padding-bottom:24px}
+}
+
+@media (min-width: 768px){
+  #app{max-width:520px;margin:0 auto;border-left:1px solid rgba(255,255,255,.06);border-right:1px solid rgba(255,255,255,.06)}
+  .screen{max-width:520px;left:50%;transform:translateX(-50%)}
+  .screen.hidden{transform:translateX(calc(100% + 260px))}
+  .top-bar,.main-top,.sett-scroll,.budget-screen-content,.input-area,.hist-type-bar,.hist-tiles-row,.mode-row,.day-hdr,.tx-item,.cat-tabs{max-width:520px;margin-left:auto;margin-right:auto}
+}
+
+
+/* ── NAV PILLS ── */
+.nav-pills{display:flex;align-items:center;gap:6px}
+.nav-pill{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.07);
+  border-radius:999px;color:rgba(255,255,255,.75);font-size:13px;font-weight:600;
+  padding:7px 14px;cursor:pointer;letter-spacing:-.2px;white-space:nowrap;
+  transition:background .18s,color .18s;-webkit-tap-highlight-color:transparent;
+  min-height:34px;display:flex;align-items:center;line-height:1}
+.nav-pill:active{background:rgba(255,255,255,.14);transform:scale(.97)}
+
+/* ── SYNC STATUS CARD ── */
+.sync-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);
+  border-radius:18px;padding:16px 18px;display:flex;align-items:center;gap:14px}
+.sync-icon{font-size:20px;flex-shrink:0;line-height:1}
+.sync-info{flex:1}
+.sync-title{font-size:15px;font-weight:600;color:#fff;letter-spacing:-.2px}
+.sync-time{font-size:13px;color:rgba(255,255,255,.45);margin-top:2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sync-icon.spin{display:inline-block;animation:spin 1s linear infinite}
+
+
+/* ── SETTINGS ICON BUTTON ── */
+.settings-icon-btn{
+  background:none;border:none;padding:6px;cursor:pointer;
+  color:rgba(255,255,255,.5);border-radius:50%;
+  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  transition:background .18s,color .18s;-webkit-tap-highlight-color:transparent;
+  flex-shrink:0;
+}
+.settings-icon-btn:active{background:rgba(255,255,255,.1);color:#fff}
+.settings-icon-btn svg{display:block}
+
+/* ── BUDGET PILL HIGHLIGHT (бюджет не задан) ── */
+@keyframes pill-glow{
+  0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,.0);  background:rgba(245,166,35,.18)}
+  50%     {box-shadow:0 0 0 5px rgba(245,166,35,.0);background:rgba(245,166,35,.28)}
+}
+.nav-pill--highlight{
+  color:#F5A623 !important;
+  border-color:rgba(245,166,35,.45) !important;
+  animation:pill-glow 2s ease-in-out infinite;
+}
+.nav-pill--highlight:active{animation:none !important;background:rgba(245,166,35,.35) !important}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -329,13 +616,21 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 </div>
 <!-- ── MAIN SCREEN ── -->
 <div class="screen" id="s-main">
-  <div class="top-bar">
-    <button class="tb-btn" onclick="goHistory()">История</button>
-    <button class="budget-pill" id="budget-pill" onclick="goBudget()">Бюджет</button>
-    <div style="display:flex;align-items:center;gap:6px">
-      <div id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:#FF6B6B;transition:background .5s" title="Синхронизация..."></div>
-      <button class="tb-btn" style="justify-content:flex-end" onclick="goSettings()">&#9881;</button>
+  <div class="top-bar" style="padding-top:12px;padding-bottom:8px">
+    <div class="nav-pills">
+      <button class="nav-pill" onclick="goHistory()">История</button>
+      <button class="nav-pill" id="budget-pill" onclick="goBudget()">Бюджет</button>
     </div>
+    <button class="settings-icon-btn" onclick="goSettings()" aria-label="Настройки">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <line x1="2" y1="5"  x2="18" y2="5"  stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="2" y1="10" x2="18" y2="10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="2" y1="15" x2="18" y2="15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="7"  cy="5"  r="2.2" fill="currentColor"/>
+  <circle cx="13" cy="10" r="2.2" fill="currentColor"/>
+  <circle cx="7"  cy="15" r="2.2" fill="currentColor"/>
+</svg>
+    </button>
   </div>
   <div class="main-top">
     <div class="today-num" id="today-num">0</div>
@@ -377,14 +672,30 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <span class="tb-title">История</span>
     <div style="width:60px"></div>
   </div>
-  <div class="hist-tiles-row">
-    <button class="hist-tile exp" id="htile-exp" onclick="selHistType('expense')">
-      <span class="hist-tile-icon">💸</span><span>Расходы</span>
+
+  <!-- Фильтры */-->
+  <div class="hist-filters-row">
+    <button class="hist-filter-btn" onclick="toggleHistType()">
+      <span class="hist-filter-icon">⚙️</span>
+      <span class="hist-filter-label" id="hist-type-label">Все операции</span>
     </button>
-    <button class="hist-tile inc" id="htile-inc" onclick="selHistType('income')">
-      <span class="hist-tile-icon">💰</span><span>Доходы</span>
-    </button>
+    <button class="hist-filter-pill" onclick="cycleHistPeriod()" id="hist-period-pill">Этот месяц</button>
   </div>
+
+  <!-- Summary по периоду -->
+  <div class="hist-summary-row" id="hist-summary-row">
+    <div class="hist-summary-card hist-summary-exp">
+      <div class="hs-icon">💸</div>
+      <div class="hs-main" id="hs-exp-main">−0 ₽</div>
+      <div class="hs-label">Списания</div>
+    </div>
+    <div class="hist-summary-card hist-summary-inc">
+      <div class="hs-icon">💰</div>
+      <div class="hs-main" id="hs-inc-main">+0 ₽</div>
+      <div class="hs-label">Поступления</div>
+    </div>
+  </div>
+
   <div class="cat-tabs" id="hist-tabs" style="padding:0 16px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0;overflow-x:auto;display:flex;scrollbar-width:none"></div>
   <div class="hist-scroll" id="hist-content"></div>
 </div>
@@ -398,18 +709,21 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   </div>
   <div class="budget-screen-content">
     <div class="budget-big">
-      <div class="bud-sublabel">Сумма на период</div>
+      <div class="bud-sublabel">Сколько ты готов потратить</div>
+      <div style="position:relative">
+      <span class="bud-mirror" id="bud-mirror" aria-hidden="true"></span>
       <div class="bud-amount-wrap" onclick="document.getElementById('bud-amount').focus()">
         <input type="text" inputmode="numeric" id="bud-amount" class="bud-amount-hero"
           placeholder="0" oninput="onBudAmtInput()" autocomplete="off" spellcheck="false">
-              </div>
-      <div class="budget-per-day" id="bud-perday-display">выберите дней ниже</div>
+        <span class="bud-ruble" id="bud-ruble">₽</span>
+      </div>
+      </div>
+      <div class="budget-per-day" id="bud-perday-display"></div>
     </div>
 
-    <div class="budget-divider"></div>
 
     <div class="budget-section">
-      <div class="sett-label">Длительность</div>
+      <div class="bud-sublabel">На сколько дней считаем</div>
       <div class="bud-days-grid" id="bud-days-grid"></div>
       <div class="bud-deadline-row" id="bud-deadline-row" style="display:none">
         <span class="bud-deadline-ico">📅</span>
@@ -419,7 +733,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 
     <!-- Подсказка о сбросе категорий — только если уже есть бюджет -->
     <div class="bud-reset-hint" id="bud-reset-hint" style="display:none">
-      При новом бюджете топ категорий начнётся заново — отдельно для расходов и доходов
+      При вводе нового бюджета топ категорий по тратам и доходам за предыдущий период будет сброшен — и начнётся заново
     </div>
 
   </div>
@@ -433,17 +747,29 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div style="width:60px"></div>
   </div>
   <div class="sett-scroll">
+    <!-- sync status card -->
+    <div class="sync-card" id="sync-card">
+      <span class="sync-icon" id="sync-icon">🟢</span>
+      <div class="sync-info">
+        <div class="sync-title" id="sync-title">Синхронизировано</div>
+        <div class="sync-time" id="sync-time">только что</div>
+      </div>
+    </div>
+    <div class="settings-hero">
+      <div class="settings-hero-title">Настройки</div>
+      <div class="settings-hero-sub">Категории, код восстановления и данные — всё в одном стиле, как на экране бюджета.</div>
+    </div>
     <div class="sett-sec">
-      <div class="sett-label">Категории</div>
+      <div class="sett-sec-head"><div class="sett-label">Категории</div><div class="sett-badge">Твои</div></div>
       <div class="sett-card" id="cat-list"></div>
       <button class="action-btn btn-primary" onclick="showCatModal()">+ Добавить категорию</button>
     </div>
     <div class="sett-sec">
-      <div class="sett-label">Код восстановления</div>
-      <div id="recovery-code-section"></div>
+      <div class="sett-sec-head"><div class="sett-label">Код восстановления</div><div class="sett-badge">Доступ</div></div>
+      <div class="sett-card"><div id="recovery-code-section"></div></div>
     </div>
     <div class="sett-sec">
-      <div class="sett-label">Данные</div>
+      <div class="sett-sec-head"><div class="sett-label">Данные</div><div class="sett-badge">JSON</div></div>
 
       <div class="sett-card">
         <div class="sett-row" style="cursor:pointer" onclick="exportData()">
@@ -695,11 +1021,69 @@ async function pushBudget(){
   try { await db.from('budget_settings').upsert({user_id:currentUser.id,amount:S.budget.amount,days:S.budget.days||0,deadline:S.budget.deadline,set_at:S.budget.set_at||todayStr()}); setSyncDot(true); }
   catch(e){ setSyncDot(false); offlineQueue.push({op:'pushBudget'}); saveQueue(); }
 }
+
+// ── SYNC STATUS ──────────────────────────────────────────────────────────────
+var _lastSyncTs = null;   // Date объект последней успешной синхронизации
+var _syncStatus = 'ok';   // 'ok' | 'syncing' | 'offline'
+
+function timeAgo(date){
+  if(!date) return '';
+  var sec = Math.floor((Date.now() - date.getTime()) / 1000);
+  if(sec < 15)  return 'только что';
+  if(sec < 60)  return 'меньше минуты назад';
+  var min = Math.floor(sec/60);
+  if(min < 60)  return min + ' ' + plural(min,'минуту','минуты','минут') + ' назад';
+  var hr = Math.floor(min/60);
+  if(hr < 24)   return hr + ' ' + plural(hr,'час','часа','часов') + ' назад';
+  var d = Math.floor(hr/24);
+  return d + ' ' + plural(d,'день','дня','дней') + ' назад';
+}
+function plural(n,one,few,many){
+  var m10=n%10, m100=n%100;
+  if(m10===1&&m100!==11) return one;
+  if(m10>=2&&m10<=4&&(m100<10||m100>=20)) return few;
+  return many;
+}
+
+function updateSyncCard(){
+  var icon  = document.getElementById('sync-icon');
+  var title = document.getElementById('sync-title');
+  var time  = document.getElementById('sync-time');
+  if(!icon||!title||!time) return;
+  if(_syncStatus==='syncing'){
+    icon.textContent='🔄'; icon.classList.add('spin');
+    title.textContent='Синхронизируется…';
+    time.textContent='';
+  } else if(_syncStatus==='offline'){
+    icon.textContent='🔴'; icon.classList.remove('spin');
+    title.textContent='Нет соединения';
+    time.textContent='Данные сохранены локально';
+  } else {
+    icon.textContent='🟢'; icon.classList.remove('spin');
+    title.textContent='Синхронизировано';
+    time.textContent=_lastSyncTs ? timeAgo(_lastSyncTs) : '';
+  }
+}
+
+// Обновляем надпись «N минут назад» каждые 30 сек, пока открыты настройки
+setInterval(function(){
+  if(document.getElementById('s-settings') &&
+     !document.getElementById('s-settings').classList.contains('hidden')){
+    updateSyncCard();
+  }
+}, 30000);
+
 function setSyncDot(ok){
-  const d=document.getElementById('sync-dot');
-  if(!d) return;
-  if(ok===null) d.style.background='#F5A623';
-  else d.style.background=ok?'#3DBD74':'#FF6B6B';
+  // ok=true → синхронизировано, ok=false → оффлайн, ok=null → идёт синхронизация
+  if(ok===true){
+    _syncStatus='ok';
+    _lastSyncTs=new Date();
+  } else if(ok===null){
+    _syncStatus='syncing';
+  } else {
+    _syncStatus='offline';
+  }
+  updateSyncCard();
 }
 
 // ── SCREENS ───────────────────────────────────────────────────────────────────
@@ -716,7 +1100,8 @@ function goHistory(){
   setTimeout(renderHistory,0);
 }
 function goBudget(){ show('s-budget'); renderBudgetScreen(); }
-function goSettings(){ show('s-settings'); renderSettings(); }
+function goSettings(){ updateSyncCard();
+ show('s-settings'); renderSettings(); }
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 
@@ -763,6 +1148,7 @@ function renderMain(){
     const daysLeft=Math.max(daysUntil(budgetDeadline),1);
     const perDay=fmt(Math.max(Math.round(Math.max(remaining,0)/daysLeft),0));
     pill.textContent=perDay+' ₽/день';
+    pill.classList.remove('nav-pill--highlight');
     // Цвет pill по статусу бюджета
     pill.style.cssText='';
   } else {
@@ -775,7 +1161,8 @@ function renderMain(){
     lblEl.textContent='Потрачено сегодня';
     lblEl.style.color='rgba(255,255,255,.38)';
     pill.textContent='Бюджет';
-    lblEl.textContent='Настройте бюджет';
+    pill.classList.add('nav-pill--highlight');
+    lblEl.textContent='Задай бюджет — начнём считать траты';
     lblEl.style.color='rgba(255,80,80,.55)';
   }
 
@@ -938,7 +1325,59 @@ function updateHistTypeTabs(){
   if(eEl) eEl.classList.toggle('on', S.histType==='expense');
   if(iEl) iEl.classList.toggle('on', S.histType==='income');
 }
+var HistPeriod='month'; // 'day' | 'week' | 'month'
+
+function cycleHistPeriod(){
+  if(HistPeriod==='day') HistPeriod='week';
+  else if(HistPeriod==='week') HistPeriod='month';
+  else HistPeriod='day';
+  renderHistory();
+}
+
+function histPeriodLabel(){
+  if(HistPeriod==='day') return 'Сегодня';
+  if(HistPeriod==='week') return 'Эта неделя';
+  return 'Этот месяц';
+}
+
+function applyHistPeriod(txs){
+  var today = new Date();
+  function startOfDay(d){ var x=new Date(d); x.setHours(0,0,0,0); return x; }
+  var from;
+  if(HistPeriod==='day'){
+    from=startOfDay(today);
+  } else if(HistPeriod==='week'){
+    var day=today.getDay()||7; // понедельник как начало
+    from=startOfDay(new Date(today.getFullYear(),today.getMonth(),today.getDate()-day+1));
+  } else {
+    from=startOfDay(new Date(today.getFullYear(),today.getMonth(),1));
+  }
+  return txs.filter(function(t){
+    var dt=new Date(t.date);
+    return dt>=from && dt<=today;
+  });
+}
+
+function toggleHistType(){
+  if(!S.histType||S.histType==='all') S.histType='expense';
+  else if(S.histType==='expense') S.histType='income';
+  else S.histType='all';
+  renderHistory();
+}
+
+function histTypeLabel(){
+  if(!S.histType||S.histType==='all') return 'Все операции';
+  if(S.histType==='expense') return 'Только расходы';
+  if(S.histType==='income') return 'Только доходы';
+  return 'Фильтр';
+}
+
 function renderHistory(){
+  var periodPill=document.getElementById('hist-period-pill');
+  if(periodPill) periodPill.textContent=histPeriodLabel();
+  var typeLabel=document.getElementById('hist-type-label');
+  if(typeLabel) typeLabel.textContent=histTypeLabel();
+
   updateHistTypeTabs();
   var visCats=S.histType?S.cats.filter(function(x){return (x.ctype||'expense')===S.histType;}):S.cats;
   var tabs=document.getElementById('hist-tabs');
@@ -955,6 +1394,16 @@ function renderHistContent(){
   var txs=S.txs.slice();
   if(S.histType && S.histType!=='all') txs=txs.filter(function(t){ return t.type===S.histType; });
   if(S.histCat && S.histCat!=='all') txs=txs.filter(function(t){ return t.catId===S.histCat; });
+  txs=applyHistPeriod(txs);
+
+  // summary по периоду
+  var expSum=0, incSum=0;
+  txs.forEach(function(t){ if(t.type==='expense') expSum+=t.amount; else if(t.type==='income') incSum+=t.amount; });
+  var hsExp=document.getElementById('hs-exp-main');
+  var hsInc=document.getElementById('hs-inc-main');
+  if(hsExp) hsExp.textContent = (expSum>0? '−'+fmt(expSum):'−0 ₽');
+  if(hsInc) hsInc.textContent = (incSum>0? '+'+fmt(incSum):'+0 ₽');
+
   if(!txs.length){
     con.innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>Записей пока нет</p></div>';
     return;
@@ -979,12 +1428,15 @@ function renderHistContent(){
       var cat=getCat(t.catId);
       var tm=new Date(t.date).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
       html += '<div class="tx-item'+(t.type==='income'?' income-row':'')+'" data-id="'+t.id+'" onclick="delTx(this.dataset.id)">';
-      html += '<div class="tx-left"><div class="tx-dot" style="background:'+esc(cat.color)+'"></div><div class="tx-meta">';
-      html += '<span class="tx-cat">'+(cat.icon?cat.icon+' ':'')+esc(cat.name)+'</span>';
+      var icon = cat.icon || '';
+      html += '<div class="tx-left"><div class="tx-dot" style="background:'+esc(cat.color)+'">'+icon+'</div><div class="tx-meta">';
+      html += '<span class="tx-cat">'+esc(cat.name)+'</span>';
       if(t.note) html += '<span class="tx-note">'+esc(t.note)+'</span>';
       html += '<span class="tx-time">'+tm+'</span></div></div>';
       html += '<div class="tx-right">';
-      if(!t.catId) html += '<button class="assign-cat-btn" data-id="'+t.id+'" data-type="'+t.type+'" onclick="event.stopPropagation();showAssignCat(this.dataset.id,this.dataset.type)">+ кат.</button>';
+      html += '<div class="tx-amt '+(t.type==='income'?'inc':'exp')+'">'+(t.type==='income'?'+':'−')+fmt(t.amount)+'</div>';
+      html += '<div class="tx-type">'+(t.type==='income'?'Поступление':'Списание')+'</div>'; 
+      '+t.id+'" data-type="'+t.type+'" onclick="event.stopPropagation();showAssignCat(this.dataset.id,this.dataset.type)">+ кат.</button>';
       html += '<span class="tx-amt '+t.type+'">'+(t.type==='income'?'+':'−')+fmt(t.amount)+'</span>';
       html += '</div></div>';
     });
@@ -1011,6 +1463,10 @@ function renderBudgetScreen(){
   var inp = document.getElementById('bud-amount');
   var existAmt = (S.budget && Number(S.budget.amount) > 0) ? S.budget.amount : '';
   inp.value = existAmt ? fmtBudInput(String(existAmt)) : '';
+  var _ruble = document.getElementById('bud-ruble');
+  var _mirror = document.getElementById('bud-mirror');
+  if(_ruble){ _ruble.style.color = existAmt ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.18)'; }
+  fitInputToMirror(inp, _mirror);
 
   // Текущие дни из сохранённого бюджета (пересчитываем из deadline)
   var existDays = 0;
@@ -1056,15 +1512,48 @@ function fmtThousands(str){
 // Алиас для совместимости
 function fmtBudInput(raw){ return fmtThousands(raw); }
 function onBudAmtInput(){
-  var inp = document.getElementById('bud-amount');
+  var inp    = document.getElementById('bud-amount');
+  var ruble  = document.getElementById('bud-ruble');
+  var mirror = document.getElementById('bud-mirror');
   var raw = inp.value.replace(/[^0-9]/g,'');
   if(raw.length > 1 && raw[0] === '0') raw = '0';
-  if(raw.length > 9) raw = raw.slice(0, 9);
+  if(raw.length > 8) raw = raw.slice(0, 8);   // лимит 8 цифр
   inp.value = fmtBudInput(raw);
-  resizeBudInput(inp);
+  // Цвет ₽: placeholder-оттенок когда пусто, активный когда есть цифры
+  if(ruble){
+    ruble.style.color = raw.length > 0
+      ? 'rgba(255,255,255,.4)'
+      : 'rgba(255,255,255,.18)';
+  }
+  fitInputToMirror(inp, mirror);
   updateBudgetPreview();
 }
-function resizeBudInput(inp){ /* no-op: full-width input */ }
+
+function fitInputToMirror(inp, mirror){
+  if(!mirror) return;
+  var display = inp.value || inp.placeholder || '0';
+  mirror.textContent = display;
+  var cs = window.getComputedStyle(inp);
+  mirror.style.fontSize      = cs.fontSize;
+  mirror.style.letterSpacing = cs.letterSpacing;
+  mirror.style.fontWeight    = cs.fontWeight;
+  mirror.style.fontFamily    = cs.fontFamily;
+  var ls = parseFloat(cs.letterSpacing) || 0;
+  var w  = mirror.offsetWidth - ls;
+  // min-width:0 — не даём CSS-правилам растянуть инпут сверх нужного
+  inp.style.minWidth = '0';
+  inp.style.width = Math.max(10, w) + 'px';
+}
+
+
+function syncRubleSize(inp, ruble){
+  if(!ruble) return;
+  var cs = window.getComputedStyle(inp);
+  ruble.style.fontSize = cs.fontSize;
+  ruble.style.letterSpacing = cs.letterSpacing;
+}
+
+function resizeBudInput(inp){ /* no-op */ }
 
 function updateBudgetPreview(){
   var raw = document.getElementById('bud-amount').value.replace(/[^0-9]/g,'');
