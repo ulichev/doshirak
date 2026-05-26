@@ -238,8 +238,11 @@ function goHistory(){
   setTimeout(renderHistory,0);
 }
 function goBudget(){ show('s-budget'); renderBudgetScreen(); }
-function goSettings(){ updateSyncCard();
- show('s-settings'); renderSettings(); }
+function goSettings(){
+  updateSyncCard();
+  show('s-settings');
+  renderSettings();
+}
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 
@@ -690,25 +693,21 @@ async function saveBudget(){
 function selCatSettTab(t){S.catSettTab=t;renderSettings();}
 function renderSettings(){
   const cl=document.getElementById('cat-list');
+  const tw=document.getElementById('cat-type-tabs-wrapper');
   const filteredCats=S.cats.filter(c=>(c.ctype||'expense')===S.catSettTab);
   const tabs=`<div class="cat-type-tabs">
     <button class="cat-type-tab${S.catSettTab==='expense'?' on':''}" onclick="selCatSettTab('expense')">Расходы</button>
     <button class="cat-type-tab${S.catSettTab==='income'?' on':''}" onclick="selCatSettTab('income')">Доходы</button>
   </div>`;
-  cl.innerHTML=tabs+(filteredCats.length
-    ? filteredCats.map(c=>`<div class="cat-item"><div class="cat-nm"><div style="width:12px;height:12px;border-radius:50%;background:${esc(c.color)}"></div>${c.icon?`${c.icon} `:''} ${esc(c.name)}</div><button class="del-cat" onclick="deleteCat('${c.id}')">Удалить</button></div>`).join('')
+  if(tw) tw.innerHTML=tabs;
+  cl.innerHTML=(filteredCats.length
+    ? filteredCats.map(c=>`<div class="cat-item" onclick="showCatModal('${c.id}')"><div class="cat-nm"><div style="width:10px;height:10px;border-radius:50%;background:${esc(c.color)};flex-shrink:0"></div><span class="cat-nm-text">${c.icon?`${c.icon} `:''}${esc(c.name)}</span></div><button class="del-cat" onclick="event.stopPropagation();deleteCat('${c.id}')">Удалить</button></div>`).join('')
     : '<div class="sett-row"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>');
-  // Recovery code
+}
+function showMyCode(){
   const code=localStorage.getItem(K_CODE)||(currentUser&&currentUser.user_metadata&&currentUser.user_metadata.code)||'';
-  const rcSec=document.getElementById('recovery-code-section');
-  if(rcSec) rcSec.innerHTML=code
-    ?`<div class="sett-code-box" onclick="copyCode()">
-        <div style="font-size:11px;color:rgba(255,255,255,.35);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Ваш код</div>
-        <div class="sett-code-val">${code}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:6px">Нажмите чтобы скопировать</div>
-      </div>
-      <div style="font-size:12px;color:rgba(255,255,255,.35);padding:0 4px 8px;line-height:1.5">Введите этот код на другом устройстве или браузере — данные восстановятся мгновенно</div>`
-    :`<div class="sett-row"><span style="color:rgba(255,255,255,.35);font-size:14px">Код не привязан</span></div>`;
+  if(!code){toast('Код не привязан');return;}
+  showCodeRevealModal(code);
 }
 function deleteCat(id){
   customConfirm('Удалить категорию?').then(ok=>{ if(!ok) return; S.cats=S.cats.filter(c=>c.id!==id);saveLocal();pushCats();deleteCatRemote(id);renderSettings();renderCatRow();toast('Удалено'); });
@@ -756,9 +755,15 @@ async function clearAll(){
 }
 
 // ── CAT MODAL ─────────────────────────────────────────────────────────────────
-function showCatModal(){
-  S.budColor=COLORS[0]; S.budIcon=ICON_OPTIONS[0];
-  document.getElementById('cat-name-inp').value='';
+var _editCatId=null;
+function showCatModal(editId){
+  _editCatId=editId||null;
+  const cat=editId?S.cats.find(c=>c.id===editId):null;
+  S.budColor=cat?cat.color:COLORS[0];
+  S.budIcon=cat?(cat.icon||ICON_OPTIONS[0]):ICON_OPTIONS[0];
+  document.getElementById('cat-name-inp').value=cat?cat.name:'';
+  document.getElementById('cat-modal-title').textContent=cat?'Редактировать категорию':'Новая категория';
+  document.getElementById('cat-save-btn').textContent=cat?'Сохранить':'Добавить';
   var ig=document.getElementById('icon-grid');
   if(ig) ig.innerHTML=ICON_OPTIONS.map(function(ic){
     return '<div class="icon-opt'+(ic===S.budIcon?' sel':'')+'" data-ic="'+ic+'" onclick="selIcon(this.dataset.ic)">'+ic+'</div>';
@@ -769,7 +774,7 @@ function showCatModal(){
   document.getElementById('cat-modal').classList.add('vis');
   setTimeout(function(){document.getElementById('cat-name-inp').focus();},50);
 }
-function hideCatModal(){ document.getElementById('cat-modal').classList.remove('vis'); }
+function hideCatModal(){ _editCatId=null; document.getElementById('cat-modal').classList.remove('vis'); }
 function modalBgClick(e){ if(e.target===document.getElementById('cat-modal')) hideCatModal(); }
 function selIcon(ic){ S.budIcon=ic; document.querySelectorAll('.icon-opt').forEach(el=>el.classList.toggle('sel',el.textContent.trim()===ic)); }
 function selColor(c){
@@ -779,11 +784,22 @@ function selColor(c){
 function saveCat(){
   const name=document.getElementById('cat-name-inp').value.trim();
   if(!name){toast('Введите название');return;}
-  const _sfx=S.type==='income'?'_inc':'_exp';
-  S.cats.unshift({id:'c'+Date.now()+_sfx,name,color:S.budColor,icon:S.budIcon||ICON_OPTIONS[0],ctype:S.type});
-  saveLocal();pushCats();hideCatModal();renderSettings();renderCatRow();
-  setTimeout(()=>{ const r=document.getElementById('cat-row'); if(r) r.scrollLeft=0; },60);
-  toast('"'+name+'" добавлена ✓');
+  if(_editCatId){
+    const idx=S.cats.findIndex(c=>c.id===_editCatId);
+    if(idx>=0) S.cats[idx]={...S.cats[idx],name,color:S.budColor,icon:S.budIcon||ICON_OPTIONS[0]};
+    _editCatId=null;
+    saveLocal();pushCats();hideCatModal();renderSettings();renderCatRow();
+    toast('"'+name+'" обновлена ✓');
+  } else {
+    // Определяем тип: из вкладки настроек или из переключателя на главной
+    const onSettings=!document.getElementById('s-settings').classList.contains('hidden');
+    const ctype=onSettings?S.catSettTab:S.type;
+    const _sfx=ctype==='income'?'_inc':'_exp';
+    S.cats.unshift({id:'c'+Date.now()+_sfx,name,color:S.budColor,icon:S.budIcon||ICON_OPTIONS[0],ctype});
+    saveLocal();pushCats();hideCatModal();renderSettings();renderCatRow();
+    setTimeout(()=>{ const r=document.getElementById('cat-row'); if(r) r.scrollLeft=0; },60);
+    toast('"'+name+'" добавлена ✓');
+  }
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
@@ -834,7 +850,7 @@ function customConfirm(msg,okText='Удалить',dangerOk=true){
   document.getElementById('confirm-msg').textContent=msg;
   const ok=document.getElementById('confirm-ok-btn');
   ok.textContent=okText;
-  ok.style.background=dangerOk?'#FF6B6B':'#3DBD74';
+  ok.style.background=dangerOk?'#FF3B30':'#3DBD74';
   el.classList.add('vis');
   return new Promise(r=>{_confirmCb=r;});
 }
@@ -995,7 +1011,7 @@ function showCodeRevealModal(code){
 function dismissCodeReveal(){document.getElementById('code-reveal-modal').classList.remove('vis');}
 function copyCodeReveal(){
   const code=document.getElementById('code-reveal-value').textContent;
-  navigator.clipboard.writeText(code).then(()=>{
+  copyToClipboard(code).then(()=>{
     const b=document.getElementById('copy-code-btn');
     b.textContent='Скопировано ✓';setTimeout(()=>b.textContent='Скопировать код',1800);
   });
@@ -1003,15 +1019,29 @@ function copyCodeReveal(){
 function copyCode(){
   const code=localStorage.getItem(K_CODE);
   if(!code)return;
-  navigator.clipboard.writeText(code).then(()=>toast('Код скопирован ✓'));
+  copyToClipboard(code).then(()=>toast('Код скопирован ✓'));
+}
+function copyToClipboard(text){
+  if(navigator.clipboard&&navigator.clipboard.writeText)
+    return navigator.clipboard.writeText(text).catch(()=>legacyCopy(text));
+  return legacyCopy(text);
+}
+function legacyCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text;ta.style.cssText='position:fixed;opacity:0;pointer-events:none';
+  document.body.appendChild(ta);ta.select();document.execCommand('copy');
+  document.body.removeChild(ta);return Promise.resolve();
 }
 
 
 function showEnterCodeModal(){
-  document.getElementById('enter-code-inp').value='';
-  document.getElementById('enter-code-err').textContent='';
-  document.getElementById('enter-code-modal').classList.add('vis');
-  setTimeout(()=>document.getElementById('enter-code-inp').focus(),300);
+  customConfirm('Данные этого устройства будут заменены данными введённого аккаунта.','Продолжить').then(ok=>{
+    if(!ok) return;
+    document.getElementById('enter-code-inp').value='';
+    document.getElementById('enter-code-err').textContent='';
+    document.getElementById('enter-code-modal').classList.add('vis');
+    setTimeout(()=>document.getElementById('enter-code-inp').focus(),300);
+  });
 }
 function hideEnterCodeModal(){
   document.getElementById('enter-code-modal').classList.remove('vis');
@@ -1063,7 +1093,7 @@ Object.assign(window, {
   selBudDays, onBudAmtInput, saveBudget,
   selCatSettTab, renderSettings,
   showCatModal, hideCatModal, modalBgClick, selIcon, selColor, saveCat,
-  deleteCat, exportData, importData, clearAll,
+  showMyCode, deleteCat, exportData, importData, clearAll,
   showEnterCodeModal, hideEnterCodeModal, submitEnterCode,
   copyCodeReveal, dismissCodeReveal, copyCode,
   recoverWithCode, createNewAccount,

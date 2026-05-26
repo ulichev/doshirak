@@ -91,7 +91,7 @@
 <!-- ── HISTORY SCREEN ── -->
 <div class="screen hidden" id="s-history">
   <div class="top-bar">
-    <button class="tb-btn" onclick="goMain()">← Назад</button>
+    <button class="tb-btn" onclick="goMain()">Назад</button>
     <span class="tb-title">История</span>
     <div style="width:60px"></div>
   </div>
@@ -146,64 +146,58 @@
 <!-- ── SETTINGS SCREEN ── -->
 <div class="screen hidden" id="s-settings">
   <div class="top-bar">
-    <button class="tb-btn" onclick="goMain()">← Назад</button>
+    <button class="tb-btn" onclick="goMain()">Назад</button>
     <span class="tb-title">Настройки</span>
     <div style="width:60px"></div>
   </div>
   <div class="sett-scroll">
-    <div class="sync-card" id="sync-card">
-      <span class="sync-icon" id="sync-icon">🟢</span>
-      <div class="sync-info">
-        <div class="sync-title" id="sync-title">Синхронизировано</div>
-        <div class="sync-time" id="sync-time">только что</div>
+    <div class="sett-sec">
+      <div id="cat-type-tabs-wrapper"></div>
+      <div class="sett-card" id="cat-list"></div>
+      <button class="action-btn btn-outline" onclick="showCatModal()">+ Добавить категорию</button>
+    </div>
+    <div class="sett-sec">
+      <div class="sett-card">
+        <div class="sett-row" style="cursor:pointer" onclick="showMyCode()">
+          <span class="sett-row-label">Код восстановления</span>
+          <span class="sett-chevron">›</span>
+        </div>
+        <div class="sett-row" style="cursor:pointer" onclick="showEnterCodeModal()">
+          <span class="sett-row-label">Войти с другим кодом</span>
+          <span class="sett-chevron">›</span>
+        </div>
       </div>
     </div>
-    <div class="settings-hero">
-      <div class="settings-hero-title">Настройки</div>
-      <div class="settings-hero-sub">Категории, код восстановления и данные — всё в одном стиле, как на экране бюджета.</div>
-    </div>
     <div class="sett-sec">
-      <div class="sett-sec-head"><div class="sett-label">Категории</div><div class="sett-badge">Твои</div></div>
-      <div class="sett-card" id="cat-list"></div>
-      <button class="action-btn btn-primary" onclick="showCatModal()">+ Добавить категорию</button>
-    </div>
-    <div class="sett-sec">
-      <div class="sett-sec-head"><div class="sett-label">Код восстановления</div><div class="sett-badge">Доступ</div></div>
-      <div class="sett-card"><div id="recovery-code-section"></div></div>
-    </div>
-    <div class="sett-sec">
-      <div class="sett-sec-head"><div class="sett-label">Данные</div><div class="sett-badge">JSON</div></div>
       <div class="sett-card">
         <div class="sett-row" style="cursor:pointer" onclick="exportData()">
           <span class="sett-row-label">Выгрузить данные</span>
-          <span style="color:#F5A623;font-size:14px">JSON ↓</span>
+          <span class="sett-chevron">↓</span>
         </div>
         <div class="sett-row" style="cursor:pointer" onclick="document.getElementById('import-file').click()">
           <span class="sett-row-label">Загрузить данные</span>
-          <span style="color:#4A9EFF;font-size:14px">JSON ↑</span>
-        </div>
-        <div class="sett-row" style="cursor:pointer" onclick="clearAll()">
-          <span class="sett-row-label" style="color:#FF3B30">Стереть все данные</span>
-          <span style="color:rgba(255,255,255,.3)">→</span>
+          <span class="sett-chevron">↑</span>
         </div>
       </div>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
     </div>
     <div class="sett-sec">
-      <div class="sett-card">
-        <div class="sett-row" style="cursor:pointer" onclick="showEnterCodeModal()">
-          <span class="sett-row-label" style="color:#4A9EFF">Войти с другим кодом</span>
-          <span style="color:rgba(255,255,255,.3)">→</span>
+      <div class="sett-card sett-card--danger">
+        <div class="sett-row" style="cursor:pointer" onclick="clearAll()">
+          <span class="sett-row-label" style="color:#FF3B30">Стереть все данные</span>
+          <span class="sett-chevron" style="color:rgba(255,59,48,.4)">›</span>
         </div>
       </div>
     </div>
-    <div class="sett-sec">
-      <div class="sett-card">
-        <div class="sett-row">
-          <span class="sett-row-label" style="color:rgba(255,255,255,.35);font-size:13px">Версия</span>
-          <span style="color:rgba(255,255,255,.25);font-size:13px">v0.9 · 26 апреля 2026</span>
-        </div>
+    <div class="sett-footer">
+      <div class="sett-footer-sync">
+        <span class="sync-icon" id="sync-icon">🟢</span>
+        <span id="sync-title">Синхронизировано</span>
+        <span class="sett-footer-dot">·</span>
+        <span id="sync-time">только что</span>
       </div>
+      <div class="sett-footer-meta">Дошик v1.0 · 26 мая 2026</div>
+      <a class="sett-footer-tg" href="https://t.me/aulichev">По вопросам: @aulichev</a>
     </div>
   </div>
 </div>
@@ -211,13 +205,13 @@
 <!-- ── ADD CATEGORY MODAL ── -->
 <div class="modal-bg" id="cat-modal" onclick="modalBgClick(event)">
   <div class="modal-sheet">
-    <div class="modal-title">Новая категория</div>
+    <div class="modal-title" id="cat-modal-title">Новая категория</div>
     <input class="modal-inp" id="cat-name-inp" placeholder="Название, например Кофе" maxlength="25" autocomplete="off">
     <p class="modal-sub-label">Иконка</p>
     <div class="icon-grid" id="icon-grid"></div>
     <p class="modal-sub-label">Цвет</p>
     <div class="color-grid" id="color-grid"></div>
-    <button class="action-btn btn-primary" onclick="saveCat()">Добавить</button>
+    <button class="action-btn btn-primary" id="cat-save-btn" onclick="saveCat()">Добавить</button>
     <button class="action-btn btn-secondary" onclick="hideCatModal()">Отмена</button>
   </div>
 </div>
@@ -246,7 +240,7 @@
     <div class="code-display" id="code-reveal-value"></div>
     <div style="font-size:12px;color:rgba(255,255,255,.3);margin-bottom:20px">Без кода вернуть данные не получится</div>
     <button class="action-btn btn-primary" onclick="copyCodeReveal()" id="copy-code-btn" style="margin-bottom:0">Скопировать код</button>
-    <button class="action-btn btn-secondary" onclick="dismissCodeReveal()" style="margin-top:8px">Понял, сохранил ✓</button>
+    <button class="action-btn btn-secondary" onclick="dismissCodeReveal()" style="margin-top:8px">Понял</button>
   </div>
 </div>
 
