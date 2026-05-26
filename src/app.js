@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
-const SUPA_URL = 'https://stfdtkorhvdmsrhelide.supabase.co';
-const SUPA_KEY = 'sb_publishable_ZnldYNzTnSujDyUW5-16Iw_RnT0uoJS';
+const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
 const db = createClient(SUPA_URL, SUPA_KEY);
 let currentUser = null;
 
@@ -135,7 +135,7 @@ async function seedDefaultCats(){
   if(existing&&existing.length>0) return; // уже есть — не сеять повторно
   const rows=DEF_CATS.map((c,i)=>({id:c.id+'_'+currentUser.id.slice(0,8),user_id:currentUser.id,name:c.name,color:c.color,icon:c.icon||'',ctype:c.ctype||'expense',sort_order:i}));
   const {error}=await db.from('categories').upsert(rows);
-  if(!error){ S.cats=DEF_CATS.map((c,i)=>({...c,id:c.id+'_'+currentUser.id.slice(0,8),ctype:c.ctype||'expense'})); saveLocal(); }
+  if(!error){ S.cats=DEF_CATS.map((c)=>({...c,id:c.id+'_'+currentUser.id.slice(0,8),ctype:c.ctype||'expense'})); saveLocal(); }
 }
 async function pushTx(tx,isRetry=false){
   if(!currentUser) return;
@@ -260,7 +260,6 @@ function renderMain(){
   const pill=document.getElementById('budget-pill');
   const budgetAmount=Number((S.budget&&S.budget.amount)||0);
   const budgetDeadline=S.budget&&S.budget.deadline?S.budget.deadline:null;
-  const budgetStart=S.budget&&S.budget.set_at?S.budget.set_at:todayStr();
   const hasBudget=budgetAmount>0 && !!budgetDeadline;
 
   if(hasBudget){
@@ -619,15 +618,6 @@ function fitInputToMirror(inp, mirror){
 }
 
 
-function syncRubleSize(inp, ruble){
-  if(!ruble) return;
-  var cs = window.getComputedStyle(inp);
-  ruble.style.fontSize = cs.fontSize;
-  ruble.style.letterSpacing = cs.letterSpacing;
-}
-
-function resizeBudInput(inp){ /* no-op */ }
-
 function updateBudgetPreview(){
   var raw = document.getElementById('bud-amount').value.replace(/[^0-9]/g,'');
   var amt = parseInt(raw, 10) || 0;
@@ -812,7 +802,7 @@ function fmtDate(ds){
   if(ds===t)return'Сегодня';if(ds===ys)return'Вчера';
   return new Date(ds+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
 }
-function fmtDateShort(ds){ return new Date(ds+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'}); }
+
 function pluralDays(n){
   if(n%10===1&&n%100!==11)return'день';
   if([2,3,4].includes(n%10)&&![12,13,14].includes(n%100))return'дня';
