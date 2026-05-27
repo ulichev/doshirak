@@ -703,8 +703,8 @@ function renderSettings(){
   </div>`;
   if(tw) tw.innerHTML=tabs;
   cl.innerHTML=(filteredCats.length
-    ? filteredCats.map(c=>`<div class="cat-item" onclick="showCatModal('${c.id}')" style="background:${esc(c.color)}18;border-color:${esc(c.color)}35"><div class="cat-sett-icon" style="background:${esc(c.color)}30">${esc(c.icon)||'●'}</div><span class="cat-nm-text">${esc(c.name)}</span><button class="del-cat" onclick="event.stopPropagation();deleteCat('${c.id}')">Удалить</button></div>`).join('')
-    : '<div class="cat-empty">Нет категорий</div>');
+    ? filteredCats.map(c=>`<div class="cat-item" onclick="showCatModal('${c.id}')"><div class="cat-nm"><div style="width:10px;height:10px;border-radius:50%;background:${esc(c.color)};flex-shrink:0"></div><span class="cat-nm-text">${c.icon?`${c.icon} `:''}${esc(c.name)}</span></div><button class="del-cat" onclick="event.stopPropagation();deleteCat('${c.id}')">Удалить</button></div>`).join('')
+    : '<div class="sett-row"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>');
 }
 function showMyCode(){
   const code=localStorage.getItem(K_CODE)||(currentUser&&currentUser.user_metadata&&currentUser.user_metadata.code)||'';

@@ -153,23 +153,17 @@
   <div class="sett-scroll">
     <div class="sett-sec">
       <div id="cat-type-tabs-wrapper"></div>
-      <div id="cat-list"></div>
+      <div class="sett-card" id="cat-list"></div>
       <button class="action-btn btn-outline" onclick="showCatModal()">+ Добавить категорию</button>
     </div>
     <div class="sett-sec">
       <div class="sett-card">
         <div class="sett-row" style="cursor:pointer" onclick="showMyCode()">
-          <div class="sett-row-left">
-            <div class="sett-row-ico" style="background:rgba(245,166,35,.15)">🔑</div>
-            <span class="sett-row-label">Код восстановления</span>
-          </div>
+          <span class="sett-row-label">Код восстановления</span>
           <span class="sett-chevron">›</span>
         </div>
         <div class="sett-row" style="cursor:pointer" onclick="showEnterCodeModal()">
-          <div class="sett-row-left">
-            <div class="sett-row-ico" style="background:rgba(74,158,255,.15)">🔄</div>
-            <span class="sett-row-label">Войти с другим кодом</span>
-          </div>
+          <span class="sett-row-label">Войти с другим кодом</span>
           <span class="sett-chevron">›</span>
         </div>
       </div>
@@ -177,17 +171,11 @@
     <div class="sett-sec">
       <div class="sett-card">
         <div class="sett-row" style="cursor:pointer" onclick="exportData()">
-          <div class="sett-row-left">
-            <div class="sett-row-ico" style="background:rgba(61,189,116,.15)">📤</div>
-            <span class="sett-row-label">Выгрузить данные</span>
-          </div>
+          <span class="sett-row-label">Выгрузить данные</span>
           <span class="sett-chevron">↓</span>
         </div>
         <div class="sett-row" style="cursor:pointer" onclick="document.getElementById('import-file').click()">
-          <div class="sett-row-left">
-            <div class="sett-row-ico" style="background:rgba(175,111,232,.15)">📥</div>
-            <span class="sett-row-label">Загрузить данные</span>
-          </div>
+          <span class="sett-row-label">Загрузить данные</span>
           <span class="sett-chevron">↑</span>
         </div>
       </div>
@@ -196,10 +184,7 @@
     <div class="sett-sec">
       <div class="sett-card sett-card--danger">
         <div class="sett-row" style="cursor:pointer" onclick="clearAll()">
-          <div class="sett-row-left">
-            <div class="sett-row-ico" style="background:rgba(255,59,48,.15)">🗑</div>
-            <span class="sett-row-label" style="color:#FF3B30">Стереть все данные</span>
-          </div>
+          <span class="sett-row-label" style="color:#FF3B30">Стереть все данные</span>
           <span class="sett-chevron" style="color:rgba(255,59,48,.4)">›</span>
         </div>
       </div>
