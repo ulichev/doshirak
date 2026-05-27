@@ -159,11 +159,17 @@
     <div class="sett-sec">
       <div class="sett-card">
         <div class="sett-row" style="cursor:pointer" onclick="showMyCode()">
-          <span class="sett-row-label">Код восстановления</span>
+          <div class="sett-row-left">
+            <div class="sett-row-ico" style="background:rgba(245,166,35,.15)">🔑</div>
+            <span class="sett-row-label">Код восстановления</span>
+          </div>
           <span class="sett-chevron">›</span>
         </div>
         <div class="sett-row" style="cursor:pointer" onclick="showEnterCodeModal()">
-          <span class="sett-row-label">Войти с другим кодом</span>
+          <div class="sett-row-left">
+            <div class="sett-row-ico" style="background:rgba(74,158,255,.15)">🔄</div>
+            <span class="sett-row-label">Войти с другим кодом</span>
+          </div>
           <span class="sett-chevron">›</span>
         </div>
       </div>
@@ -171,11 +177,17 @@
     <div class="sett-sec">
       <div class="sett-card">
         <div class="sett-row" style="cursor:pointer" onclick="exportData()">
-          <span class="sett-row-label">Выгрузить данные</span>
+          <div class="sett-row-left">
+            <div class="sett-row-ico" style="background:rgba(61,189,116,.15)">📤</div>
+            <span class="sett-row-label">Выгрузить данные</span>
+          </div>
           <span class="sett-chevron">↓</span>
         </div>
         <div class="sett-row" style="cursor:pointer" onclick="document.getElementById('import-file').click()">
-          <span class="sett-row-label">Загрузить данные</span>
+          <div class="sett-row-left">
+            <div class="sett-row-ico" style="background:rgba(175,111,232,.15)">📥</div>
+            <span class="sett-row-label">Загрузить данные</span>
+          </div>
           <span class="sett-chevron">↑</span>
         </div>
       </div>
@@ -184,7 +196,10 @@
     <div class="sett-sec">
       <div class="sett-card sett-card--danger">
         <div class="sett-row" style="cursor:pointer" onclick="clearAll()">
-          <span class="sett-row-label" style="color:#FF3B30">Стереть все данные</span>
+          <div class="sett-row-left">
+            <div class="sett-row-ico" style="background:rgba(255,59,48,.15)">🗑</div>
+            <span class="sett-row-label" style="color:#FF3B30">Стереть все данные</span>
+          </div>
           <span class="sett-chevron" style="color:rgba(255,59,48,.4)">›</span>
         </div>
       </div>

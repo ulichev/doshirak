@@ -99,7 +99,10 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .cat-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.06);min-height:54px}
 .cat-item:last-child{border-bottom:none}
 .cat-nm{display:flex;align-items:center;gap:10px;font-size:15px;letter-spacing:-.2px;flex:1;min-width:0;overflow:hidden}
-.cat-nm-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat-nm-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.cat-sett-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.sett-row-left{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.sett-row-ico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .del-cat{background:rgba(255,59,48,.12);border:1px solid rgba(255,59,48,.25);color:#FF6060;font-size:13px;font-weight:600;padding:7px 13px;border-radius:10px;cursor:pointer;white-space:nowrap;transition:opacity .18s,transform .18s;-webkit-tap-highlight-color:transparent}.del-cat:active{opacity:.7;transform:scale(.95)}
 .action-btn{width:100%;padding:15px 16px;border-radius:16px;border:none;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px;letter-spacing:-.2px;transition:transform .18s,opacity .18s}.action-btn:active{transform:scale(.985)}
 .btn-primary{background:#F5A623;color:#000;box-shadow:0 10px 24px rgba(245,166,35,.16)}
