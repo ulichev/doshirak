@@ -443,16 +443,11 @@ function npDel(){ S.amount=S.amount.slice(0,-1); renderAmountRow(); }
 function confirm_(){
   const amt=parseFloat(S.amount);
   if(!amt||amt<=0){toast('Введите сумму');return;}
-  if(S.type==='expense'&&!(S.budget&&S.budget.amount>0&&S.budget.deadline)){
-    toast('Сначала настройте бюджет 👆');
-    return;
-  }
-  // подсказка без блокировки если нет бюджета - уже handled in renderMain
   const note=document.getElementById('note-inp').value.trim();
   const catId=S.catId||null; // null = без категории
   const tx={id:Date.now()+'',amount:amt,type:S.type,catId:catId,note:note,date:new Date().toISOString()};
   S.txs.unshift(tx); saveLocal(); pushTx(tx);
-  S.amount=''; document.getElementById('note-inp').value=''; S.amount=''; renderAmountRow();
+  S.amount=''; document.getElementById('note-inp').value=''; renderAmountRow();
   renderMain(); toastWithUndo((S.type==='expense'?'− ':'+ ')+fmt(amt)+'₽'+(catId?' · '+getCat(catId).name:''), tx);
 }
 
@@ -810,6 +805,7 @@ function getCat(id){ if(!id) return {name:'Без категории',color:'#9E
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function localDateStr(isoStr){ const d=new Date(isoStr); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function daysUntil(ds){
+  if(!ds||typeof ds!=='string') return 1;
   const p=ds.split('-'); const t=new Date(+p[0],+p[1]-1,+p[2]);
   const n=new Date(); n.setHours(0,0,0,0);
   return Math.max(1,Math.ceil((t-n)/864e5));
@@ -1065,7 +1061,7 @@ async function submitEnterCode(){
     currentUser=data.user;
     hideEnterCodeModal();
     // Reset local data and sync from server
-    S.txs=[];S.cats=[];S.budget={amount:0,deadline:null};
+    S.txs=[];S.cats=[];S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0};
     saveLocal();
     await syncFromSupabase();
     renderMain();
@@ -1104,3 +1100,10 @@ Object.assign(window, {
   _confOk, _confNo,
   toastUndo, fmtCodeInput,
 });
+
+// ── PWA: регистрация service worker для установки на Android ──────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
