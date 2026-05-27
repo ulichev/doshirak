@@ -3,8 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
-// Проксируем через Vercel, чтобы обойти блокировку *.supabase.co в РФ
-const SUPA_PROXY = typeof window !== 'undefined'
+// В проде — прокси через Vercel (обход блокировки supabase.co в РФ)
+// В dev (Vite) — прямой URL, VPN включать локально
+const SUPA_PROXY = import.meta.env.PROD
   ? window.location.origin + '/sb'
   : SUPA_URL;
 const db = createClient(SUPA_PROXY, SUPA_KEY);
