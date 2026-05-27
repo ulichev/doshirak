@@ -95,15 +95,23 @@
     <span class="tb-title">История</span>
     <div style="width:60px"></div>
   </div>
-  <div class="hist-tiles-row">
-    <button class="hist-tile exp" id="htile-exp" onclick="selHistType('expense')">
-      <span class="hist-tile-icon">💸</span><span>Расходы</span>
+  <div class="hist-sum-row">
+    <button class="hist-sum-tile exp" id="htile-exp" onclick="selHistType('expense')">
+      <div class="hist-sum-icon">💸</div>
+      <div class="hist-sum-text">
+        <div class="hist-sum-label">Расходы</div>
+        <div class="hist-sum-amt" id="hist-exp-total">0 ₽</div>
+      </div>
     </button>
-    <button class="hist-tile inc" id="htile-inc" onclick="selHistType('income')">
-      <span class="hist-tile-icon">💰</span><span>Доходы</span>
+    <button class="hist-sum-tile inc" id="htile-inc" onclick="selHistType('income')">
+      <div class="hist-sum-icon">💰</div>
+      <div class="hist-sum-text">
+        <div class="hist-sum-label">Доходы</div>
+        <div class="hist-sum-amt" id="hist-inc-total">0 ₽</div>
+      </div>
     </button>
   </div>
-  <div class="cat-tabs" id="hist-tabs" style="padding:0 16px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0;overflow-x:auto;display:flex;scrollbar-width:none"></div>
+  <div class="cat-tabs" id="hist-tabs"></div>
   <div class="hist-scroll" id="hist-content"></div>
 </div>
 
@@ -244,12 +252,23 @@
   </div>
 </div>
 
-<!-- ── ASSIGN CATEGORY MODAL ── -->
-<div class="modal-bg" id="assign-cat-modal" onclick="if(event.target===this)hideAssignCat()">
-  <div class="modal-sheet">
-    <div class="modal-title">Выбери категорию</div>
-    <div id="assign-cat-list" style="display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto"></div>
-    <button class="action-btn btn-secondary" onclick="hideAssignCat()" style="margin-top:12px">Отмена</button>
+<!-- ── TX EDIT MODAL ── -->
+<div class="modal-bg" id="tx-edit-modal" onclick="if(event.target===this)hideTxEdit()">
+  <div class="modal-sheet tx-edit-sheet">
+    <div class="tx-edit-top">
+      <div class="tx-edit-avatar" id="tx-edit-avatar"></div>
+      <div class="tx-edit-info">
+        <input class="tx-edit-amt-input" id="tx-edit-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
+        <div class="tx-edit-date" id="tx-edit-date"></div>
+      </div>
+    </div>
+    <p class="modal-sub-label" style="margin-top:16px">Категория</p>
+    <div id="tx-edit-cat-list" style="display:flex;flex-direction:column;gap:6px;max-height:30vh;overflow-y:auto;margin-bottom:4px"></div>
+    <p class="modal-sub-label" style="margin-top:12px">Заметка</p>
+    <input class="modal-inp" id="tx-edit-note" placeholder="Добавь описание..." maxlength="80" autocomplete="off">
+    <button class="action-btn btn-primary" onclick="saveTxEdit()">Сохранить</button>
+    <button class="action-btn btn-danger" onclick="deleteTxFromEdit()">Удалить</button>
+    <button class="action-btn btn-secondary" onclick="hideTxEdit()">Отмена</button>
   </div>
 </div>
 

@@ -1,11 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
-const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
 // Всегда через прокси /sb — в dev Vite проксирует сам, в проде — Vercel
 // Браузер никогда не ходит напрямую на supabase.co (обход РКН)
-const db = createClient(window.location.origin + '/sb', SUPA_KEY);
+const db = createClient(window.location.origin + '/sb', import.meta.env.VITE_SUPABASE_KEY);
 let currentUser = null;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -205,12 +203,10 @@ function updateSyncCard(){
   }
 }
 
-// Обновляем надпись «N минут назад» каждые 30 сек, пока открыты настройки
+// Обновляем надпись «N минут назад» каждые 30 сек, пока открыт экран настроек
 setInterval(function(){
-  if(document.getElementById('s-settings') &&
-     !document.getElementById('s-settings').classList.contains('hidden')){
-    updateSyncCard();
-  }
+  var s=document.getElementById('s-settings');
+  if(s && !s.classList.contains('hidden')) updateSyncCard();
 }, 30000);
 
 function setSyncDot(ok){
@@ -234,7 +230,7 @@ function show(id){
 }
 function goMain(){ show('s-main'); renderMain(); }
 function goHistory(){
-  S.histType='expense';
+  S.histType=null;
   S.histCat=null;
   show('s-history');
   setTimeout(renderHistory,0);
@@ -373,15 +369,11 @@ function renderCatRow(){
 }
 function selCat(id){ S.catId=(S.catId===id?null:id); renderCatRow(); }
 function renderModeRow(){
-  var expBtn=document.getElementById('sign-btn-exp');
-  var incBtn=document.getElementById('sign-btn-inc');
   var toggleBtn=document.getElementById('np-toggle');
-  if(toggleBtn){toggleBtn.textContent=S.type==='income'?'+':'−';toggleBtn.className='np-btn np-toggle'+(S.type==='income'?' inc':'');}
-  if(expBtn) expBtn.classList.toggle('on', S.type==='expense');
-  if(incBtn) incBtn.classList.toggle('on', S.type==='income');
-  var tExp=document.getElementById('type-exp'); if(tExp) tExp.className='type-btn exp'+(S.type==='expense'?' on':'');
-  var tInc=document.getElementById('type-inc'); if(tInc) tInc.className='type-btn inc'+(S.type==='income'?' on':'');
-  // Keep enter button color
+  if(toggleBtn){
+    toggleBtn.textContent=S.type==='income'?'+':'−';
+    toggleBtn.className='np-btn np-toggle'+(S.type==='income'?' inc':'');
+  }
   var enter=document.getElementById('np-enter');
   if(enter) enter.className='np-btn np-enter'+(S.type==='income'?' inc-mode':'');
   renderAmountRow();
@@ -390,11 +382,6 @@ function toggleType(){ setType(S.type==='expense'?'income':'expense'); }
 function setType(t){
   S.type=t; S.catId=null;
   renderModeRow();
-  document.getElementById('np-enter').className='np-btn np-enter'+(t==='income'?' inc-mode':'');
-  var tog=document.getElementById('np-toggle');
-  if(tog){ tog.textContent=t==='income'?'+':'−'; tog.className='np-btn np-toggle'+(t==='income'?' inc':''); }
-  var noteInp=document.getElementById('note-inp');
-  if(noteInp) noteInp.placeholder=t==='income'?'Уточни детали (необязательно)':'Уточни детали (необязательно)';
   renderCatRow();
   renderMain();
 }
@@ -468,7 +455,17 @@ function updateHistTypeTabs(){
 }
 function renderHistory(){
   updateHistTypeTabs();
-  var visCats=S.histType?S.cats.filter(function(x){return (x.ctype||'expense')===S.histType;}):S.cats;
+  // Totals in summary tiles
+  var totalExp=S.txs.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+  var totalInc=S.txs.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
+  var expAmtEl=document.getElementById('hist-exp-total');
+  var incAmtEl=document.getElementById('hist-inc-total');
+  if(expAmtEl) expAmtEl.textContent='−'+fmt(totalExp)+' ₽';
+  if(incAmtEl) incAmtEl.textContent='+'+fmt(totalInc)+' ₽';
+  // Category tabs — expense first, then income (logical order)
+  var visCats=S.histType
+    ?S.cats.filter(function(x){return (x.ctype||'expense')===S.histType;})
+    :S.cats.filter(function(x){return (x.ctype||'expense')==='expense';}).concat(S.cats.filter(function(x){return x.ctype==='income';}));
   var tabs=document.getElementById('hist-tabs');
   if(tabs) tabs.innerHTML=visCats.map(function(x){
     return '<button class="ctab'+(S.histCat===x.id?' on':'')+'" data-id="'+x.id+'" onclick="selHistTab(this.dataset.id)">'
@@ -481,8 +478,8 @@ function renderHistContent(){
   var con=document.getElementById('hist-content');
   if(!con) return;
   var txs=S.txs.slice();
-  if(S.histType && S.histType!=='all') txs=txs.filter(function(t){ return t.type===S.histType; });
-  if(S.histCat && S.histCat!=='all') txs=txs.filter(function(t){ return t.catId===S.histCat; });
+  if(S.histType) txs=txs.filter(function(t){ return t.type===S.histType; });
+  if(S.histCat)  txs=txs.filter(function(t){ return t.catId===S.histCat; });
   if(!txs.length){
     con.innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>Записей пока нет</p></div>';
     return;
@@ -496,41 +493,36 @@ function renderHistContent(){
   var html='';
   Object.keys(groups).sort(function(a,b){ return b.localeCompare(a); }).forEach(function(day){
     var dayTxs=groups[day];
-    var expSum=0, incSum=0;
-    dayTxs.forEach(function(t){ if(t.type==='expense') expSum+=t.amount; else if(t.type==='income') incSum+=t.amount; });
-    html += '<div class="day-group">';
-    html += '<div class="day-hdr"><span class="day-date">'+fmtDate(day)+'</span><div class="day-totals">';
-    if(expSum>0) html += '<span class="day-exp">−'+fmt(expSum)+'</span>';
-    if(incSum>0) html += '<span class="day-inc">+'+fmt(incSum)+'</span>';
-    html += '</div></div>';
+    html += '<div class="day-section">';
+    var dayExp=dayTxs.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+    var dayInc=dayTxs.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
+    var dayParts=[];
+    if(dayExp>0) dayParts.push('<span class="day-sec-exp">−'+fmt(dayExp)+' ₽</span>');
+    if(dayInc>0) dayParts.push('<span class="day-sec-inc">+'+fmt(dayInc)+' ₽</span>');
+    html += '<div class="day-sec-label"><span>'+fmtDate(day)+'</span><span class="day-sec-total">'+dayParts.join('<span class="day-sec-dot">·</span>')+'</span></div>';
+    html += '<div class="day-card">';
     dayTxs.forEach(function(t){
       var cat=getCat(t.catId);
-      var tm=new Date(t.date).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
-      html += '<div class="tx-item'+(t.type==='income'?' income-row':'')+'" data-id="'+t.id+'" onclick="delTx(this.dataset.id)">';
-      html += '<div class="tx-left"><div class="tx-dot" style="background:'+esc(cat.color)+'"></div><div class="tx-meta">';
-      html += '<span class="tx-cat">'+(cat.icon?cat.icon+' ':'')+esc(cat.name)+'</span>';
-      if(t.note) html += '<span class="tx-note">'+esc(t.note)+'</span>';
-      html += '<span class="tx-time">'+tm+'</span></div></div>';
+      var avatarBg=esc((cat.color||'#9E9E9E')+'22');
+      var subtext=t.note||(t.type==='income'?'Доход':'Расход');
+      html += '<div class="tx-item" data-id="'+t.id+'" onclick="showTxEdit(this.dataset.id)">';
+      html += '<div class="tx-avatar" style="background:'+avatarBg+'">'+(cat.icon?esc(cat.icon):'●')+'</div>';
+      html += '<div class="tx-meta" style="flex:1;min-width:0;margin:0 12px">';
+      html += '<span class="tx-cat-name">'+esc(cat.name)+'</span>';
+      html += '<span class="tx-sub">'+esc(subtext)+'</span>';
+      html += '</div>';
       html += '<div class="tx-right">';
-      if(!t.catId) html += '<button class="assign-cat-btn" data-id="'+t.id+'" data-type="'+t.type+'" onclick="event.stopPropagation();showAssignCat(this.dataset.id,this.dataset.type)">+ кат.</button>';
-      html += '<span class="tx-amt '+t.type+'">'+(t.type==='income'?'+':'−')+fmt(t.amount)+'</span>';
+      html += '<span class="tx-amt-main '+t.type+'">'+(t.type==='income'?'+':'−')+fmt(t.amount)+' ₽</span>';
       html += '</div></div>';
     });
-    html += '</div>';
+    html += '</div></div>';
   });
   con.innerHTML=html;
 }
 
-async function delTx(id){
-  if(!await customConfirm('Удалить запись?')) return;
-  S.txs=S.txs.filter(t=>t.id!==id); saveLocal(); deleteTxRemote(id); renderHistory(); toast('Удалено');
-}
-
 // ── BUDGET ────────────────────────────────────────────────────────────────────
-// Простой и надёжный бюджет: сумма + кол-во дней
 // S.budDays — выбранное кол-во дней (число)
-// S.budgetDraft — {amount, days} во время редактирования
-// S.budget — {amount, days, set_at, deadline} — сохранённый бюджет
+// S.budget — {amount, days, set_at, deadline, spent_at_start, reset_ts}
 
 const BUD_DAY_PRESETS = [3,7,14,30];
 
@@ -727,7 +719,12 @@ function importData(e){
       if(!await customConfirm('Заменить все текущие данные данными из файла?','Заменить')) return;
       S.txs=d.txs||[];
       S.cats=(d.cats||[]).map(c=>({...c,ctype:c.ctype||'expense'}));
-      S.budget=d.budget||{amount:0,deadline:null};
+      var ib=d.budget||{};
+      var ibSetAt=ib.set_at||null;
+      var ibBaseline=(ib.spent_at_start!=null)?Number(ib.spent_at_start)
+        :S.txs.filter(t=>{if(t.type!=='expense')return false;if(!ibSetAt)return true;return localDateStr(t.date)<ibSetAt;}).reduce((s,t)=>s+t.amount,0);
+      S.budget={amount:Number(ib.amount)||0,days:Number(ib.days)||0,deadline:ib.deadline||null,set_at:ibSetAt,spent_at_start:ibBaseline,reset_ts:ib.reset_ts||null};
+      S.budDays=S.budget.days||0;
       saveLocal();
       if(currentUser){
         S.txs.forEach(t=>pushTx(t));
@@ -826,23 +823,84 @@ function pluralDays(n){
   if([2,3,4].includes(n%10)&&![12,13,14].includes(n%100))return'дня';
   return'дней';
 }
-// ── ASSIGN CATEGORY MODAL ────────────────────────────────────────────────────
-function showAssignCat(txId,txType){
-  const cats=S.cats.filter(c=>(c.ctype||'expense')===txType);
-  const modal=document.getElementById('assign-cat-modal');
-  document.getElementById('assign-cat-list').innerHTML=cats.map(c=>`
-    <button class="assign-cat-item" onclick="assignCat('${txId}','${c.id}')">
-      <div style="width:10px;height:10px;border-radius:50%;background:${esc(c.color)};flex-shrink:0"></div>
-      <span>${esc(c.name)}</span>
-    </button>`).join('');
-  modal.classList.add('vis');
+// ── TX EDIT MODAL ─────────────────────────────────────────────────────────────
+var _editTxId=null;
+var _editTxCatId=null;
+
+function showTxEdit(id){
+  var tx=S.txs.find(function(t){return t.id===id;});
+  if(!tx) return;
+  _editTxId=id;
+  _editTxCatId=tx.catId||null;
+  var cat=getCat(tx.catId);
+  var avatarEl=document.getElementById('tx-edit-avatar');
+  var amtInputEl=document.getElementById('tx-edit-amount');
+  var dateEl=document.getElementById('tx-edit-date');
+  var noteEl=document.getElementById('tx-edit-note');
+  avatarEl.style.background=esc((cat.color||'#9E9E9E')+'26');
+  avatarEl.textContent=cat.icon||'●';
+  if(amtInputEl){
+    amtInputEl.value=fmt(tx.amount);
+    amtInputEl.style.color=tx.type==='income'?'#3DBD74':'rgba(255,255,255,.9)';
+  }
+  var d=new Date(tx.date);
+  dateEl.textContent=fmtDate(localDateStr(tx.date))+' · '+d.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+  noteEl.value=tx.note||'';
+  renderTxEditCats(tx.type);
+  document.getElementById('tx-edit-modal').classList.add('vis');
 }
-function hideAssignCat(){ document.getElementById('assign-cat-modal').classList.remove('vis'); }
-function assignCat(txId,catId){
-  const tx=S.txs.find(t=>t.id===txId);
-  if(tx){ tx.catId=catId; saveLocal(); pushTx(tx); renderHistory(); renderMain(); }
-  hideAssignCat();
-  toast('Категория назначена ✓');
+
+function renderTxEditCats(txType){
+  var cats=S.cats.filter(function(c){return (c.ctype||'expense')===txType;});
+  var listEl=document.getElementById('tx-edit-cat-list');
+  if(!listEl) return;
+  listEl.innerHTML=cats.map(function(c){
+    var isSel=_editTxCatId===c.id;
+    return '<button class="assign-cat-item'+(isSel?' sel-cat':'')+'" data-cid="'+c.id+'" onclick="selectEditCat(this.dataset.cid)">'
+      +'<div style="width:10px;height:10px;border-radius:50%;background:'+esc(c.color)+';flex-shrink:0"></div>'
+      +(c.icon?'<span>'+esc(c.icon)+'</span>':'')
+      +'<span style="flex:1">'+esc(c.name)+'</span>'
+      +(isSel?'<span style="color:#F5A623;font-size:16px;flex-shrink:0">✓</span>':'')
+      +'</button>';
+  }).join('');
+}
+
+function selectEditCat(catId){
+  _editTxCatId=(_editTxCatId===catId?null:catId);
+  var tx=S.txs.find(function(t){return t.id===_editTxId;});
+  if(tx) renderTxEditCats(tx.type);
+}
+
+function hideTxEdit(){
+  _editTxId=null;
+  _editTxCatId=null;
+  document.getElementById('tx-edit-modal').classList.remove('vis');
+}
+
+function saveTxEdit(){
+  if(!_editTxId) return;
+  var tx=S.txs.find(function(t){return t.id===_editTxId;});
+  if(!tx){hideTxEdit();return;}
+  tx.catId=_editTxCatId||null;
+  tx.note=(document.getElementById('tx-edit-note').value||'').trim();
+  var _amtInp=document.getElementById('tx-edit-amount');
+  if(_amtInp){
+    var _newAmt=parseFloat(String(_amtInp.value).replace(/\s/g,'').replace(',','.'));
+    if(_newAmt>0) tx.amount=_newAmt;
+  }
+  saveLocal(); pushTx(tx);
+  hideTxEdit(); renderHistory(); renderMain();
+  toast('Сохранено ✓');
+}
+
+async function deleteTxFromEdit(){
+  if(!_editTxId) return;
+  if(!await customConfirm('Удалить запись?')) return;
+  var id=_editTxId;
+  hideTxEdit();
+  S.txs=S.txs.filter(function(t){return t.id!==id;});
+  saveLocal(); deleteTxRemote(id); renderHistory(); renderMain();
+  toast('Удалено');
 }
 
 // ── CUSTOM CONFIRM ───────────────────────────────────────────────────────────
@@ -996,7 +1054,10 @@ async function recoverWithCode(){
     }
     localStorage.setItem(K_CODE,code);currentUser=data.user;
     document.getElementById('s-auth').style.display='none';
-    loadLocal();goMain();
+    // Не подгружаем локальные данные предыдущего юзера — берём только с сервера
+    S.txs=[];S.cats=[];S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0};
+    saveLocal();
+    goMain();
     await syncFromSupabase();
     renderMain();
     setSyncDot(true);toast('Данные восстановлены ✓');
@@ -1093,14 +1154,14 @@ Object.assign(window, {
   goMain, goHistory, goBudget, goSettings,
   np, npDel, confirm_, toggleType, selCat,
   selBudDays, onBudAmtInput, saveBudget,
-  selCatSettTab, renderSettings,
+  selCatSettTab,
   showCatModal, hideCatModal, modalBgClick, selIcon, selColor, saveCat,
   showMyCode, deleteCat, exportData, importData, clearAll,
   showEnterCodeModal, hideEnterCodeModal, submitEnterCode,
   copyCodeReveal, dismissCodeReveal, copyCode,
   recoverWithCode, createNewAccount,
   selHistType, selHistTab,
-  delTx, showAssignCat, hideAssignCat, assignCat,
+  showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat,
   _confOk, _confNo,
   toastUndo, fmtCodeInput,
 });
