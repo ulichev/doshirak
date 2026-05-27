@@ -443,6 +443,10 @@ function npDel(){ S.amount=S.amount.slice(0,-1); renderAmountRow(); }
 function confirm_(){
   const amt=parseFloat(S.amount);
   if(!amt||amt<=0){toast('Введите сумму');return;}
+  if(S.type==='expense'&&!(S.budget&&S.budget.amount>0&&S.budget.deadline)){
+    toast('Сначала настройте бюджет 👆');
+    return;
+  }
   const note=document.getElementById('note-inp').value.trim();
   const catId=S.catId||null; // null = без категории
   const tx={id:Date.now()+'',amount:amt,type:S.type,catId:catId,note:note,date:new Date().toISOString()};
