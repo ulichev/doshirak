@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/sb/:path*",
+      "destination": "https://stfdtkorhvdmsrhelide.supabase.co/:path*"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*).html",

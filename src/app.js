@@ -3,7 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
-const db = createClient(SUPA_URL, SUPA_KEY);
+// Проксируем через Vercel, чтобы обойти блокировку *.supabase.co в РФ
+const SUPA_PROXY = typeof window !== 'undefined'
+  ? window.location.origin + '/sb'
+  : SUPA_URL;
+const db = createClient(SUPA_PROXY, SUPA_KEY);
 let currentUser = null;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
