@@ -97,18 +97,26 @@
   </div>
   <div class="hist-sum-row">
     <button class="hist-sum-tile exp" id="htile-exp" onclick="selHistType('expense')">
-      <div class="hist-sum-icon">💸</div>
-      <div class="hist-sum-text">
-        <div class="hist-sum-label">Расходы</div>
-        <div class="hist-sum-amt" id="hist-exp-total">0 ₽</div>
-      </div>
+      <span class="hist-sum-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 4v16M5 13l7 7 7-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="hist-sum-text">
+        <span class="hist-sum-label">Расходы</span>
+        <span class="hist-sum-amt" id="hist-exp-total">0 ₽</span>
+      </span>
     </button>
     <button class="hist-sum-tile inc" id="htile-inc" onclick="selHistType('income')">
-      <div class="hist-sum-icon">💰</div>
-      <div class="hist-sum-text">
-        <div class="hist-sum-label">Доходы</div>
-        <div class="hist-sum-amt" id="hist-inc-total">0 ₽</div>
-      </div>
+      <span class="hist-sum-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 20V4M5 11l7-7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="hist-sum-text">
+        <span class="hist-sum-label">Доходы</span>
+        <span class="hist-sum-amt" id="hist-inc-total">0 ₽</span>
+      </span>
     </button>
   </div>
   <div class="cat-tabs" id="hist-tabs"></div>
@@ -258,7 +266,17 @@
     <div class="tx-edit-top">
       <div class="tx-edit-avatar" id="tx-edit-avatar"></div>
       <div class="tx-edit-info">
-        <input class="tx-edit-amt-input" id="tx-edit-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
+        <div class="tx-edit-amt-row" onclick="document.getElementById('tx-edit-amount').focus()">
+          <span class="tx-edit-sign" id="tx-edit-sign">−</span>
+          <input class="tx-edit-amt-input" id="tx-edit-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="onTxEditAmtInput()">
+          <span class="tx-edit-amt-mirror" id="tx-edit-amt-mirror" aria-hidden="true"></span>
+          <span class="tx-edit-ruble" id="tx-edit-ruble">₽</span>
+          <span class="tx-edit-edit-hint" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14.06 4.94l4 4M3 21l5.5-1 11-11a2.83 2.83 0 1 0-4-4l-11 11L3 21z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
         <div class="tx-edit-date" id="tx-edit-date"></div>
       </div>
     </div>

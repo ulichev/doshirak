@@ -7,7 +7,7 @@ const db = createClient(window.location.origin + '/sb', import.meta.env.VITE_SUP
 let currentUser = null;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
-const K = { tx:'tk_tx', cats:'tk_cats', budget:'tk_budget' };
+const K = { tx:'tk_tx', cats:'tk_cats', budget:'tk_budget', budHist:'tk_budhist' };
 const COLORS = ['#F5A623','#FF6B6B','#3DBD74','#4A9EFF','#AF6FE8','#00C2CB','#FF9500','#F06292','#78909C','#A1887F'];
 const DEF_CATS_EXP = [
   {id:'food',name:'Еда',color:'#F5A623',icon:'🍔',ctype:'expense'},
@@ -50,7 +50,8 @@ let S = {
   type:'expense', amount:'', catId:null,
   histCat:null, histType:'expense', catSettTab:'expense',
   budColor:COLORS[0], budDays:0,
-  txs:[], cats:[], budget:{amount:0,days:0,deadline:null,set_at:null}
+  txs:[], cats:[], budget:{amount:0,days:0,deadline:null,set_at:null},
+  budgetHistory:[]
 };
 
 let _budDirtyTs=0; // timestamp последнего локального сохранения бюджета
@@ -66,6 +67,7 @@ async function processQueue(){
       if(item.op==='pushTx') await pushTx(item.data,true);
       else if(item.op==='pushCats') await pushCats();
       else if(item.op==='pushBudget') await pushBudget();
+      else if(item.op==='pushBudgetHistoryEntry') await pushBudgetHistoryEntry(item.data,true);
     }catch(e){ offlineQueue.push(item); }
   }
   saveQueue(); if(offlineQueue.length===0) setSyncDot(true);
@@ -76,6 +78,10 @@ window.addEventListener('online',()=>{ setSyncDot(null); processQueue(); });
 function loadLocal(){
   try {
     S.txs=JSON.parse(_load(K.tx)||'[]');
+    S.budgetHistory=JSON.parse(_load(K.budHist)||'[]').map(function(b){
+      if(!b.id) b.id=genUuid();
+      return b;
+    });
     var _sc=JSON.parse(_load(K.cats)||'null');
     S.cats=_sc?_sc.map(function(ct){
       if(!ct.icon){var b=ct.id.replace(/_[a-zA-Z0-9]{1,8}$/,'');var df=DEF_CATS.find(function(d){return d.id===b||d.id===ct.id;});if(df)ct.icon=df.icon||'';}
@@ -89,7 +95,7 @@ function loadLocal(){
       S.budget={amount:Number(_sb.amount)||0,days:Number(_sb.days)||0,deadline:_sb.deadline||null,set_at:_lbSetAt,spent_at_start:_lbBaseline};
     } else { S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0}; }
     S.budDays=S.budget.days||0;
-  } catch(e){ S.txs=[]; S.cats=[...DEF_CATS]; S.budget={amount:0,deadline:null}; }
+  } catch(e){ S.txs=[]; S.cats=[...DEF_CATS]; S.budget={amount:0,deadline:null}; S.budgetHistory=[]; }
 }
 function _store(k,v){ try{localStorage.setItem(k,v);}catch(e){} try{sessionStorage.setItem(k,v);}catch(e){} }
 function _load(k){ try{var v=localStorage.getItem(k);if(v)return v;}catch(e){} try{return sessionStorage.getItem(k);}catch(e){} return null; }
@@ -97,16 +103,19 @@ function saveLocal(){
   _store(K.tx,JSON.stringify(S.txs));
   _store(K.cats,JSON.stringify(S.cats));
   _store(K.budget,JSON.stringify(S.budget));
+  _store(K.budHist,JSON.stringify(S.budgetHistory||[]));
 }
 
 // ── SUPABASE SYNC ─────────────────────────────────────────────────────────────
 async function syncFromSupabase(){
   if(!currentUser) return;
   try {
-    const [txRes,catRes,budRes]=await Promise.all([
+    const [txRes,catRes,budRes,bhRes]=await Promise.all([
       db.from('transactions').select('*').eq('user_id',currentUser.id).order('date',{ascending:false}),
       db.from('categories').select('*').eq('user_id',currentUser.id).order('sort_order'),
-      db.from('budget_settings').select('*').eq('user_id',currentUser.id).maybeSingle()
+      db.from('budget_settings').select('*').eq('user_id',currentUser.id).maybeSingle(),
+      db.from('budget_history').select('*').eq('user_id',currentUser.id).order('ts',{ascending:true})
+        .then(function(r){return r;}, function(){return {data:null,error:'unavailable'};})
     ]);
     if(txRes.data&&txRes.data.length>0)
       S.txs=txRes.data.map(r=>({id:r.id,amount:r.amount,type:r.type,catId:r.cat_id,note:r.note||'',date:r.date}));
@@ -124,6 +133,20 @@ async function syncFromSupabase(){
       }).reduce(function(sum,t){ return sum+t.amount; },0);
       S.budget={amount:Number(budRes.data.amount)||0,days:Number(budRes.data.days)||0,deadline:budRes.data.deadline||null,set_at:budSetAt,spent_at_start:_baseline};
       S.budDays=S.budget.days||0;
+    }
+    // budget_history — мерж по id (на случай если на одном устройстве запись добавлена, на другом ещё нет)
+    if(bhRes && bhRes.data && Array.isArray(bhRes.data)){
+      var remoteIds={};
+      var merged=bhRes.data.map(function(r){
+        remoteIds[r.id]=true;
+        return {id:r.id,ts:r.ts,amount:Number(r.amount)||0,days:Number(r.days)||0,deadline:r.deadline||null,prev_amount:r.prev_amount!=null?Number(r.prev_amount):null};
+      });
+      // Доливаем локальные записи которых ещё нет на сервере
+      (S.budgetHistory||[]).forEach(function(b){
+        if(b && b.id && !remoteIds[b.id]) merged.push(b);
+      });
+      merged.sort(function(a,b){return (a.ts||'').localeCompare(b.ts||'');});
+      S.budgetHistory=merged;
     }
     saveLocal(); setSyncDot(true); renderMain(); processQueue();
   } catch(e){ setSyncDot(false); }
@@ -158,6 +181,20 @@ async function pushBudget(){
   if(!currentUser) return;
   try { await db.from('budget_settings').upsert({user_id:currentUser.id,amount:S.budget.amount,days:S.budget.days||0,deadline:S.budget.deadline,set_at:S.budget.set_at||todayStr()}); setSyncDot(true); }
   catch(e){ setSyncDot(false); offlineQueue.push({op:'pushBudget'}); saveQueue(); }
+}
+async function pushBudgetHistoryEntry(entry,isRetry=false){
+  if(!currentUser||!entry) return;
+  try {
+    await db.from('budget_history').upsert({
+      id:entry.id,user_id:currentUser.id,ts:entry.ts,
+      amount:entry.amount,days:entry.days,
+      deadline:entry.deadline||null,prev_amount:entry.prev_amount||null
+    });
+    setSyncDot(true);
+  } catch(e){
+    setSyncDot(false);
+    if(!isRetry){ offlineQueue.push({op:'pushBudgetHistoryEntry',data:entry}); saveQueue(); }
+  }
 }
 
 // ── SYNC STATUS ──────────────────────────────────────────────────────────────
@@ -480,7 +517,22 @@ function renderHistContent(){
   var txs=S.txs.slice();
   if(S.histType) txs=txs.filter(function(t){ return t.type===S.histType; });
   if(S.histCat)  txs=txs.filter(function(t){ return t.catId===S.histCat; });
-  if(!txs.length){
+
+  // Маркеры смены бюджета — глобальные события, показываем всегда (даже при фильтре по типу),
+  // но прячем при фильтре по конкретной категории
+  var budMarkersByDay={};
+  var showBudMarkers=!S.histCat;
+  if(showBudMarkers && Array.isArray(S.budgetHistory)){
+    S.budgetHistory.forEach(function(b){
+      if(!b||!b.ts) return;
+      var d=localDateStr(b.ts);
+      if(!budMarkersByDay[d]) budMarkersByDay[d]=[];
+      budMarkersByDay[d].push(b);
+    });
+  }
+
+  var hasMarkers=Object.keys(budMarkersByDay).length>0;
+  if(!txs.length && !hasMarkers){
     con.innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>Записей пока нет</p></div>';
     return;
   }
@@ -490,9 +542,42 @@ function renderHistContent(){
     if(!groups[d]) groups[d]=[];
     groups[d].push(t);
   });
+
   var html='';
-  Object.keys(groups).sort(function(a,b){ return b.localeCompare(a); }).forEach(function(day){
+  var sortedDays=Object.keys(groups).sort(function(a,b){ return b.localeCompare(a); });
+  // Маркеры в дни без транзакций — отрендерим отдельно, вставив между ближайших дней
+  var orphanMarkers={};
+  if(showBudMarkers){
+    Object.keys(budMarkersByDay).forEach(function(d){
+      if(!groups[d]) orphanMarkers[d]=budMarkersByDay[d];
+    });
+  }
+
+  function budMarkerHtml(b){
+    var hh=new Date(b.ts).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+    var verb=b.prev_amount?'обновлён':'установлен';
+    var text='Бюджет '+verb+' · '+fmt(b.amount)+' ₽ · '+b.days+' '+pluralDays(b.days)+' · '+hh;
+    return '<div class="hist-bud-marker" data-bid="'+esc(b.id||'')+'" onclick="deleteBudHistEntry(this.dataset.bid)" role="button" title="Тап — удалить запись">'
+      +'<span class="hist-bud-line" aria-hidden="true"></span>'
+      +'<span class="hist-bud-text">'+esc(text)+'</span>'
+      +'<span class="hist-bud-line" aria-hidden="true"></span>'
+      +'</div>';
+  }
+
+  // Объединяем дни групп и orphan-дней в один отсортированный список
+  var allDays=sortedDays.concat(Object.keys(orphanMarkers).filter(function(d){return sortedDays.indexOf(d)===-1;}));
+  allDays.sort(function(a,b){ return b.localeCompare(a); });
+
+  allDays.forEach(function(day){
     var dayTxs=groups[day];
+    if(!dayTxs){
+      // День только с маркером(ами) бюджета — без транзакций
+      html += '<div class="day-section">';
+      html += '<div class="day-sec-label"><span>'+fmtDate(day)+'</span></div>';
+      (orphanMarkers[day]||[]).forEach(function(b){ html += budMarkerHtml(b); });
+      html += '</div>';
+      return;
+    }
     html += '<div class="day-section">';
     var dayExp=dayTxs.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
     var dayInc=dayTxs.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
@@ -500,6 +585,9 @@ function renderHistContent(){
     if(dayExp>0) dayParts.push('<span class="day-sec-exp">−'+fmt(dayExp)+' ₽</span>');
     if(dayInc>0) dayParts.push('<span class="day-sec-inc">+'+fmt(dayInc)+' ₽</span>');
     html += '<div class="day-sec-label"><span>'+fmtDate(day)+'</span><span class="day-sec-total">'+dayParts.join('<span class="day-sec-dot">·</span>')+'</span></div>';
+    if(showBudMarkers && budMarkersByDay[day]){
+      budMarkersByDay[day].forEach(function(b){ html += budMarkerHtml(b); });
+    }
     html += '<div class="day-card">';
     dayTxs.forEach(function(t){
       var cat=getCat(t.catId);
@@ -656,16 +744,35 @@ async function saveBudget(){
 
   var deadline = daysToDeadline(S.budDays);
   var startDate = todayStr();
+  var now = new Date().toISOString();
 
   // Считаем всё потраченное ДО этого бюджета — это baseline
   var spentAtStart = S.txs.filter(function(t){ return t.type==='expense'; })
                           .reduce(function(sum,t){ return sum+t.amount; }, 0);
+
+  // Записываем в историю смен бюджета — только если поменялись сумма или срок
+  var prev = S.budget || {};
+  var changed = Number(prev.amount||0) !== amt || Number(prev.days||0) !== S.budDays;
+  var newHistEntry = null;
+  if(changed){
+    if(!S.budgetHistory) S.budgetHistory = [];
+    newHistEntry = {
+      id: genUuid(),
+      ts: now,
+      amount: amt,
+      days: S.budDays,
+      deadline: deadline,
+      prev_amount: Number(prev.amount||0) || null
+    };
+    S.budgetHistory.push(newHistEntry);
+  }
+
   S.budget = {
     amount: amt,
     days: S.budDays,
     deadline: deadline,
     set_at: startDate,
-    reset_ts: new Date().toISOString(),
+    reset_ts: now,
     spent_at_start: spentAtStart
   };
 
@@ -679,7 +786,49 @@ async function saveBudget(){
 
   toast('Бюджет '+fmt(amt)+'₽ на '+S.budDays+' дн. сохранён ✓');
   await pushBudget();
+  if(newHistEntry) pushBudgetHistoryEntry(newHistEntry);
   _budDirtyTs = Date.now();
+}
+
+async function deleteBudHistEntry(bid){
+  if(!bid) return;
+  var idx=(S.budgetHistory||[]).findIndex(function(b){return b && b.id===bid;});
+  if(idx<0) return;
+  var entry=S.budgetHistory[idx];
+  // Последняя ли это запись по времени (та, что соответствует активному бюджету)
+  var sortedTs=S.budgetHistory.slice().sort(function(a,b){return (b.ts||'').localeCompare(a.ts||'');});
+  var isLatest=sortedTs[0] && sortedTs[0].id===bid;
+  var msg=isLatest
+    ?'Удалить эту запись? Активный бюджет будет сброшен — нужно будет настроить заново.'
+    :'Удалить эту запись из истории? Активный бюджет не изменится.';
+  if(!await customConfirm(msg,'Удалить',true)) return;
+
+  S.budgetHistory.splice(idx,1);
+  if(isLatest){
+    S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0,reset_ts:null};
+    S.budDays=0;
+    _budDirtyTs=Date.now()+30000;
+  }
+  saveLocal();
+  if(currentUser){
+    try { db.from('budget_history').delete().eq('id',bid).eq('user_id',currentUser.id); } catch(e){}
+    if(isLatest){
+      try { db.from('budget_settings').delete().eq('user_id',currentUser.id); } catch(e){}
+    }
+  }
+  renderHistory(); renderMain();
+  toast(isLatest?'Запись удалена · бюджет сброшен':'Запись удалена');
+}
+
+function genUuid(){
+  try {
+    if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  } catch(e){}
+  // RFC4122-ish fallback
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){
+    var r=(Math.random()*16)|0, v=c==='x'?r:(r&0x3|0x8);
+    return v.toString(16);
+  });
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
@@ -706,7 +855,7 @@ function deleteCat(id){
   customConfirm('Удалить категорию?').then(ok=>{ if(!ok) return; S.cats=S.cats.filter(c=>c.id!==id);saveLocal();pushCats();deleteCatRemote(id);renderSettings();renderCatRow();toast('Удалено'); });
 }
 function exportData(){
-  const blob=new Blob([JSON.stringify({txs:S.txs,cats:S.cats,budget:S.budget,date:new Date().toISOString()},null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({txs:S.txs,cats:S.cats,budget:S.budget,budgetHistory:S.budgetHistory||[],date:new Date().toISOString()},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='doshik-'+todayStr()+'.json';a.click();URL.revokeObjectURL(a.href);toast('Экспортировано');
 }
 function importData(e){
@@ -725,10 +874,12 @@ function importData(e){
         :S.txs.filter(t=>{if(t.type!=='expense')return false;if(!ibSetAt)return true;return localDateStr(t.date)<ibSetAt;}).reduce((s,t)=>s+t.amount,0);
       S.budget={amount:Number(ib.amount)||0,days:Number(ib.days)||0,deadline:ib.deadline||null,set_at:ibSetAt,spent_at_start:ibBaseline,reset_ts:ib.reset_ts||null};
       S.budDays=S.budget.days||0;
+      S.budgetHistory=Array.isArray(d.budgetHistory)?d.budgetHistory.map(function(b){if(!b.id)b.id=genUuid();return b;}):[];
       saveLocal();
       if(currentUser){
         S.txs.forEach(t=>pushTx(t));
         pushCats(); pushBudget();
+        (S.budgetHistory||[]).forEach(b=>pushBudgetHistoryEntry(b));
       }
       renderMain(); renderSettings(); toast('Данные импортированы ✓');
     }catch(err){ toast('Ошибка чтения файла'); }
@@ -738,13 +889,14 @@ function importData(e){
 }
 async function clearAll(){
   if(!await customConfirm('Сбросить всё? Все транзакции и бюджет удалятся, категории вернутся к стандартным.','Сбросить')) return;
-  S.txs=[];S.cats=[...DEF_CATS];S.budget={amount:0,deadline:null};
+  S.txs=[];S.cats=[...DEF_CATS];S.budget={amount:0,deadline:null};S.budgetHistory=[];
   saveLocal();
   if(currentUser){
     // Сначала удалить ВСЁ из Supabase (sequentially, не fire-and-forget)
     await db.from('transactions').delete().eq('user_id',currentUser.id);
     await db.from('budget_settings').delete().eq('user_id',currentUser.id);
     await db.from('categories').delete().eq('user_id',currentUser.id);
+    try { await db.from('budget_history').delete().eq('user_id',currentUser.id); } catch(e){}
     // Затем посеять дефолтные категории заново
     await seedDefaultCats();
   }
@@ -841,8 +993,14 @@ function showTxEdit(id){
   avatarEl.textContent=cat.icon||'●';
   if(amtInputEl){
     amtInputEl.value=fmt(tx.amount);
-    amtInputEl.style.color=tx.type==='income'?'#3DBD74':'rgba(255,255,255,.9)';
+    amtInputEl.style.color=tx.type==='income'?'#3DBD74':'rgba(255,255,255,.95)';
   }
+  var signEl=document.getElementById('tx-edit-sign');
+  if(signEl){
+    signEl.textContent=tx.type==='income'?'+':'−';
+    signEl.classList.toggle('inc',tx.type==='income');
+  }
+  setTimeout(fitTxAmtInput,0);
   var d=new Date(tx.date);
   dateEl.textContent=fmtDate(localDateStr(tx.date))+' · '+d.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
   noteEl.value=tx.note||'';
@@ -869,6 +1027,35 @@ function selectEditCat(catId){
   _editTxCatId=(_editTxCatId===catId?null:catId);
   var tx=S.txs.find(function(t){return t.id===_editTxId;});
   if(tx) renderTxEditCats(tx.type);
+}
+
+function fitTxAmtInput(){
+  var inp=document.getElementById('tx-edit-amount');
+  var mir=document.getElementById('tx-edit-amt-mirror');
+  if(!inp||!mir) return;
+  mir.textContent=inp.value||inp.placeholder||'0';
+  var cs=window.getComputedStyle(inp);
+  mir.style.fontSize=cs.fontSize;
+  mir.style.letterSpacing=cs.letterSpacing;
+  mir.style.fontWeight=cs.fontWeight;
+  mir.style.fontFamily=cs.fontFamily;
+  var ls=parseFloat(cs.letterSpacing)||0;
+  var w=mir.offsetWidth-ls;
+  inp.style.width=Math.max(12,w+2)+'px';
+}
+
+function onTxEditAmtInput(){
+  var inp=document.getElementById('tx-edit-amount');
+  if(!inp) return;
+  // Разрешаем цифры, одну точку или запятую, пробелы как разделители тысяч
+  var raw=inp.value.replace(/[^\d.,]/g,'').replace(',','.');
+  var parts=raw.split('.');
+  var intDigits=parts[0].replace(/\D/g,'').slice(0,8);
+  var fraction=parts.length>1?parts[1].replace(/\D/g,'').slice(0,2):'';
+  var formatted=intDigits.replace(/\B(?=(\d{3})+(?!\d))/g,' ');
+  if(parts.length>1) formatted += ','+fraction;
+  inp.value=formatted;
+  fitTxAmtInput();
 }
 
 function hideTxEdit(){
@@ -1055,7 +1242,7 @@ async function recoverWithCode(){
     localStorage.setItem(K_CODE,code);currentUser=data.user;
     document.getElementById('s-auth').style.display='none';
     // Не подгружаем локальные данные предыдущего юзера — берём только с сервера
-    S.txs=[];S.cats=[];S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0};
+    S.txs=[];S.cats=[];S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0};S.budgetHistory=[];
     saveLocal();
     goMain();
     await syncFromSupabase();
@@ -1126,7 +1313,7 @@ async function submitEnterCode(){
     currentUser=data.user;
     hideEnterCodeModal();
     // Reset local data and sync from server
-    S.txs=[];S.cats=[];S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0};
+    S.txs=[];S.cats=[];S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0};S.budgetHistory=[];
     saveLocal();
     await syncFromSupabase();
     renderMain();
@@ -1161,7 +1348,7 @@ Object.assign(window, {
   copyCodeReveal, dismissCodeReveal, copyCode,
   recoverWithCode, createNewAccount,
   selHistType, selHistTab,
-  showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat,
+  showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat, onTxEditAmtInput, deleteBudHistEntry,
   _confOk, _confNo,
   toastUndo, fmtCodeInput,
 });
