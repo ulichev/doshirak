@@ -40,7 +40,7 @@
 
 <!-- ── MAIN SCREEN ── -->
 <div class="screen" id="s-main">
-  <div class="top-bar" style="padding-top:12px;padding-bottom:8px">
+  <div class="top-bar">
     <div class="nav-pills">
       <button class="nav-pill" onclick="goHistory()">История</button>
       <button class="nav-pill" id="budget-pill" onclick="goBudget()">Бюджет</button>
@@ -149,6 +149,11 @@
     <div class="budget-section">
       <div class="bud-sublabel">На сколько дней считаем</div>
       <div class="bud-days-grid" id="bud-days-grid"></div>
+      <label class="bud-date-btn" id="bud-date-btn" for="bud-date-input">
+        <span class="bud-date-ico">📅</span>
+        <span class="bud-date-label" id="bud-date-label">Указать дату</span>
+        <input type="date" id="bud-date-input" onchange="onBudDateChange()">
+      </label>
       <div class="bud-deadline-row" id="bud-deadline-row" style="display:none">
         <span class="bud-deadline-ico">📅</span>
         <span id="bud-deadline-text" class="bud-deadline-text"></span>

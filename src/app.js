@@ -636,6 +636,7 @@ function renderBudgetScreen(){
   S.budDays = existDays || S.budget.days || 0;
 
   renderBudDaysGrid();
+  updateBudDateBtn();
   updateBudgetPreview();
   // Показываем подсказку о сбросе только если уже есть активный бюджет
   var hintEl = document.getElementById('bud-reset-hint');
@@ -656,8 +657,41 @@ function renderBudDaysGrid(){
 
 function selBudDays(d){
   S.budDays = (S.budDays === d ? 0 : d);
+  var dInp = document.getElementById('bud-date-input');
+  if(dInp) dInp.value = '';
   renderBudDaysGrid();
+  updateBudDateBtn();
   updateBudgetPreview();
+}
+
+function onBudDateChange(){
+  var inp = document.getElementById('bud-date-input');
+  if(!inp || !inp.value){ updateBudDateBtn(); return; }
+  var picked = new Date(inp.value + 'T00:00:00');
+  var today = new Date(); today.setHours(0,0,0,0);
+  var days = Math.round((picked - today) / 86400000) + 1;
+  if(days < 1){ toast('Дата должна быть сегодня или позже'); inp.value=''; updateBudDateBtn(); return; }
+  S.budDays = days;
+  renderBudDaysGrid();
+  updateBudDateBtn();
+  updateBudgetPreview();
+}
+
+function updateBudDateBtn(){
+  var btn = document.getElementById('bud-date-btn');
+  var lbl = document.getElementById('bud-date-label');
+  var inp = document.getElementById('bud-date-input');
+  if(!btn || !lbl) return;
+  if(inp){ inp.min = todayStr(); }
+  var isPreset = BUD_DAY_PRESETS.indexOf(S.budDays) !== -1;
+  if(S.budDays > 0 && !isPreset){
+    btn.classList.add('sel');
+    lbl.textContent = S.budDays + ' ' + pluralDays(S.budDays);
+    if(inp && !inp.value){ inp.value = daysToDeadline(S.budDays); }
+  } else {
+    btn.classList.remove('sel');
+    lbl.textContent = 'Указать дату';
+  }
 }
 
 function fmtThousands(str){
@@ -1341,7 +1375,7 @@ initApp();
 Object.assign(window, {
   goMain, goHistory, goBudget, goSettings,
   np, npDel, confirm_, toggleType, selCat,
-  selBudDays, onBudAmtInput, saveBudget,
+  selBudDays, onBudDateChange, onBudAmtInput, saveBudget,
   selCatSettTab,
   showCatModal, hideCatModal, modalBgClick, selIcon, selColor, saveCat,
   showMyCode, deleteCat, exportData, importData, clearAll,

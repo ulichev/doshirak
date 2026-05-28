@@ -5,8 +5,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .screen.hidden{transform:translateX(100%);pointer-events:none}
 
 /* TOP BAR */
-.top-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
-.tb-btn{background:none;border:none;color:rgba(255,255,255,.55);font-size:14px;cursor:pointer;min-height:44px;min-width:44px;display:flex;align-items:center;padding:0 2px}
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;min-height:58px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
+.tb-btn{background:none;border:none;color:rgba(255,255,255,.55);font-size:14px;cursor:pointer;min-height:36px;min-width:44px;display:flex;align-items:center;padding:0 2px}
 .tb-title{font-size:17px;font-weight:600;color:#fff;letter-spacing:-.4px}
 
 /* MAIN SCREEN */
@@ -188,6 +188,13 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .bud-day-btn{background:rgba(255,255,255,.07);border:2px solid transparent;border-radius:14px;color:rgba(255,255,255,.6);font-size:14px;font-weight:600;padding:12px 4px;cursor:pointer;transition:all .18s;-webkit-tap-highlight-color:transparent}
 .bud-day-btn.sel{background:rgba(245,166,35,.15);border-color:#F5A623;color:#F5A623}
 .bud-day-btn:active{transform:scale(.95)}
+.bud-date-btn{position:relative;display:flex;align-items:center;gap:10px;width:100%;background:rgba(255,255,255,.07);border:2px solid transparent;border-radius:14px;padding:12px 14px;color:rgba(255,255,255,.6);font-size:14px;font-weight:600;cursor:pointer;transition:all .18s;-webkit-tap-highlight-color:transparent;margin:0 0 4px;text-align:left;overflow:hidden}
+.bud-date-btn.sel{background:rgba(245,166,35,.15);border-color:#F5A623;color:#F5A623}
+.bud-date-btn:active{transform:scale(.98)}
+.bud-date-ico{font-size:16px;line-height:1;flex-shrink:0}
+.bud-date-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bud-date-btn input[type=date]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0;margin:0;background:transparent;color:transparent;font-size:16px;-webkit-appearance:none}
+.bud-date-btn input[type=date]::-webkit-calendar-picker-indicator{opacity:0;width:100%;height:100%;position:absolute;inset:0;cursor:pointer}
 
 
 
@@ -216,7 +223,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   --hero-input-size:clamp(48px,13vw,58px);
 }
 html,body,#app,.screen{max-width:100vw}
-.top-bar{padding:14px var(--screen-pad) 10px}
+.top-bar{padding:10px var(--screen-pad);min-height:58px}
 .main-top{padding:20px var(--screen-pad) 8px!important}
 .input-area{padding:10px calc(var(--screen-pad) - 4px) 6px}
 .sett-scroll{padding:20px var(--screen-pad) calc(32px + env(safe-area-inset-bottom,0px))}
@@ -255,7 +262,7 @@ html,body,#app,.screen{max-width:100vw}
 }
 
 @media (max-height: 760px){
-  .top-bar{padding-top:12px}
+  .top-bar{padding:8px var(--screen-pad);min-height:54px}
   .main-top{padding-top:16px!important}
   .today-num{font-size:clamp(58px,17vw,72px)}
   .input-area{gap:6px}
@@ -276,7 +283,7 @@ html,body,#app,.screen{max-width:100vw}
     --budget-size:44px;
     --hero-input-size:40px;
   }
-  .top-bar{padding:12px var(--screen-pad) 8px}
+  .top-bar{padding:8px var(--screen-pad);min-height:52px}
   .tb-title{font-size:16px}
   .bud-day-btn{min-height:46px;font-size:12px}
 }
