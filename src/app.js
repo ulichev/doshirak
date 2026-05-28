@@ -225,16 +225,17 @@ function updateSyncCard(){
   var title = document.getElementById('sync-title');
   var time  = document.getElementById('sync-time');
   if(!icon||!title||!time) return;
+  icon.className='sync-dot';
   if(_syncStatus==='syncing'){
-    icon.textContent='🔄'; icon.classList.add('spin');
+    icon.classList.add('sync-dot--sync');
     title.textContent='Синхронизируется…';
     time.textContent='';
   } else if(_syncStatus==='offline'){
-    icon.textContent='🔴'; icon.classList.remove('spin');
+    icon.classList.add('sync-dot--err');
     title.textContent='Нет соединения';
     time.textContent='Данные сохранены локально';
   } else {
-    icon.textContent='🟢'; icon.classList.remove('spin');
+    icon.classList.add('sync-dot--ok');
     title.textContent='Синхронизировано';
     time.textContent=_lastSyncTs ? timeAgo(_lastSyncTs) : '';
   }
@@ -534,7 +535,15 @@ function renderHistContent(){
 
   var hasMarkers=Object.keys(budMarkersByDay).length>0;
   if(!txs.length && !hasMarkers){
-    con.innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>Записей пока нет</p></div>';
+    con.innerHTML='<div class="empty">'
+      +'<div class="empty-icon" aria-hidden="true">'
+      +'<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">'
+      +'<path d="M9 4h6a2 2 0 0 1 2 2v0H7v0a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+      +'<path d="M5 6h14v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+      +'<path d="M9 13h6M9 17h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+      +'</svg>'
+      +'</div>'
+      +'<p>Записей пока нет</p></div>';
     return;
   }
   var groups={};
@@ -795,7 +804,6 @@ async function deleteBudHistEntry(bid){
   if(!bid) return;
   var idx=(S.budgetHistory||[]).findIndex(function(b){return b && b.id===bid;});
   if(idx<0) return;
-  var entry=S.budgetHistory[idx];
   // Последняя ли это запись по времени (та, что соответствует активному бюджету)
   var sortedTs=S.budgetHistory.slice().sort(function(a,b){return (b.ts||'').localeCompare(a.ts||'');});
   var isLatest=sortedTs[0] && sortedTs[0].id===bid;
@@ -838,14 +846,24 @@ function renderSettings(){
   const cl=document.getElementById('cat-list');
   const tw=document.getElementById('cat-type-tabs-wrapper');
   const filteredCats=S.cats.filter(c=>(c.ctype||'expense')===S.catSettTab);
+  const incClass=S.catSettTab==='income'?' inc':'';
   const tabs=`<div class="cat-type-tabs">
     <button class="cat-type-tab${S.catSettTab==='expense'?' on':''}" onclick="selCatSettTab('expense')">Расходы</button>
-    <button class="cat-type-tab${S.catSettTab==='income'?' on':''}" onclick="selCatSettTab('income')">Доходы</button>
+    <button class="cat-type-tab${incClass}${S.catSettTab==='income'?' on':''}" onclick="selCatSettTab('income')">Доходы</button>
   </div>`;
   if(tw) tw.innerHTML=tabs;
+  const trashSvg='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   cl.innerHTML=(filteredCats.length
-    ? filteredCats.map(c=>`<div class="cat-item" onclick="showCatModal('${c.id}')"><div class="cat-nm"><div style="width:10px;height:10px;border-radius:50%;background:${esc(c.color)};flex-shrink:0"></div><span class="cat-nm-text">${c.icon?`${c.icon} `:''}${esc(c.name)}</span></div><button class="del-cat" onclick="event.stopPropagation();deleteCat('${c.id}')">Удалить</button></div>`).join('')
-    : '<div class="sett-row"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>');
+    ? filteredCats.map(c=>{
+        const avatarBg=esc((c.color||'#9E9E9E')+'22');
+        const icon=c.icon?esc(c.icon):'●';
+        return `<div class="cat-item" onclick="showCatModal('${c.id}')">`
+          +`<div class="cat-avatar" style="background:${avatarBg};color:${esc(c.color||'#fff')}">${icon}</div>`
+          +`<div class="cat-nm"><span class="cat-nm-text">${esc(c.name)}</span></div>`
+          +`<button class="del-cat" aria-label="Удалить" onclick="event.stopPropagation();deleteCat('${c.id}')">${trashSvg}</button>`
+          +`</div>`;
+      }).join('')
+    : '<div class="sett-row" style="justify-content:center"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>');
 }
 function showMyCode(){
   const code=localStorage.getItem(K_CODE)||(currentUser&&currentUser.user_metadata&&currentUser.user_metadata.code)||'';
@@ -922,15 +940,36 @@ function showCatModal(editId){
   document.getElementById('color-grid').innerHTML=COLORS.map(function(cl){
     return '<div class="clr-dot'+(cl===S.budColor?' sel':'')+'" data-clr="'+cl+'" style="background:'+cl+'" onclick="selColor(this.dataset.clr)"></div>';
   }).join('');
+  updateCatPreview();
   document.getElementById('cat-modal').classList.add('vis');
-  setTimeout(function(){document.getElementById('cat-name-inp').focus();},50);
+  // Скроллим выбранные элементы в зону видимости стрипов
+  setTimeout(function(){
+    var selIcon=document.querySelector('#icon-grid .icon-opt.sel');
+    if(selIcon) selIcon.scrollIntoView({inline:'center',block:'nearest'});
+    var selClr=document.querySelector('#color-grid .clr-dot.sel');
+    if(selClr) selClr.scrollIntoView({inline:'center',block:'nearest'});
+    document.getElementById('cat-name-inp').focus();
+  },50);
+}
+function updateCatPreview(){
+  var pv=document.getElementById('cat-preview');
+  if(!pv) return;
+  var c=S.budColor||COLORS[0];
+  pv.textContent=S.budIcon||'●';
+  pv.style.background=c+'2a';
+  pv.style.color=c;
 }
 function hideCatModal(){ _editCatId=null; document.getElementById('cat-modal').classList.remove('vis'); }
 function modalBgClick(e){ if(e.target===document.getElementById('cat-modal')) hideCatModal(); }
-function selIcon(ic){ S.budIcon=ic; document.querySelectorAll('.icon-opt').forEach(el=>el.classList.toggle('sel',el.textContent.trim()===ic)); }
+function selIcon(ic){
+  S.budIcon=ic;
+  document.querySelectorAll('.icon-opt').forEach(el=>el.classList.toggle('sel',el.textContent.trim()===ic));
+  updateCatPreview();
+}
 function selColor(c){
   S.budColor=c;
   document.querySelectorAll('.clr-dot').forEach(el=>el.classList.toggle('sel',el.dataset.clr===c));
+  updateCatPreview();
 }
 function saveCat(){
   const name=document.getElementById('cat-name-inp').value.trim();
@@ -966,7 +1005,9 @@ function daysUntil(ds){
 }
 function fmt(n){ var r=Math.round(n*100)/100; return r.toLocaleString('ru-RU',{maximumFractionDigits:2}); }
 function fmtDate(ds){
-  const t=todayStr(),y=new Date();y.setDate(y.getDate()-1);const ys=y.toISOString().slice(0,10);
+  const t=todayStr();
+  const y=new Date(); y.setDate(y.getDate()-1);
+  const ys=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
   if(ds===t)return'Сегодня';if(ds===ys)return'Вчера';
   return new Date(ds+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
 }
@@ -1099,6 +1140,8 @@ function customConfirm(msg,okText='Удалить',dangerOk=true){
   const ok=document.getElementById('confirm-ok-btn');
   ok.textContent=okText;
   ok.style.background=dangerOk?'#FF3B30':'#3DBD74';
+  const icon=document.getElementById('confirm-icon');
+  if(icon) icon.classList.toggle('modal-hero-icon--danger',!!dangerOk);
   el.classList.add('vis');
   return new Promise(r=>{_confirmCb=r;});
 }
@@ -1119,12 +1162,15 @@ function toastWithUndo(msg, tx){
   _lastTx=tx;
   const t=document.getElementById('toast');
   t.innerHTML='<span>'+msg+'</span><button class="toast-undo" onclick="toastUndo()">Отменить</button>';
-  t.classList.add('show');
+  t.classList.add('show','toast--undo');
   clearTimeout(t._t);
-  t._t=setTimeout(function(){ t.classList.remove('show'); _lastTx=null; }, 4000);
+  t._t=setTimeout(function(){ t.classList.remove('show','toast--undo'); _lastTx=null; }, 4000);
 }
 function toast(msg){
-  const t=document.getElementById('toast');t.innerHTML='<span>'+msg+'</span>';t.classList.add('show');
+  const t=document.getElementById('toast');
+  t.innerHTML='<span>'+msg+'</span>';
+  t.classList.remove('toast--undo');
+  t.classList.add('show');
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);
 }
 
