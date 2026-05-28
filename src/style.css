@@ -169,7 +169,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .toast-undo:active{background:rgba(245,166,35,.1)}
 
 /* BUDGET SCREEN */
-.budget-screen-content{flex:1;overflow-y:auto;padding:16px 16px 90px;overscroll-behavior:contain;display:flex;flex-direction:column;gap:14px}
+.budget-screen-content{flex:1;overflow:hidden;padding:16px 16px 90px;overscroll-behavior:contain;display:flex;flex-direction:column;gap:14px}
 .budget-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:18px 0 6px}
 .budget-hero .bud-amount-wrap{justify-content:center}
 .budget-hero-sub{font-size:15px;color:rgba(255,255,255,.45);margin-top:8px;min-height:20px;font-weight:500}
