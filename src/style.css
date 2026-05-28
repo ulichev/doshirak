@@ -657,7 +657,7 @@ html,body,#app,.screen{max-width:100vw}
   margin-bottom:calc(-180px - env(safe-area-inset-bottom,0px));
   pointer-events:none;user-select:none;-webkit-user-select:none;
   display:flex;justify-content:center;align-items:flex-end;
-  contain:paint
+  overflow:hidden
 }
 .bud-noodles img{
   width:138%;
