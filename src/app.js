@@ -505,7 +505,8 @@ function renderHistory(){
     :S.cats.filter(function(x){return (x.ctype||'expense')==='expense';}).concat(S.cats.filter(function(x){return x.ctype==='income';}));
   var tabs=document.getElementById('hist-tabs');
   if(tabs) tabs.innerHTML=visCats.map(function(x){
-    return '<button class="ctab'+(S.histCat===x.id?' on':'')+'" data-id="'+x.id+'" onclick="selHistTab(this.dataset.id)">'
+    var isInc=(x.ctype||'expense')==='income';
+    return '<button class="ctab'+(isInc?' inc':'')+(S.histCat===x.id?' on':'')+'" data-id="'+x.id+'" onclick="selHistTab(this.dataset.id)">'
       +(x.icon?x.icon+' ':'')+esc(x.name)+'</button>';
   }).join('');
   renderHistContent();

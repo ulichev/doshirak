@@ -95,31 +95,33 @@
     <span class="tb-title">История</span>
     <div style="width:60px"></div>
   </div>
-  <div class="hist-sum-row">
-    <button class="hist-sum-tile exp" id="htile-exp" onclick="selHistType('expense')">
-      <span class="hist-sum-icon" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 4v16M5 13l7 7 7-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </span>
-      <span class="hist-sum-text">
-        <span class="hist-sum-label">Расходы</span>
-        <span class="hist-sum-amt" id="hist-exp-total">0 ₽</span>
-      </span>
-    </button>
-    <button class="hist-sum-tile inc" id="htile-inc" onclick="selHistType('income')">
-      <span class="hist-sum-icon" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 20V4M5 11l7-7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </span>
-      <span class="hist-sum-text">
-        <span class="hist-sum-label">Доходы</span>
-        <span class="hist-sum-amt" id="hist-inc-total">0 ₽</span>
-      </span>
-    </button>
+  <div class="hist-top-card">
+    <div class="hist-sum-row">
+      <button class="hist-sum-tile exp" id="htile-exp" onclick="selHistType('expense')">
+        <span class="hist-sum-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 4v16M5 13l7 7 7-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="hist-sum-text">
+          <span class="hist-sum-label">Расходы</span>
+          <span class="hist-sum-amt" id="hist-exp-total">0 ₽</span>
+        </span>
+      </button>
+      <button class="hist-sum-tile inc" id="htile-inc" onclick="selHistType('income')">
+        <span class="hist-sum-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 20V4M5 11l7-7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="hist-sum-text">
+          <span class="hist-sum-label">Доходы</span>
+          <span class="hist-sum-amt" id="hist-inc-total">0 ₽</span>
+        </span>
+      </button>
+    </div>
+    <div class="cat-tabs" id="hist-tabs"></div>
   </div>
-  <div class="cat-tabs" id="hist-tabs"></div>
   <div class="hist-scroll" id="hist-content"></div>
 </div>
 
