@@ -269,6 +269,43 @@ html,body,#app,.screen{max-width:100vw}
   .bud-reset-hint{font-size:11px}
 }
 
+@media (max-height: 700px){
+  .numpad .np-btn{min-height:48px;font-size:23px}
+  .np-del{font-size:17px}
+  .np-enter{font-size:24px}
+  .np-toggle{font-size:21px}
+  .amount-row{font-size:48px}
+  .amount-int{font-size:48px}
+  .amount-dec{font-size:26px}
+  .today-num{font-size:clamp(46px,13vw,58px)!important;letter-spacing:-1.5px}
+  .today-label{margin-bottom:6px;font-size:14px!important;margin-top:0}
+  .main-top{padding:12px var(--screen-pad) 4px!important}
+  .input-area{padding-top:6px;padding-bottom:2px;gap:6px}
+  .amount-display-bar{padding-top:0;padding-bottom:4px}
+  .cat-breakdown{margin-bottom:6px}
+  .cb-row{padding:4px 0}
+  .input-panel{margin-top:4px}
+}
+
+@media (max-height: 620px){
+  .numpad .np-btn{min-height:42px;font-size:22px}
+  .np-enter{font-size:24px}
+  .np-del{font-size:16px}
+  .amount-row,.amount-int{font-size:42px}
+  .amount-dec{font-size:22px}
+  .today-num{font-size:clamp(40px,12vw,50px)!important;line-height:1}
+  .today-label{font-size:13px!important;margin-bottom:4px;margin-top:0}
+  .main-top{padding:10px var(--screen-pad) 4px!important}
+  .cat-pill{padding:6px 12px;font-size:13px}
+  .cat-row{padding-bottom:2px;padding-top:2px}
+  .note-input{padding:10px 13px;font-size:14px}
+  .input-area{padding:6px var(--screen-pad) 2px;gap:4px}
+  .amount-display-bar{padding:0 var(--screen-pad) 4px}
+  .cat-breakdown{margin-bottom:6px;gap:0}
+  .cb-row{padding:3px 0}
+  .input-panel{margin-top:4px}
+}
+
 @media (min-height: 900px){
   .main-top{padding-top:24px!important}
   .budget-screen-content{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}
@@ -479,9 +516,6 @@ html,body,#app,.screen{max-width:100vw}
 
 @media (min-width: 768px){
   #app{max-width:520px;margin:0 auto;border-left:1px solid rgba(255,255,255,.06);border-right:1px solid rgba(255,255,255,.06)}
-  .screen{max-width:520px;left:50%;transform:translateX(-50%)}
-  .screen.hidden{transform:translateX(calc(100% + 260px))}
-  .top-bar,.main-top,.sett-scroll,.budget-screen-content,.input-area,.hist-sum-row,.cat-tabs,.day-sec-label,.day-card{max-width:520px;margin-left:auto;margin-right:auto}
 }
 
 
