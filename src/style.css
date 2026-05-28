@@ -132,10 +132,10 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}.toast-undo{background:none;border:none;color:#F5A623;font-size:14px;font-weight:600;cursor:pointer;padding:2px 8px;border-left:1px solid rgba(255,255,255,.15);margin-left:2px}
 
 /* BUDGET SCREEN */
-.budget-screen-content{flex:1;overflow-y:auto;padding:16px 16px 90px;overscroll-behavior:contain;display:flex;flex-direction:column;gap:12px}
-.budget-big{background:rgba(255,255,255,.07);border-radius:20px;padding:22px 18px 20px;display:flex;flex-direction:column;align-items:flex-start;text-align:left}
-.budget-per-day{font-size:14px;color:rgba(255,255,255,.45);margin-top:6px;min-height:18px}
-.budget-section{background:rgba(255,255,255,.05);border-radius:18px;padding:16px 16px 8px;margin-bottom:0}
+.budget-screen-content{flex:1;overflow-y:auto;padding:16px 16px 90px;overscroll-behavior:contain;display:flex;flex-direction:column;gap:14px}
+.budget-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:18px 0 6px}
+.budget-hero .bud-amount-wrap{justify-content:center}
+.budget-hero-sub{font-size:15px;color:rgba(255,255,255,.45);margin-top:8px;min-height:20px;font-weight:500}
 
 /* ── AUTH SCREEN ── */
 .auth-screen{position:absolute;inset:0;z-index:50;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -184,11 +184,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 #s-main .input-area{position:relative;z-index:1}
 
 
-.bud-days-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:6px 0 12px}
-.bud-day-btn{background:rgba(255,255,255,.07);border:2px solid transparent;border-radius:14px;color:rgba(255,255,255,.6);font-size:14px;font-weight:600;padding:12px 4px;cursor:pointer;transition:all .18s;-webkit-tap-highlight-color:transparent}
-.bud-day-btn.sel{background:rgba(245,166,35,.15);border-color:#F5A623;color:#F5A623}
-.bud-day-btn:active{transform:scale(.95)}
-.bud-date-btn{position:relative;display:flex;align-items:center;gap:10px;width:100%;background:rgba(255,255,255,.07);border:2px solid transparent;border-radius:14px;padding:12px 14px;color:rgba(255,255,255,.6);font-size:14px;font-weight:600;cursor:pointer;transition:all .18s;-webkit-tap-highlight-color:transparent;margin:0 0 4px;text-align:left;overflow:hidden}
+.bud-date-btn{position:relative;display:flex;align-items:center;gap:10px;width:100%;background:rgba(255,255,255,.07);border:2px solid transparent;border-radius:14px;padding:14px 16px;color:rgba(255,255,255,.6);font-size:15px;font-weight:600;cursor:pointer;transition:all .18s;-webkit-tap-highlight-color:transparent;margin:6px 0 0;text-align:left;overflow:hidden}
 .bud-date-btn.sel{background:rgba(245,166,35,.15);border-color:#F5A623;color:#F5A623}
 .bud-date-btn:active{transform:scale(.98)}
 .bud-date-ico{font-size:16px;line-height:1;flex-shrink:0}
@@ -201,17 +197,65 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .amount-int{font-size:72px;font-weight:700;letter-spacing:-2px;line-height:1;transition:none}
 .amount-dec{font-size:36px;font-weight:600;letter-spacing:-0.5px;line-height:1;opacity:.7;align-self:flex-end;padding-bottom:6px}
 #amount-row{display:flex;align-items:baseline;justify-content:flex-end;gap:1px}
-.bud-reset-hint{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:12px 14px;font-size:12px;line-height:1.5;color:rgba(255,255,255,.5);margin:0;display:flex;gap:8px;align-items:flex-start}
+.bud-reset-hint{padding:4px 2px 0;font-size:12px;line-height:1.5;color:rgba(255,255,255,.4);margin:0;display:flex;gap:8px;align-items:flex-start}
 .bud-amount-wrap{display:inline-flex;align-items:baseline;cursor:text;max-width:100%;overflow:hidden}
 .bud-amount-hero{font-size:var(--hero-input-size,58px);font-weight:700;letter-spacing:-1.5px;color:#fff;background:none;border:none;outline:none;text-align:left;width:0;min-width:0;caret-color:#F5A623;padding:0;font-family:inherit;line-height:1.05}
 .bud-amount-hero::placeholder{color:rgba(255,255,255,.18)}
 .bud-mirror{font-size:var(--hero-input-size,58px);font-weight:700;letter-spacing:-1.5px;font-family:inherit;line-height:1.05;visibility:hidden;position:absolute;white-space:pre;pointer-events:none;top:0;left:0}
 .bud-ruble{font-size:var(--hero-input-size,58px);font-weight:700;letter-spacing:-1.5px;color:rgba(255,255,255,.18);line-height:1.05;padding-left:6px;flex-shrink:0;pointer-events:none;transition:color .18s;font-family:inherit}
 .bud-reset-hint:before{content:'↺';color:#F5A623;font-size:14px;line-height:1.5;flex-shrink:0}
-.bud-sublabel{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px}
-.bud-deadline-row{display:flex;align-items:center;gap:8px;margin-top:14px;margin-bottom:12px;padding:8px 2px 8px}
-.bud-deadline-ico{font-size:15px;line-height:1}
-.bud-deadline-text{font-size:14px;font-weight:500;color:rgba(255,255,255,.85)}
+
+/* ── BUDGET DATE TILE (паттерн как .hist-sum-tile) ── */
+.bud-date-tile{
+  position:relative;display:flex;align-items:center;gap:12px;
+  padding:14px;border-radius:18px;
+  border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.06);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:all .2s;text-align:left;overflow:hidden;width:100%
+}
+.bud-date-tile:active{opacity:.7;transform:scale(.98)}
+.bud-date-icon{
+  width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.07);color:rgba(255,255,255,.5);
+  flex-shrink:0;transition:background .2s,color .2s
+}
+.bud-date-icon svg{display:block}
+.bud-date-text{flex:1;min-width:0;display:flex;flex-direction:column}
+.bud-date-cap{
+  font-size:11px;letter-spacing:.4px;text-transform:uppercase;
+  color:rgba(255,255,255,.4);margin-bottom:4px;font-weight:600
+}
+.bud-date-val{
+  font-size:clamp(16px,4.4vw,18px);font-weight:500;letter-spacing:-.2px;
+  color:rgba(255,255,255,.88);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;line-height:1.1
+}
+.bud-date-tile.sel{background:rgba(245,166,35,.12);border-color:rgba(245,166,35,.5)}
+.bud-date-tile.sel .bud-date-icon{background:rgba(245,166,35,.2);color:#F5A623}
+.bud-date-tile.sel .bud-date-cap{color:rgba(245,166,35,.65)}
+.bud-date-tile.sel .bud-date-val{color:#F5A623}
+.bud-date-tile input[type=date]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0;margin:0;background:transparent;color:transparent;font-size:16px;-webkit-appearance:none}
+.bud-date-tile input[type=date]::-webkit-calendar-picker-indicator{opacity:0;width:100%;height:100%;position:absolute;inset:0;cursor:pointer}
+
+/* ── NOODLE EASTER EGG (bottom of budget screen) ── */
+.bud-noodles{
+  margin-top:auto;
+  margin-bottom:calc(-90px - env(safe-area-inset-bottom,0px));
+  margin-left:calc(-1 * var(--screen-pad));
+  margin-right:calc(-1 * var(--screen-pad));
+  padding-top:24px;
+  display:flex;justify-content:center;align-items:flex-end;
+  pointer-events:none;
+  opacity:.9;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.2) 22%, #000 60%, #000 100%);
+  mask-image:linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.2) 22%, #000 60%, #000 100%)
+}
+.bud-noodles svg{
+  width:100%;max-width:460px;height:auto;display:block
+}
 
 :root{
   --screen-pad:clamp(16px,4.2vw,22px);
@@ -228,13 +272,9 @@ html,body,#app,.screen{max-width:100vw}
 .input-area{padding:10px calc(var(--screen-pad) - 4px) 6px}
 .sett-scroll{padding:20px var(--screen-pad) calc(32px + env(safe-area-inset-bottom,0px))}
 .budget-screen-content{padding:clamp(14px,4vw,18px) var(--screen-pad) calc(90px + env(safe-area-inset-bottom,0px))}
-.budget-big{padding:var(--card-pad);border-radius:var(--card-radius-xl)}
-.budget-section{padding:16px var(--card-pad) 8px;border-radius:var(--card-radius-lg)}
-.bud-reset-hint{padding:12px var(--card-pad);border-radius:16px}
+.bud-reset-hint{padding:4px 2px 0}
 .today-num{font-size:var(--today-size);line-height:.95}
 .bud-amount-hero{font-size:var(--hero-input-size)}
-.bud-days-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
-.bud-day-btn{min-height:48px;padding:12px 6px;font-size:14px}
 .note-input,.modal-inp,.sett-inp{font-size:16px}
 
 @media (max-width: 390px){
@@ -244,8 +284,6 @@ html,body,#app,.screen{max-width:100vw}
     --budget-size:clamp(46px,13vw,56px);
     --hero-input-size:clamp(42px,12vw,52px);
   }
-  .bud-days-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .bud-day-btn{font-size:13px;padding:12px 8px}
   .today-label{font-size:15px!important}
   .tb-btn,.nav-pill{font-size:13px}
 }
@@ -257,8 +295,6 @@ html,body,#app,.screen{max-width:100vw}
     --budget-size:clamp(58px,13vw,70px);
     --hero-input-size:clamp(54px,12vw,62px);
   }
-  .bud-days-grid{gap:10px}
-  .bud-day-btn{font-size:15px}
 }
 
 @media (max-height: 760px){
@@ -322,7 +358,6 @@ html,body,#app,.screen{max-width:100vw}
   }
   .top-bar{padding:8px var(--screen-pad);min-height:52px}
   .tb-title{font-size:16px}
-  .bud-day-btn{min-height:46px;font-size:12px}
 }
 
 /* ── HISTORY TOP CARD (shared bg для тайлов + категорий) ── */

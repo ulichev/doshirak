@@ -610,10 +610,8 @@ function renderHistContent(){
 }
 
 // ── BUDGET ────────────────────────────────────────────────────────────────────
-// S.budDays — выбранное кол-во дней (число)
+// S.budDays — выбранное кол-во дней (число), вычисляется из выбранной даты
 // S.budget — {amount, days, set_at, deadline, spent_at_start, reset_ts}
-
-const BUD_DAY_PRESETS = [3,7,14,30];
 
 function renderBudgetScreen(){
   // Читаем текущий сохранённый бюджет в поля ввода
@@ -635,61 +633,43 @@ function renderBudgetScreen(){
   }
   S.budDays = existDays || S.budget.days || 0;
 
-  renderBudDaysGrid();
+  var dInp = document.getElementById('bud-date-input');
+  if(dInp){
+    dInp.min = todayStr();
+    dInp.value = S.budDays > 0 ? daysToDeadline(S.budDays) : '';
+  }
   updateBudDateBtn();
   updateBudgetPreview();
   // Показываем подсказку о сбросе только если уже есть активный бюджет
   var hintEl = document.getElementById('bud-reset-hint');
   if(hintEl){
     var hasBud = S.budget && Number(S.budget.amount) > 0 && S.budget.set_at;
-    hintEl.style.display = hasBud ? 'block' : 'none';
+    hintEl.style.display = hasBud ? 'flex' : 'none';
   }
-}
-
-function renderBudDaysGrid(){
-  var grid = document.getElementById('bud-days-grid');
-  if(!grid) return;
-  var html = BUD_DAY_PRESETS.map(function(d){
-    return '<button class="bud-day-btn'+(S.budDays===d?' sel':'')+'" onclick="selBudDays('+d+')">'+d+' дней</button>';
-  }).join('');
-  grid.innerHTML = html;
-}
-
-function selBudDays(d){
-  S.budDays = (S.budDays === d ? 0 : d);
-  var dInp = document.getElementById('bud-date-input');
-  if(dInp) dInp.value = '';
-  renderBudDaysGrid();
-  updateBudDateBtn();
-  updateBudgetPreview();
 }
 
 function onBudDateChange(){
   var inp = document.getElementById('bud-date-input');
-  if(!inp || !inp.value){ updateBudDateBtn(); return; }
+  if(!inp || !inp.value){ S.budDays = 0; updateBudDateBtn(); updateBudgetPreview(); return; }
   var picked = new Date(inp.value + 'T00:00:00');
   var today = new Date(); today.setHours(0,0,0,0);
   var days = Math.round((picked - today) / 86400000) + 1;
-  if(days < 1){ toast('Дата должна быть сегодня или позже'); inp.value=''; updateBudDateBtn(); return; }
+  if(days < 1){ toast('Дата должна быть сегодня или позже'); inp.value=''; S.budDays = 0; updateBudDateBtn(); updateBudgetPreview(); return; }
   S.budDays = days;
-  renderBudDaysGrid();
   updateBudDateBtn();
   updateBudgetPreview();
 }
 
 function updateBudDateBtn(){
-  var btn = document.getElementById('bud-date-btn');
+  var tile = document.getElementById('bud-date-tile');
   var lbl = document.getElementById('bud-date-label');
-  var inp = document.getElementById('bud-date-input');
-  if(!btn || !lbl) return;
-  if(inp){ inp.min = todayStr(); }
-  var isPreset = BUD_DAY_PRESETS.indexOf(S.budDays) !== -1;
-  if(S.budDays > 0 && !isPreset){
-    btn.classList.add('sel');
-    lbl.textContent = S.budDays + ' ' + pluralDays(S.budDays);
-    if(inp && !inp.value){ inp.value = daysToDeadline(S.budDays); }
+  if(!tile || !lbl) return;
+  if(S.budDays > 0){
+    tile.classList.add('sel');
+    var dl = new Date(daysToDeadline(S.budDays)+'T00:00:00');
+    lbl.textContent = 'до '+dl.toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
   } else {
-    btn.classList.remove('sel');
+    tile.classList.remove('sel');
     lbl.textContent = 'Указать дату';
   }
 }
@@ -740,28 +720,14 @@ function fitInputToMirror(inp, mirror){
 function updateBudgetPreview(){
   var raw = document.getElementById('bud-amount').value.replace(/[^0-9]/g,'');
   var amt = parseInt(raw, 10) || 0;
-  var perday = document.getElementById('bud-perday-display');
-  var deadlineRow = document.getElementById('bud-deadline-row');
-  var deadlineTxt = document.getElementById('bud-deadline-text');
+  var sub = document.getElementById('bud-perday-display');
 
   if(amt > 0 && S.budDays > 0){
-    perday.textContent = fmt(Math.round(amt/S.budDays))+' ₽ в день';
-  } else if(amt > 0 && S.budDays === 0){
-    perday.textContent = 'выберите количество дней';
-  } else if(amt === 0 && S.budDays > 0){
-    perday.textContent = S.budDays+' '+pluralDays(S.budDays);
+    sub.textContent = fmt(Math.round(amt/S.budDays))+' ₽ в день · '+S.budDays+' '+pluralDays(S.budDays);
+  } else if(amt > 0){
+    sub.textContent = 'Укажи дату';
   } else {
-    perday.textContent = '';
-  }
-
-  if(S.budDays > 0 && deadlineRow && deadlineTxt){
-    var dl = daysToDeadline(S.budDays);
-    var dlDate = new Date(dl+'T00:00:00');
-    var opts = {day:'numeric',month:'long'};
-    deadlineTxt.textContent = 'до '+dlDate.toLocaleDateString('ru-RU',opts)+' включительно';
-    deadlineRow.style.display='flex';
-  } else if(deadlineRow){
-    deadlineRow.style.display='none';
+    sub.textContent = 'Сколько ты готов потратить';
   }
 }
 function daysToDeadline(days){
@@ -775,7 +741,7 @@ async function saveBudget(){
   var raw = document.getElementById('bud-amount').value.replace(/[^0-9]/g,'');
   var amt = parseInt(raw, 10);
   if(!amt || amt <= 0){ toast('Введите сумму'); return; }
-  if(!S.budDays || S.budDays <= 0){ toast('Выберите количество дней'); return; }
+  if(!S.budDays || S.budDays <= 0){ toast('Выберите дату'); return; }
 
   var deadline = daysToDeadline(S.budDays);
   var startDate = todayStr();
@@ -1375,7 +1341,7 @@ initApp();
 Object.assign(window, {
   goMain, goHistory, goBudget, goSettings,
   np, npDel, confirm_, toggleType, selCat,
-  selBudDays, onBudDateChange, onBudAmtInput, saveBudget,
+  onBudDateChange, onBudAmtInput, saveBudget,
   selCatSettTab,
   showCatModal, hideCatModal, modalBgClick, selIcon, selColor, saveCat,
   showMyCode, deleteCat, exportData, importData, clearAll,
