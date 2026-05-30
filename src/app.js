@@ -268,8 +268,6 @@ function show(id){
 }
 function goMain(){ show('s-main'); renderMain(); }
 function goHistory(){
-  S.histType=null;
-  S.histCat=null;
   show('s-history');
   setTimeout(renderHistory,0);
 }
@@ -301,8 +299,10 @@ function renderMain(){
   const budgetDeadline=S.budget&&S.budget.deadline?S.budget.deadline:null;
   const hasBudget=budgetAmount>0 && !!budgetDeadline;
 
+  lblEl.style.cursor='';
+  lblEl.onclick=null;
+
   if(hasBudget){
-    // Считаем расходы через baseline: только то что потрачено ПОСЛЕ установки бюджета
     var totalEverSpent=S.txs.filter(function(t){ return t.type==='expense'; })
                             .reduce(function(sum,t){ return sum+t.amount; },0);
     var spentAtStart=Number((S.budget&&S.budget.spent_at_start)||0);
@@ -311,22 +311,35 @@ function renderMain(){
     numEl.textContent=(remaining<0?'−':'')+fmt(Math.abs(remaining));
     fitBudgetNum(numEl);
 
-    if(remaining>0){
-      lblEl.textContent='Осталось';
+    var isExpired=budgetDeadline<todayStr();
+    var dlFmt=new Date(budgetDeadline+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+
+    if(isExpired){
+      lblEl.textContent='Период завершён';
+      numEl.style.color='rgba(255,255,255,.45)';
+      lblEl.style.color='rgba(245,166,35,.75)';
+      lblEl.style.cursor='pointer';
+      lblEl.onclick=goBudget;
+      pill.textContent='Обновить';
+      pill.classList.add('nav-pill--highlight');
+      pill.style.cssText='';
+    } else if(remaining>0){
+      lblEl.textContent='Старайся вносить каждую трату, чтобы понимать, на что уходят твои деньги';
       numEl.style.color='rgba(255,255,255,.95)';
       lblEl.style.color='rgba(255,255,255,.38)';
+      const daysLeft=Math.max(daysUntil(budgetDeadline),1);
+      const perDay=fmt(Math.max(Math.round(Math.max(remaining,0)/daysLeft),0));
+      pill.textContent=perDay+' ₽/день';
+      pill.classList.remove('nav-pill--highlight');
+      pill.style.cssText='';
     } else {
-      lblEl.textContent='Перерасход';
-      numEl.style.color='rgba(255,90,80,.9)';   // красноватый
-      lblEl.style.color='rgba(255,90,80,.65)';  // лейбл тоже в тон
+      lblEl.textContent='Не останавливайся — вноси траты, чтобы понять реальный перерасход';
+      numEl.style.color='rgba(255,90,80,.9)';
+      lblEl.style.color='rgba(255,90,80,.65)';
+      pill.textContent='0 ₽/день';
+      pill.classList.remove('nav-pill--highlight');
+      pill.style.cssText='';
     }
-
-    const daysLeft=Math.max(daysUntil(budgetDeadline),1);
-    const perDay=fmt(Math.max(Math.round(Math.max(remaining,0)/daysLeft),0));
-    pill.textContent=perDay+' ₽/день';
-    pill.classList.remove('nav-pill--highlight');
-    // Цвет pill по статусу бюджета
-    pill.style.cssText='';
   } else {
     const todayExpenses=S.txs.filter(function(t){
       return t.type==='expense' && t.date && localDateStr(t.date)===todayStr();
@@ -334,17 +347,11 @@ function renderMain(){
     numEl.textContent=fmt(todayExpenses);
     fitBudgetNum(numEl);
     numEl.style.color='rgba(255,255,255,.9)';
-    lblEl.textContent='Потрачено сегодня';
-    lblEl.style.color='rgba(255,255,255,.38)';
+    lblEl.textContent='Задай бюджет — начнём считать траты';
+    lblEl.style.color='rgba(255,90,80,.55)';
     pill.textContent='Бюджет';
     pill.classList.add('nav-pill--highlight');
-    lblEl.textContent='Задай бюджет — начнём считать траты';
-    lblEl.style.color='rgba(255,80,80,.55)';
   }
-
-
-  lblEl.style.cursor='';
-  lblEl.onclick=null;
   renderAmountRow();
   renderModeRow();
   renderCatRow();
@@ -566,7 +573,10 @@ function renderHistContent(){
   function budMarkerHtml(b){
     var hh=new Date(b.ts).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
     var verb=b.prev_amount?'обновлён':'установлен';
-    var text='Бюджет '+verb+' · '+fmt(b.amount)+' ₽ · '+b.days+' '+pluralDays(b.days)+' · '+hh;
+    var startFmt=new Date(localDateStr(b.ts)+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+    var endFmt=b.deadline?new Date(b.deadline+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'}):'';
+    var period=endFmt?startFmt+' – '+endFmt:startFmt+(b.days>0?' · '+b.days+' '+pluralDays(b.days):'');
+    var text='Бюджет '+verb+' · '+fmt(b.amount)+' ₽ · '+period+' · '+hh;
     return '<div class="hist-bud-marker" data-bid="'+esc(b.id||'')+'" onclick="deleteBudHistEntry(this.dataset.bid)" role="button" title="Тап — удалить запись">'
       +'<span class="hist-bud-line" aria-hidden="true"></span>'
       +'<span class="hist-bud-text">'+esc(text)+'</span>'
@@ -602,7 +612,8 @@ function renderHistContent(){
     dayTxs.forEach(function(t){
       var cat=getCat(t.catId);
       var avatarBg=esc((cat.color||'#9E9E9E')+'22');
-      var subtext=t.note||(t.type==='income'?'Доход':'Расход');
+      var txTime=new Date(t.date).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+      var subtext=t.note||txTime;
       html += '<div class="tx-item" data-id="'+t.id+'" onclick="showTxEdit(this.dataset.id)">';
       html += '<div class="tx-avatar" style="background:'+avatarBg+'">'+(cat.icon?esc(cat.icon):'●')+'</div>';
       html += '<div class="tx-meta" style="flex:1;min-width:0;margin:0 12px">';
@@ -868,7 +879,7 @@ function renderSettings(){
 function showMyCode(){
   const code=localStorage.getItem(K_CODE)||(currentUser&&currentUser.user_metadata&&currentUser.user_metadata.code)||'';
   if(!code){toast('Код не привязан');return;}
-  showCodeRevealModal(code);
+  showCodeRevealModal(code,true);
 }
 function deleteCat(id){
   customConfirm('Удалить категорию?').then(ok=>{ if(!ok) return; S.cats=S.cats.filter(c=>c.id!==id);saveLocal();pushCats();deleteCatRemote(id);renderSettings();renderCatRow();toast('Удалено'); });
@@ -1277,7 +1288,7 @@ async function recoverWithCode(){
   const raw=document.getElementById('auth-code').value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
   const code=raw.length===8?raw.slice(0,4)+'-'+raw.slice(4):'';
   if(code.length!==9){document.getElementById('auth-err').textContent='Введите код из 8 символов';return;}
-  const btn=document.querySelector('#s-auth .auth-btn');
+  const btn=document.querySelector('#s-auth .btn-primary');
   const orig=btn.textContent;btn.disabled=true;btn.textContent='Проверяем...';
   document.getElementById('auth-err').textContent='';
   try{
@@ -1301,16 +1312,34 @@ async function recoverWithCode(){
     btn.disabled=false;btn.textContent=orig;
   }
 }
-function showCodeRevealModal(code){
+function showCodeRevealModal(code,fromSettings){
   document.getElementById('code-reveal-value').textContent=code;
+  document.getElementById('code-reveal-hint').textContent=fromSettings
+    ?'Сохрани его в надёжном месте — без него не вернуть данные, если потеряешь доступ к устройству.'
+    :'Он нужен, чтобы вернуть данные на другом устройстве. Найдёшь его в настройках в любой момент.';
+  document.getElementById('code-reveal-foot').style.display=fromSettings?'':'none';
+  const b1=document.getElementById('code-reveal-btn-1');
+  const b2=document.getElementById('code-reveal-btn-2');
+  if(fromSettings){
+    b1.textContent='Скопировать код';b1.dataset.action='copy';
+    b2.textContent='Понял';b2.dataset.action='dismiss';
+  }else{
+    b1.textContent='Понятно';b1.dataset.action='dismiss';
+    b2.textContent='Скопировать код';b2.dataset.action='copy';
+  }
   document.getElementById('code-reveal-modal').classList.add('vis');
 }
 function dismissCodeReveal(){document.getElementById('code-reveal-modal').classList.remove('vis');}
-function copyCodeReveal(){
+function onCodeRevealBtn(b){
+  if(b.dataset.action==='copy')copyCodeReveal(b);
+  else dismissCodeReveal();
+}
+function copyCodeReveal(b){
   const code=document.getElementById('code-reveal-value').textContent;
   copyToClipboard(code).then(()=>{
-    const b=document.getElementById('copy-code-btn');
-    b.textContent='Скопировано ✓';setTimeout(()=>b.textContent='Скопировать код',1800);
+    const btn=b||document.querySelector('#code-reveal-modal [data-action="copy"]');
+    if(!btn)return;
+    btn.textContent='Скопировано ✓';setTimeout(()=>btn.textContent='Скопировать код',1800);
   });
 }
 function copyCode(){
@@ -1332,7 +1361,7 @@ function legacyCopy(text){
 
 
 function showEnterCodeModal(){
-  customConfirm('Данные этого устройства будут заменены данными введённого аккаунта.','Продолжить').then(ok=>{
+  customConfirm('Данные этого устройства будут заменены данными введённого аккаунта.','Продолжить',false).then(ok=>{
     if(!ok) return;
     document.getElementById('enter-code-inp').value='';
     document.getElementById('enter-code-err').textContent='';
@@ -1392,7 +1421,7 @@ Object.assign(window, {
   showCatModal, hideCatModal, modalBgClick, selIcon, selColor, saveCat,
   showMyCode, deleteCat, exportData, importData, clearAll,
   showEnterCodeModal, hideEnterCodeModal, submitEnterCode,
-  copyCodeReveal, dismissCodeReveal, copyCode,
+  copyCodeReveal, dismissCodeReveal, onCodeRevealBtn, copyCode,
   recoverWithCode, createNewAccount,
   selHistType, selHistTab,
   showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat, onTxEditAmtInput, deleteBudHistEntry,
@@ -1400,9 +1429,42 @@ Object.assign(window, {
   toastUndo, fmtCodeInput,
 });
 
-// ── PWA: регистрация service worker для установки на Android ──────────────────
+// ── PWA: регистрация service worker + детектор обновлений ────────────────────
+function showUpdateToast(reg){
+  window._updateReg=reg;
+  const t=document.getElementById('toast');
+  t.innerHTML='<span>Доступно обновление</span><button class="toast-undo" onclick="applyUpdate()">Обновить</button>';
+  clearTimeout(t._t);
+  t.classList.add('show','toast--undo');
+  // Тост остаётся до тапа — не ставим авто-скрытие
+}
+function applyUpdate(){
+  const reg=window._updateReg;
+  if(reg&&reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+  else location.reload();
+}
+
 if('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  // Перезагружаем страницу когда новый SW берёт управление
+  var _swRefreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){
+    if(!_swRefreshing){ _swRefreshing=true; location.reload(); }
+  });
+
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('/sw.js').then(function(reg){
+      // Новый SW нашёлся в процессе установки
+      reg.addEventListener('updatefound',function(){
+        var newSw=reg.installing;
+        newSw.addEventListener('statechange',function(){
+          // Новая версия установлена и готова, старая ещё активна
+          if(newSw.state==='installed'&&navigator.serviceWorker.controller){
+            showUpdateToast(reg);
+          }
+        });
+      });
+    }).catch(function(){});
   });
 }
+
+Object.assign(window,{applyUpdate});

@@ -480,7 +480,8 @@ html,body,#app,.screen{max-width:100vw}
   color:rgba(255,255,255,.42);
   padding:6px var(--screen-pad) 8px;
   letter-spacing:-.1px;
-  font-variant-numeric:tabular-nums
+  font-variant-numeric:tabular-nums;
+  position:sticky;top:0;z-index:5;background:#111
 }
 .day-sec-label > span:first-child{font-weight:600;color:rgba(255,255,255,.5)}
 .day-sec-total{font-size:12px;font-weight:500;color:rgba(255,255,255,.38)}

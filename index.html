@@ -128,7 +128,7 @@
 <!-- ── BUDGET SCREEN ── -->
 <div class="screen hidden" id="s-budget">
   <div class="top-bar">
-    <button class="tb-btn" onclick="goMain()">Отменить</button>
+    <button class="tb-btn" onclick="goMain()">Назад</button>
     <span class="tb-title">Бюджет</span>
     <button class="tb-btn" style="color:#F5A623;justify-content:flex-end;font-weight:600" onclick="saveBudget()">Сохранить</button>
   </div>
@@ -306,11 +306,11 @@
       </svg>
     </div>
     <div class="modal-title" style="margin-bottom:6px">Твой код восстановления</div>
-    <div class="modal-hint">Запиши или скопируй этот код. С ним ты войдёшь с любого устройства.</div>
+    <div class="modal-hint" id="code-reveal-hint">Запиши или скопируй этот код. С ним ты войдёшь с любого устройства.</div>
     <div class="code-display" id="code-reveal-value"></div>
-    <div class="modal-foot-hint">Без кода вернуть данные не получится</div>
-    <button class="action-btn btn-primary" onclick="copyCodeReveal()" id="copy-code-btn" style="margin-bottom:0">Скопировать код</button>
-    <button class="action-btn btn-secondary" onclick="dismissCodeReveal()">Понял</button>
+    <div class="modal-foot-hint" id="code-reveal-foot">Без кода вернуть данные не получится</div>
+    <button class="action-btn btn-primary" id="code-reveal-btn-1" onclick="onCodeRevealBtn(this)" style="margin-bottom:0"></button>
+    <button class="action-btn btn-secondary" id="code-reveal-btn-2" onclick="onCodeRevealBtn(this)"></button>
   </div>
 </div>
 
