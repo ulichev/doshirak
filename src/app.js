@@ -476,7 +476,7 @@ function confirm_(){
   const amt=parseFloat(S.amount);
   if(!amt||amt<=0){toast('Введите сумму');return;}
   if(S.type==='expense'&&!(S.budget&&S.budget.amount>0&&S.budget.deadline)){
-    toast('Сначала настройте бюджет 👆');
+    toast('Сначала настройте бюджет');
     return;
   }
   const note=document.getElementById('note-inp').value.trim();
@@ -805,7 +805,7 @@ async function saveBudget(){
   renderMain();
   setTimeout(renderMain, 320);
 
-  toast('Бюджет '+fmt(amt)+'₽ на '+S.budDays+' дн. сохранён ✓');
+  toast('Бюджет установлен');
   await pushBudget();
   if(newHistEntry) pushBudgetHistoryEntry(newHistEntry);
   _budDirtyTs = Date.now();
@@ -837,7 +837,7 @@ async function deleteBudHistEntry(bid){
     }
   }
   renderHistory(); renderMain();
-  toast(isLatest?'Запись удалена · бюджет сброшен':'Запись удалена');
+  toast(isLatest?'Бюджет сброшен':'Запись удалена');
 }
 
 function genUuid(){
@@ -911,7 +911,7 @@ function importData(e){
         pushCats(); pushBudget();
         (S.budgetHistory||[]).forEach(b=>pushBudgetHistoryEntry(b));
       }
-      renderMain(); renderSettings(); toast('Данные импортированы ✓');
+      renderMain(); renderSettings(); toast('Данные импортированы');
     }catch(err){ toast('Ошибка чтения файла'); }
   };
   reader.readAsText(file);
@@ -930,7 +930,7 @@ async function clearAll(){
     // Затем посеять дефолтные категории заново
     await seedDefaultCats();
   }
-  toast('Данные сброшены ✓');
+  toast('Данные сброшены');
   setTimeout(()=>location.reload(),800);
 }
 
@@ -990,7 +990,7 @@ function saveCat(){
     if(idx>=0) S.cats[idx]={...S.cats[idx],name,color:S.budColor,icon:S.budIcon||ICON_OPTIONS[0]};
     _editCatId=null;
     saveLocal();pushCats();hideCatModal();renderSettings();renderCatRow();
-    toast('"'+name+'" обновлена ✓');
+    toast('"'+name+'" обновлена');
   } else {
     // Определяем тип: из вкладки настроек или из переключателя на главной
     const onSettings=!document.getElementById('s-settings').classList.contains('hidden');
@@ -999,7 +999,7 @@ function saveCat(){
     S.cats.unshift({id:'c'+Date.now()+_sfx,name,color:S.budColor,icon:S.budIcon||ICON_OPTIONS[0],ctype});
     saveLocal();pushCats();hideCatModal();renderSettings();renderCatRow();
     setTimeout(()=>{ const r=document.getElementById('cat-row'); if(r) r.scrollLeft=0; },60);
-    toast('"'+name+'" добавлена ✓');
+    toast('"'+name+'" добавлена');
   }
 }
 
@@ -1130,7 +1130,7 @@ function saveTxEdit(){
   }
   saveLocal(); pushTx(tx);
   hideTxEdit(); renderHistory(); renderMain();
-  toast('Сохранено ✓');
+  toast('Сохранено');
 }
 
 async function deleteTxFromEdit(){
@@ -1166,7 +1166,7 @@ function toastUndo(){
   S.txs=S.txs.filter(function(t){ return t.id!==_lastTx.id; });
   deleteTxRemote(_lastTx.id);
   saveLocal(); renderMain(); _lastTx=null;
-  toast('Отменено ✓');
+  toast('Отменено');
 }
 
 function toastWithUndo(msg, tx){
@@ -1305,7 +1305,7 @@ async function recoverWithCode(){
     goMain();
     await syncFromSupabase();
     renderMain();
-    setSyncDot(true);toast('Данные восстановлены ✓');
+    setSyncDot(true);toast('Данные восстановлены');
     setTimeout(()=>showCodeRevealModal(code),700);
   }catch(e){
     document.getElementById('auth-err').textContent='Ошибка соединения с сервером';
@@ -1339,13 +1339,13 @@ function copyCodeReveal(b){
   copyToClipboard(code).then(()=>{
     const btn=b||document.querySelector('#code-reveal-modal [data-action="copy"]');
     if(!btn)return;
-    btn.textContent='Скопировано ✓';setTimeout(()=>btn.textContent='Скопировать код',1800);
+    btn.textContent='Скопировано';setTimeout(()=>btn.textContent='Скопировать код',1800);
   });
 }
 function copyCode(){
   const code=localStorage.getItem(K_CODE);
   if(!code)return;
-  copyToClipboard(code).then(()=>toast('Код скопирован ✓'));
+  copyToClipboard(code).then(()=>toast('Код скопирован'));
 }
 function copyToClipboard(text){
   if(navigator.clipboard&&navigator.clipboard.writeText)
@@ -1393,7 +1393,7 @@ async function submitEnterCode(){
     saveLocal();
     await syncFromSupabase();
     renderMain();
-    toast('Данные восстановлены ✓');
+    toast('Данные восстановлены');
   }catch(e){
     document.getElementById('enter-code-err').textContent='Ошибка соединения';
     btn.disabled=false;btn.textContent='Войти';

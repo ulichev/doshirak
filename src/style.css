@@ -12,7 +12,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 /* MAIN SCREEN */
 .main-top{padding:20px 20px 0;flex:1;display:flex;flex-direction:column}
 .today-num{font-size:78px;font-weight:700;letter-spacing:-2px;line-height:1;color:#fff;transition:color .2s}
-.today-label{font-size:14px;color:rgba(255,255,255,.45);margin-top:3px;margin-bottom:14px}
+.today-label{font-size:12px;color:rgba(255,255,255,.45);margin-top:3px;margin-bottom:14px}
 .cat-breakdown{display:flex;flex-direction:column;gap:0;margin-bottom:14px;margin-top:auto}
 .cb-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);transition:opacity .2s ease}
 .cb-row:last-child{border-bottom:none}
@@ -172,7 +172,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .budget-screen-content{flex:1;overflow:hidden;padding:16px 16px 90px;overscroll-behavior:contain;display:flex;flex-direction:column;gap:14px}
 .budget-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:18px 0 6px}
 .budget-hero .bud-amount-wrap{justify-content:center}
-.budget-hero-sub{font-size:15px;color:rgba(255,255,255,.45);margin-top:8px;min-height:20px;font-weight:500}
+.budget-hero-sub{font-size:17px;color:rgba(255,255,255,.45);margin-top:8px;min-height:20px;font-weight:500}
 
 /* ── AUTH SCREEN ── */
 .auth-screen{
@@ -247,7 +247,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .modal-sub-label{font-size:11px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;display:block}
 .today-num{font-size:82px;letter-spacing:-3px;line-height:1}
 .main-top{padding:20px 20px 8px!important}
-.today-label{font-size:16px!important;font-weight:500}
+.today-label{font-size:13px!important;font-weight:500}
 
 #s-main{justify-content:flex-start;min-height:100%}
 #s-main .numpad{margin-top:auto}
@@ -315,7 +315,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   --card-radius-lg:clamp(16px,4.2vw,18px);
   --today-size:clamp(68px,20vw,82px);
   --budget-size:clamp(52px,14vw,64px);
-  --hero-input-size:clamp(48px,13vw,58px);
+  --hero-input-size:clamp(60px,16vw,72px);
 }
 html,body,#app,.screen{max-width:100vw}
 .top-bar{padding:10px var(--screen-pad);min-height:58px}
@@ -333,9 +333,9 @@ html,body,#app,.screen{max-width:100vw}
     --screen-pad:16px;
     --today-size:clamp(62px,18vw,72px);
     --budget-size:clamp(46px,13vw,56px);
-    --hero-input-size:clamp(42px,12vw,52px);
+    --hero-input-size:clamp(54px,14vw,64px);
   }
-  .today-label{font-size:15px!important}
+  .today-label{font-size:12px!important}
   .tb-btn,.nav-pill{font-size:13px}
 }
 
@@ -344,7 +344,7 @@ html,body,#app,.screen{max-width:100vw}
     --screen-pad:20px;
     --today-size:clamp(76px,18vw,90px);
     --budget-size:clamp(58px,13vw,70px);
-    --hero-input-size:clamp(54px,12vw,62px);
+    --hero-input-size:clamp(66px,15vw,76px);
   }
 }
 
@@ -365,7 +365,7 @@ html,body,#app,.screen{max-width:100vw}
   .amount-int{font-size:48px}
   .amount-dec{font-size:26px}
   .today-num{font-size:clamp(46px,13vw,58px)!important;letter-spacing:-1.5px}
-  .today-label{margin-bottom:6px;font-size:14px!important;margin-top:0}
+  .today-label{margin-bottom:6px;font-size:12px!important;margin-top:0}
   .main-top{padding:12px var(--screen-pad) 4px!important}
   .input-area{padding-top:6px;padding-bottom:2px;gap:6px}
   .amount-display-bar{padding-top:0;padding-bottom:4px}
@@ -381,7 +381,7 @@ html,body,#app,.screen{max-width:100vw}
   .amount-row,.amount-int{font-size:42px}
   .amount-dec{font-size:22px}
   .today-num{font-size:clamp(40px,12vw,50px)!important;line-height:1}
-  .today-label{font-size:13px!important;margin-bottom:4px;margin-top:0}
+  .today-label{font-size:11px!important;margin-bottom:4px;margin-top:0}
   .main-top{padding:10px var(--screen-pad) 4px!important}
   .cat-pill{padding:6px 12px;font-size:13px}
   .cat-row{padding-bottom:2px;padding-top:2px}
@@ -405,7 +405,7 @@ html,body,#app,.screen{max-width:100vw}
     --card-pad:14px;
     --today-size:56px;
     --budget-size:44px;
-    --hero-input-size:40px;
+    --hero-input-size:52px;
   }
   .top-bar{padding:8px var(--screen-pad);min-height:52px}
   .tb-title{font-size:16px}
