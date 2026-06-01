@@ -1449,7 +1449,7 @@ function maybeShowToggleHint(){
 }
 
 // ── ONBOARDING ───────────────────────────────────────────────────────────────
-let _obIdx=0, _obCode='', _obSlides=[];
+let _obIdx=0, _obCode='', _obSlides=[], _obBudDays=0;
 
 function buildObSlides(code){
   return [
@@ -1466,15 +1466,14 @@ function buildObSlides(code){
       btn:'Что там дальше?'
     },
     {
-      icon:'💰',
+      budgetForm:true, icon:'💰',
       title:'Сперва задай бюджет',
-      text:'Введи сумму и выбери дату — до зарплаты, халтурки или доната от любимой мамы. Приложение покажет, сколько можно тратить в день и сколько у тебя осталось.',
-      btn:'Конечно сделаю!'
+      btn:'Сделаю позже'
     },
     {
-      toggle:true,
+      toggleDemo:true,
       title:'Тратишь или получаешь?',
-      text:'Тратишь деньги — оранжевый минус. Получил деньги — зелёный плюс. Не переживай, ты всё поймёшь позже.',
+      text:'Тратишь деньги — оранжевый минус. Получил деньги — зелёный плюс.',
       btn:'Прошу доходы у вселенной'
     },
     {
@@ -1494,9 +1493,41 @@ function buildObSlides(code){
 
 function _obRenderSlides(){
   document.getElementById('ob-track').innerHTML=_obSlides.map(sl=>{
-    const topHtml=sl.toggle
-      ?`<div class="ob-toggle-demo"><div class="ob-toggle-btn ob-toggle-exp">−</div><div class="ob-toggle-btn ob-toggle-inc">+</div></div>`
-      :`<div class="ob-icon">${sl.icon}</div>`;
+    if(sl.budgetForm){
+      const calSvg=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+      return `<div class="ob-slide ob-slide-compact">
+        <div class="ob-icon">${sl.icon}</div>
+        <div class="ob-title">${sl.title}</div>
+        <div class="ob-bud-form">
+          <div class="ob-bud-hero" onclick="document.getElementById('ob-bud-amount').focus()">
+            <input type="text" inputmode="numeric" id="ob-bud-amount" class="ob-bud-hero-input"
+              placeholder="0" oninput="obBudAmtInput()" autocomplete="off" spellcheck="false">
+            <span class="ob-bud-ruble">₽</span>
+          </div>
+          <div class="ob-bud-perday" id="ob-bud-preview">До зарплаты, халтурки или доната от любимой мамы</div>
+          <label class="bud-date-tile" id="ob-bud-date-tile" for="ob-bud-date-input">
+            <span class="bud-date-icon">${calSvg}</span>
+            <span class="bud-date-text">
+              <span class="bud-date-cap">До какого числа</span>
+              <span class="bud-date-val" id="ob-bud-date-label">Указать дату</span>
+            </span>
+            <input type="date" id="ob-bud-date-input" onchange="obBudDateChange()">
+          </label>
+          <button class="action-btn btn-primary ob-bud-save-btn" onclick="obSaveBudget()">Сохранить и продолжить</button>
+        </div>
+      </div>`;
+    }
+    if(sl.toggleDemo){
+      return `<div class="ob-slide">
+        <div class="ob-tgl-wrap">
+          <div class="ob-tgl-icon exp" id="ob-tgl-icon" onclick="obToggleDemo()">−</div>
+          <div class="ob-tgl-pill">нажми на меня</div>
+        </div>
+        <div class="ob-title">${sl.title}</div>
+        <div class="ob-text">${sl.text}</div>
+      </div>`;
+    }
+    const topHtml=`<div class="ob-icon">${sl.icon}</div>`;
     const codeHtml=sl.code
       ?`<div class="ob-code-block"><div class="code-display ob-code ob-code-tap" onclick="obCopyCode(this)">${sl.code}</div><div class="ob-copy-hint">нажми чтобы скопировать</div></div>`
       :'';
@@ -1506,7 +1537,10 @@ function _obRenderSlides(){
 
 function _obUpdateState(){
   document.getElementById('ob-dots').querySelectorAll('.ob-dot').forEach((d,i)=>d.classList.toggle('on',i===_obIdx));
-  document.getElementById('ob-btn').textContent=_obSlides[_obIdx].btn||'Далее';
+  const sl=_obSlides[_obIdx];
+  const btn=document.getElementById('ob-btn');
+  btn.textContent=sl.btn||'Далее';
+  btn.classList.toggle('ob-cta-ghost',!!sl.budgetForm);
 }
 
 function showOnboarding(code){
@@ -1559,6 +1593,71 @@ function obCopyCode(el){
   });
 }
 
+function obBudAmtInput(){ _obUpdateBudPreview(); }
+
+function obBudDateChange(){
+  const inp=document.getElementById('ob-bud-date-input');
+  if(!inp||!inp.value){_obBudDays=0;_obUpdateBudPreview();return;}
+  const days=Math.round((new Date(inp.value+'T12:00:00')-new Date(todayStr()+'T12:00:00'))/86400000)+1;
+  if(days<1){toast('Дата должна быть сегодня или позже');inp.value='';_obBudDays=0;_obUpdateBudPreview();return;}
+  _obBudDays=days;
+  const lbl=document.getElementById('ob-bud-date-label');
+  if(lbl){const d=new Date(inp.value+'T12:00:00');lbl.textContent=d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'});}
+  const tile=document.getElementById('ob-bud-date-tile');
+  if(tile)tile.classList.add('sel');
+  _obUpdateBudPreview();
+}
+
+function _obUpdateBudPreview(){
+  const raw=(document.getElementById('ob-bud-amount')||{value:''}).value.replace(/[^0-9]/g,'');
+  const amt=parseInt(raw,10)||0;
+  const preview=document.getElementById('ob-bud-preview');
+  if(!preview)return;
+  if(amt>0&&_obBudDays>0){
+    preview.textContent=Math.floor(amt/_obBudDays).toLocaleString('ru-RU')+' ₽ в день';
+    preview.classList.add('ob-bud-perday-active');
+  } else {
+    preview.textContent='До зарплаты, халтурки или доната от любимой мамы';
+    preview.classList.remove('ob-bud-perday-active');
+  }
+}
+
+async function obSaveBudget(){
+  var raw=(document.getElementById('ob-bud-amount').value||'').replace(/[^0-9]/g,'');
+  var amt=parseInt(raw,10);
+  if(!amt||amt<=0){toast('Введите сумму');return;}
+  if(!_obBudDays||_obBudDays<=0){toast('Укажите дату');return;}
+  var deadline=daysToDeadline(_obBudDays);
+  var startDate=todayStr();
+  var now=new Date().toISOString();
+  var spentAtStart=S.txs.filter(t=>t.type==='expense').reduce((sum,t)=>sum+t.amount,0);
+  var prev=S.budget||{};
+  var changed=Number(prev.amount||0)!==amt||Number(prev.days||0)!==_obBudDays;
+  var newHistEntry=null;
+  if(changed){
+    if(!S.budgetHistory)S.budgetHistory=[];
+    newHistEntry={id:genUuid(),ts:now,amount:amt,days:_obBudDays,deadline,prev_amount:Number(prev.amount||0)||null};
+    S.budgetHistory.push(newHistEntry);
+  }
+  S.budget={amount:amt,days:_obBudDays,deadline,set_at:startDate,reset_ts:now,spent_at_start:spentAtStart};
+  _budDirtyTs=Date.now()+30000;
+  saveLocal();
+  toast('Бюджет установлен');
+  await pushBudget();
+  if(newHistEntry)pushBudgetHistoryEntry(newHistEntry);
+  _budDirtyTs=Date.now();
+  obNext();
+}
+
+function obToggleDemo(){
+  const icon=document.getElementById('ob-tgl-icon');
+  if(!icon)return;
+  const isExp=icon.classList.contains('exp');
+  icon.classList.toggle('exp',!isExp);
+  icon.classList.toggle('inc',isExp);
+  icon.textContent=isExp?'+':'−';
+}
+
 function replayOnboarding(){
   const code=localStorage.getItem(K_CODE)||'';
   showOnboarding(code);
@@ -1590,6 +1689,7 @@ Object.assign(window, {
   recoverWithCode, createNewAccount,
   showToggleHint, maybeShowToggleHint,
   showOnboarding, obNext, obGoTo, closeOnboarding, obCopyCode, obTouchStart, obTouchEnd, replayOnboarding,
+  obBudAmtInput, obBudDateChange, obSaveBudget, obToggleDemo,
   selHistType, selHistTab,
   showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat, onTxEditAmtInput, deleteBudHistEntry,
   _confOk, _confNo,
