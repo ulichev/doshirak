@@ -1454,34 +1454,40 @@ let _obIdx=0, _obCode='', _obSlides=[];
 function buildObSlides(code){
   return [
     {
-      icon:'🍜', bg:'rgba(245,166,35,.14)',
+      icon:'🍜',
       title:'Привет! Ты в Дошике',
-      text:'Твой личный трекер доходов и расходов. Вноси каждую трату — и ты наконец поймёшь, на что уходят деньги.'
+      text:'Лучшее приложение для учёта доходов и расходов. Здесь ты разберёшься, на что улетают деньги.',
+      btn:'Кайф, погнали!'
     },
     {
-      icon:'🔑', bg:'rgba(245,166,35,.1)', code,
+      icon:'🔑', code,
       title:'Это твой код доступа',
-      text:'Он восстановит все данные на любом устройстве. Всегда есть в настройках — но лучше сохрани прямо сейчас.'
+      text:'Он восстановит все данные на любом устройстве. Всегда доступен в настройках.',
+      btn:'Что там дальше?'
     },
     {
-      icon:'🎯', bg:'rgba(74,158,255,.13)',
-      title:'Сначала задай бюджет',
-      text:'Укажи сумму и дату — сколько готов потратить и до когда. Без бюджета расходы не добавить. Это задумано так — помогает думать наперёд.'
+      icon:'💰',
+      title:'Сперва задай бюджет',
+      text:'Введи сумму и выбери дату — до зарплаты, халтурки или доната от любимой мамы. Приложение покажет, сколько можно тратить в день и сколько у тебя осталось.',
+      btn:'Конечно сделаю!'
     },
     {
       toggle:true,
-      title:'Минус — расход, плюс — доход',
-      text:'Кнопка внизу слева на клавиатуре переключает тип записи. Оранжевый — деньги уходят, зелёный — приходят.'
+      title:'Тратишь или получаешь?',
+      text:'Тратишь деньги — оранжевый минус. Получил деньги — зелёный плюс. Не переживай, ты всё поймёшь позже.',
+      btn:'Прошу доходы у вселенной'
     },
     {
-      icon:'📊', bg:'rgba(175,111,232,.14)',
-      title:'История помнит всё',
-      text:'В разделе «История» — все транзакции, разбивка по категориям и суммы за период. Твой финансовый дневник.'
+      icon:'📊',
+      title:'Где деньги, Лебовски?',
+      text:'Всё записано: траты, доходы, категории и суммы за любой период. Смотри куда уходят деньги и решай, где можно сэкономить.',
+      btn:'Понятненько'
     },
     {
-      icon:'🌟', bg:'rgba(245,166,35,.14)',
-      title:'Готово, поехали!',
-      text:'Вноси каждую трату — даже самую мелкую. Уже через неделю увидишь полную картину своих финансов. Удачи, у тебя всё получится! 💛'
+      icon:'🎤🧑',
+      title:'Окээээй лэтсгоу!',
+      text:'Вноси каждую трату, даже самую мелкую. Уже через неделю увидишь, куда улетают деньги. И да — единственный доширак, который тебе нужен, это мы 💛',
+      btn:'Поехали!'
     }
   ];
 }
@@ -1490,9 +1496,9 @@ function _obRenderSlides(){
   document.getElementById('ob-track').innerHTML=_obSlides.map(sl=>{
     const topHtml=sl.toggle
       ?`<div class="ob-toggle-demo"><div class="ob-toggle-btn ob-toggle-exp">−</div><div class="ob-toggle-btn ob-toggle-inc">+</div></div>`
-      :`<div class="ob-icon" style="background:${sl.bg||'rgba(255,255,255,.07)'}">${sl.icon}</div>`;
+      :`<div class="ob-icon">${sl.icon}</div>`;
     const codeHtml=sl.code
-      ?`<div class="ob-code-block"><div class="code-display ob-code">${sl.code}</div><button class="ob-copy-btn" onclick="obCopyCode(this)">Скопировать код</button></div>`
+      ?`<div class="ob-code-block"><div class="code-display ob-code ob-code-tap" onclick="obCopyCode(this)">${sl.code}</div><div class="ob-copy-hint">нажми чтобы скопировать</div></div>`
       :'';
     return `<div class="ob-slide">${topHtml}<div class="ob-title">${sl.title}</div>${codeHtml}<div class="ob-text">${sl.text}</div></div>`;
   }).join('');
@@ -1500,7 +1506,7 @@ function _obRenderSlides(){
 
 function _obUpdateState(){
   document.getElementById('ob-dots').querySelectorAll('.ob-dot').forEach((d,i)=>d.classList.toggle('on',i===_obIdx));
-  document.getElementById('ob-btn').textContent=_obIdx===_obSlides.length-1?'Начать →':'Далее';
+  document.getElementById('ob-btn').textContent=_obSlides[_obIdx].btn||'Далее';
 }
 
 function showOnboarding(code){
@@ -1508,7 +1514,7 @@ function showOnboarding(code){
   _obSlides=buildObSlides(code);
   _obRenderSlides();
   document.getElementById('ob-dots').innerHTML=_obSlides.map((_,i)=>`<div class="ob-dot${i===0?' on':''}" onclick="obGoTo(${i})"></div>`).join('');
-  document.getElementById('ob-btn').textContent='Далее';
+  document.getElementById('ob-btn').textContent=_obSlides[0].btn||'Далее';
   document.getElementById('ob-track').style.transform='translateX(0)';
   document.getElementById('onboarding').classList.add('vis');
 }
@@ -1540,13 +1546,16 @@ function closeOnboarding(){
   }
 }
 
-function obCopyCode(btn){
+function obCopyCode(el){
   if(!_obCode)return;
   copyToClipboard(_obCode).then(()=>{
-    btn.textContent='✓ Скопировано';
-    btn.style.color='#3DBD74';
-    btn.style.borderColor='rgba(61,189,116,.3)';
-    btn.style.background='rgba(61,189,116,.08)';
+    const hint=el.nextElementSibling;
+    if(hint){hint.textContent='✓ скопировано';hint.style.color='#3DBD74';}
+    el.style.borderColor='rgba(61,189,116,.4)';
+    setTimeout(()=>{
+      if(hint){hint.textContent='нажми чтобы скопировать';hint.style.color='';}
+      el.style.borderColor='';
+    },2000);
   });
 }
 

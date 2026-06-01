@@ -827,14 +827,13 @@ html,body,#app,.screen{max-width:100vw}
 .ob-slide{
   flex:0 0 100%;width:100%;
   display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  padding:16px 38px 0;text-align:center
+  align-items:center;justify-content:flex-start;
+  padding:80px 38px 0;text-align:center
 }
 .ob-icon{
-  width:88px;height:88px;border-radius:26px;
   display:flex;align-items:center;justify-content:center;
-  font-size:42px;line-height:1;
-  margin-bottom:24px;flex-shrink:0
+  font-size:72px;line-height:1;
+  margin-bottom:20px;flex-shrink:0
 }
 .ob-title{
   font-size:clamp(21px,6vw,26px);
@@ -847,18 +846,9 @@ html,body,#app,.screen{max-width:100vw}
   max-width:290px
 }
 .ob-code-block{display:flex;flex-direction:column;align-items:center;width:100%}
-.ob-code{margin:16px 0 10px!important;width:100%}
-.ob-copy-btn{
-  background:rgba(245,166,35,.1);
-  border:1.5px solid rgba(245,166,35,.3);
-  color:#F5A623;
-  border-radius:14px;padding:10px 22px;
-  font-size:14px;font-weight:600;
-  cursor:pointer;margin-bottom:14px;
-  transition:all .2s;
-  -webkit-tap-highlight-color:transparent
-}
-.ob-copy-btn:active{opacity:.7}
+.ob-code{margin:16px 0 6px!important;width:100%;cursor:pointer;transition:border-color .2s;-webkit-tap-highlight-color:transparent}
+.ob-code-tap:active{opacity:.7}
+.ob-copy-hint{font-size:12px;color:rgba(255,255,255,.3);margin-bottom:10px;transition:color .2s}
 .ob-toggle-demo{display:flex;gap:12px;margin-bottom:24px}
 .ob-toggle-btn{
   width:74px;height:74px;border-radius:20px;
@@ -881,10 +871,10 @@ html,body,#app,.screen{max-width:100vw}
 .ob-dot.on{width:24px;border-radius:4px;background:#F5A623}
 .ob-cta{width:100%;margin-top:0!important}
 @media(max-height:700px){
-  .ob-icon{width:72px;height:72px;font-size:34px;margin-bottom:18px}
+  .ob-icon{font-size:54px;margin-bottom:14px}
   .ob-toggle-btn{width:60px;height:60px;font-size:26px}
   .ob-toggle-demo{margin-bottom:18px}
   .ob-title{font-size:20px;margin-bottom:10px}
   .ob-text{font-size:14px}
-  .ob-slide{padding:12px 34px 0}
+  .ob-slide{padding:40px 34px 0}
 }
