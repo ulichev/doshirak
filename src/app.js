@@ -266,7 +266,7 @@ function show(id){
     document.getElementById(s).classList.toggle('hidden',s!==id);
   });
 }
-function goMain(){ show('s-main'); renderMain(); }
+function goMain(){ show('s-main'); renderMain(); maybeShowToggleHint(); }
 function goHistory(){
   show('s-history');
   setTimeout(renderHistory,0);
@@ -1413,6 +1413,41 @@ document.addEventListener('visibilitychange',()=>{
 });
 initApp();
 
+// ── TOGGLE HINT ──────────────────────────────────────────────────────────────
+const K_TGL='_tgl';
+
+function showToggleHint(){
+  const btn=document.getElementById('np-toggle');
+  const hint=document.getElementById('toggle-hint');
+  if(!btn||!hint)return;
+  const rect=btn.getBoundingClientRect();
+  const gap=12;
+  const w=hint.offsetWidth||140;
+  const btnCX=rect.left+rect.width/2;
+  const left=Math.max(gap, btnCX-w/2);
+  hint.style.left=left+'px';
+  hint.style.top=(rect.top-12)+'px';
+  hint.style.transform='translateY(-100%)';
+  hint.style.setProperty('--arrow-left',Math.round(btnCX-left)+'px');
+  hint.classList.add('show');
+  btn.classList.add('np-toggle--hint');
+  const dismiss=()=>{hint.classList.remove('show');btn.classList.remove('np-toggle--hint');};
+  btn.addEventListener('click',dismiss,{once:true});
+  setTimeout(dismiss,5000);
+}
+
+let _tglPending=false;
+function maybeShowToggleHint(){
+  if(localStorage.getItem(K_TGL)||_tglPending)return;
+  _tglPending=true;
+  setTimeout(()=>{
+    _tglPending=false;
+    if(document.getElementById('onboarding').classList.contains('vis'))return;
+    localStorage.setItem(K_TGL,'1');
+    showToggleHint();
+  },1500);
+}
+
 // ── ONBOARDING ───────────────────────────────────────────────────────────────
 let _obIdx=0, _obCode='', _obSlides=[];
 
@@ -1498,6 +1533,11 @@ function obGoTo(idx){
 function closeOnboarding(){
   localStorage.setItem(K_OB,'1');
   document.getElementById('onboarding').classList.remove('vis');
+  // показываем подсказку новым пользователям после онбординга
+  if(!localStorage.getItem(K_TGL)&&!_tglPending){
+    _tglPending=true;
+    setTimeout(()=>{_tglPending=false;localStorage.setItem(K_TGL,'1');showToggleHint();},1200);
+  }
 }
 
 function obCopyCode(btn){
@@ -1539,6 +1579,7 @@ Object.assign(window, {
   showEnterCodeModal, hideEnterCodeModal, submitEnterCode,
   copyCodeReveal, dismissCodeReveal, onCodeRevealBtn, copyCode,
   recoverWithCode, createNewAccount,
+  showToggleHint, maybeShowToggleHint,
   showOnboarding, obNext, obGoTo, closeOnboarding, obCopyCode, obTouchStart, obTouchEnd, replayOnboarding,
   selHistType, selHistTab,
   showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat, onTxEditAmtInput, deleteBudHistEntry,
