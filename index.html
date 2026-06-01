@@ -206,6 +206,16 @@
           <span class="sett-row-label">Войти с другим кодом</span>
           <span class="sett-chevron">›</span>
         </div>
+        <div class="sett-row" style="cursor:pointer" onclick="replayOnboarding()">
+          <span class="sett-row-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="sett-row-label">Как пользоваться</span>
+          <span class="sett-chevron">›</span>
+        </div>
       </div>
     </div>
     <div class="sett-sec">
@@ -355,6 +365,21 @@
     <p id="confirm-msg" class="confirm-msg"></p>
     <button class="action-btn btn-danger" id="confirm-ok-btn" onclick="_confOk()" style="margin-bottom:0">Удалить</button>
     <button class="action-btn btn-secondary" onclick="_confNo()">Отмена</button>
+  </div>
+</div>
+
+<!-- ── ONBOARDING ── -->
+<div id="onboarding" class="ob-overlay">
+  <div class="ob-topbar">
+    <button class="ob-skip" onclick="closeOnboarding()">Пропустить</button>
+  </div>
+  <div class="ob-viewport" id="ob-viewport"
+       ontouchstart="obTouchStart(event)" ontouchend="obTouchEnd(event)">
+    <div class="ob-track" id="ob-track"></div>
+  </div>
+  <div class="ob-footer">
+    <div class="ob-dots" id="ob-dots"></div>
+    <button class="action-btn btn-primary ob-cta" id="ob-btn" onclick="obNext()">Далее</button>
   </div>
 </div>
 

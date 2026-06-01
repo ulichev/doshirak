@@ -1187,6 +1187,7 @@ function toast(msg){
 
 // ── CODE RECOVERY AUTH ────────────────────────────────────────────────────────
 const K_CODE='tk_rccode';
+const K_OB='_ob'; // флаг: онбординг пройден
 
 function generateCode(){
   const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1273,12 +1274,12 @@ async function createNewAccount(btn){
     document.getElementById('s-auth').style.display='none';
     loadLocal();goMain();
     if(currentUser){await seedDefaultCats();setSyncDot(true);}
-    setTimeout(()=>showCodeRevealModal(code),600);
+    setTimeout(()=>showOnboarding(code),600);
   }catch(e){
     // Даже при ошибке сети — код в localStorage, показываем его
     document.getElementById('s-auth').style.display='none';
     loadLocal();goMain();
-    setTimeout(()=>showCodeRevealModal(code),600);
+    setTimeout(()=>showOnboarding(code),600);
     setSyncDot(false);
     btn.disabled=false;btn.textContent='Начать с нуля';
     document.getElementById('auth-err').textContent='Ошибка соединения с сервером';
@@ -1412,6 +1413,121 @@ document.addEventListener('visibilitychange',()=>{
 });
 initApp();
 
+// ── ONBOARDING ───────────────────────────────────────────────────────────────
+let _obIdx=0, _obCode='', _obSlides=[];
+
+function buildObSlides(code){
+  return [
+    {
+      icon:'🍜', bg:'rgba(245,166,35,.14)',
+      title:'Привет! Ты в Дошике',
+      text:'Твой личный трекер доходов и расходов. Вноси каждую трату — и ты наконец поймёшь, на что уходят деньги.'
+    },
+    {
+      icon:'🔑', bg:'rgba(245,166,35,.1)', code,
+      title:'Это твой код доступа',
+      text:'Он восстановит все данные на любом устройстве. Всегда есть в настройках — но лучше сохрани прямо сейчас.'
+    },
+    {
+      icon:'🎯', bg:'rgba(74,158,255,.13)',
+      title:'Сначала задай бюджет',
+      text:'Укажи сумму и дату — сколько готов потратить и до когда. Без бюджета расходы не добавить. Это задумано так — помогает думать наперёд.'
+    },
+    {
+      toggle:true,
+      title:'Минус — расход, плюс — доход',
+      text:'Кнопка внизу слева на клавиатуре переключает тип записи. Оранжевый — деньги уходят, зелёный — приходят.'
+    },
+    {
+      icon:'📊', bg:'rgba(175,111,232,.14)',
+      title:'История помнит всё',
+      text:'В разделе «История» — все транзакции, разбивка по категориям и суммы за период. Твой финансовый дневник.'
+    },
+    {
+      icon:'🌟', bg:'rgba(245,166,35,.14)',
+      title:'Готово, поехали!',
+      text:'Вноси каждую трату — даже самую мелкую. Уже через неделю увидишь полную картину своих финансов. Удачи, у тебя всё получится! 💛'
+    }
+  ];
+}
+
+function _obRenderSlides(){
+  document.getElementById('ob-track').innerHTML=_obSlides.map(sl=>{
+    const topHtml=sl.toggle
+      ?`<div class="ob-toggle-demo"><div class="ob-toggle-btn ob-toggle-exp">−</div><div class="ob-toggle-btn ob-toggle-inc">+</div></div>`
+      :`<div class="ob-icon" style="background:${sl.bg||'rgba(255,255,255,.07)'}">${sl.icon}</div>`;
+    const codeHtml=sl.code
+      ?`<div class="ob-code-block"><div class="code-display ob-code">${sl.code}</div><button class="ob-copy-btn" onclick="obCopyCode(this)">Скопировать код</button></div>`
+      :'';
+    return `<div class="ob-slide">${topHtml}<div class="ob-title">${sl.title}</div>${codeHtml}<div class="ob-text">${sl.text}</div></div>`;
+  }).join('');
+}
+
+function _obUpdateState(){
+  document.getElementById('ob-dots').querySelectorAll('.ob-dot').forEach((d,i)=>d.classList.toggle('on',i===_obIdx));
+  document.getElementById('ob-btn').textContent=_obIdx===_obSlides.length-1?'Начать →':'Далее';
+}
+
+function showOnboarding(code){
+  _obCode=code||''; _obIdx=0;
+  _obSlides=buildObSlides(code);
+  _obRenderSlides();
+  document.getElementById('ob-dots').innerHTML=_obSlides.map((_,i)=>`<div class="ob-dot${i===0?' on':''}" onclick="obGoTo(${i})"></div>`).join('');
+  document.getElementById('ob-btn').textContent='Далее';
+  document.getElementById('ob-track').style.transform='translateX(0)';
+  document.getElementById('onboarding').classList.add('vis');
+}
+
+function obNext(){
+  if(_obIdx<_obSlides.length-1){
+    _obIdx++;
+    document.getElementById('ob-track').style.transform=`translateX(${-_obIdx*100}%)`;
+    _obUpdateState();
+  }else{
+    closeOnboarding();
+  }
+}
+
+function obGoTo(idx){
+  if(idx<0||idx>=_obSlides.length)return;
+  _obIdx=idx;
+  document.getElementById('ob-track').style.transform=`translateX(${-_obIdx*100}%)`;
+  _obUpdateState();
+}
+
+function closeOnboarding(){
+  localStorage.setItem(K_OB,'1');
+  document.getElementById('onboarding').classList.remove('vis');
+}
+
+function obCopyCode(btn){
+  if(!_obCode)return;
+  copyToClipboard(_obCode).then(()=>{
+    btn.textContent='✓ Скопировано';
+    btn.style.color='#3DBD74';
+    btn.style.borderColor='rgba(61,189,116,.3)';
+    btn.style.background='rgba(61,189,116,.08)';
+  });
+}
+
+function replayOnboarding(){
+  const code=localStorage.getItem(K_CODE)||'';
+  showOnboarding(code);
+}
+
+let _obTouchX=0;
+function obTouchStart(e){_obTouchX=e.touches[0].clientX;}
+function obTouchEnd(e){
+  const dx=e.changedTouches[0].clientX-_obTouchX;
+  if(Math.abs(dx)<45)return;
+  if(dx<0&&_obIdx<_obSlides.length-1)obNext();
+  else if(dx>0&&_obIdx>0){
+    _obIdx--;
+    document.getElementById('ob-track').style.transform=`translateX(${-_obIdx*100}%)`;
+    _obUpdateState();
+  }
+}
+
 // Expose functions for inline onclick handlers in HTML
 Object.assign(window, {
   goMain, goHistory, goBudget, goSettings,
@@ -1423,6 +1539,7 @@ Object.assign(window, {
   showEnterCodeModal, hideEnterCodeModal, submitEnterCode,
   copyCodeReveal, dismissCodeReveal, onCodeRevealBtn, copyCode,
   recoverWithCode, createNewAccount,
+  showOnboarding, obNext, obGoTo, closeOnboarding, obCopyCode, obTouchStart, obTouchEnd, replayOnboarding,
   selHistType, selHistTab,
   showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat, onTxEditAmtInput, deleteBudHistEntry,
   _confOk, _confNo,
