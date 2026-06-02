@@ -870,11 +870,6 @@ html,body,#app,.screen{max-width:100vw}
 }
 .ob-dot.on{width:24px;border-radius:4px;background:#F5A623}
 .ob-cta{width:100%;margin-top:0!important}
-/* auth slide */
-.ob-slide-auth{padding-top:32px!important}
-.ob-slide-auth .ob-icon{font-size:54px;margin-bottom:12px}
-.ob-slide-auth .ob-title{margin-bottom:8px}
-.ob-auth-form{width:100%;display:flex;flex-direction:column;gap:10px}
 /* compact slides (budget form) */
 .ob-slide-compact{padding-top:48px!important}
 /* ── budget form ── */

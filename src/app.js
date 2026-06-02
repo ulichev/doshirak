@@ -1234,9 +1234,8 @@ async function initApp(){
     }
   }catch(e){}
 
-  // Путь 3: Нет ничего — онбординг с экраном выбора
-  loadLocal(); goMain();
-  showOnboarding(null, true);
+  // Путь 3: Нет ничего — экран входа
+  document.getElementById('s-auth').style.display='flex';
 }
 async function generateAndLinkCode(showModal=false){
   const code=generateCode();
@@ -1494,22 +1493,6 @@ function buildObSlides(code){
 
 function _obRenderSlides(){
   document.getElementById('ob-track').innerHTML=_obSlides.map(sl=>{
-    if(sl.authSlide){
-      return `<div class="ob-slide ob-slide-auth">
-        <div class="ob-icon">🍜</div>
-        <div class="ob-title">Привет! Ты в Дошике</div>
-        <div class="ob-text" style="margin-bottom:20px">Лучшее приложение для учёта доходов и расходов.</div>
-        <div class="ob-auth-form">
-          <input class="code-inp-big" id="ob-auth-code" placeholder="A3BK-9XPQ" maxlength="9"
-            autocomplete="off" autocapitalize="characters" spellcheck="false"
-            oninput="fmtCodeInput(this)" onkeydown="if(event.key==='Enter')obRecoverWithCode()">
-          <button class="action-btn btn-primary" id="ob-recover-btn" onclick="obRecoverWithCode()">Войти по коду</button>
-          <div class="auth-err" id="ob-auth-err"></div>
-          <div class="auth-or"><span class="auth-or-line"></span><span class="auth-or-text">или</span><span class="auth-or-line"></span></div>
-          <button class="action-btn btn-secondary" onclick="obCreateNewAccount(this)">Начать с нуля</button>
-        </div>
-      </div>`;
-    }
     if(sl.budgetForm){
       const calSvg=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
       return `<div class="ob-slide ob-slide-compact">
@@ -1556,20 +1539,16 @@ function _obUpdateState(){
   document.getElementById('ob-dots').querySelectorAll('.ob-dot').forEach((d,i)=>d.classList.toggle('on',i===_obIdx));
   const sl=_obSlides[_obIdx];
   const btn=document.getElementById('ob-btn');
-  const skip=document.querySelector('.ob-skip');
   btn.textContent=sl.btn||'Далее';
   btn.classList.toggle('ob-cta-ghost',!!sl.budgetForm);
-  btn.style.display=sl.authSlide?'none':'';
-  if(skip)skip.style.visibility=sl.authSlide?'hidden':'';
 }
 
-function showOnboarding(code, isFirstTime=false){
+function showOnboarding(code){
   _obCode=code||''; _obIdx=0;
   _obSlides=buildObSlides(code);
-  if(isFirstTime) _obSlides.unshift({authSlide:true});
   _obRenderSlides();
   document.getElementById('ob-dots').innerHTML=_obSlides.map((_,i)=>`<div class="ob-dot${i===0?' on':''}" onclick="obGoTo(${i})"></div>`).join('');
-  _obUpdateState();
+  document.getElementById('ob-btn').textContent=_obSlides[0].btn||'Далее';
   document.getElementById('ob-track').style.transform='translateX(0)';
   document.getElementById('onboarding').classList.add('vis');
 }
@@ -1612,53 +1591,6 @@ function obCopyCode(el){
       el.style.borderColor='';
     },2000);
   });
-}
-
-async function obCreateNewAccount(btn){
-  btn.disabled=true;
-  const origText=btn.textContent;
-  btn.textContent='Создаём...';
-  document.getElementById('ob-auth-err').textContent='';
-  const code=generateCode();
-  localStorage.setItem(K_CODE,code);
-  try{
-    const{data,error}=await db.auth.signUp({email:`${code}@doshik.app`,password:code,options:{data:{code}}});
-    if(error)throw error;
-    currentUser=data.user||data.session?.user;
-    loadLocal();goMain();
-    if(currentUser){await seedDefaultCats();setSyncDot(true);}
-  }catch(e){
-    loadLocal();goMain();setSyncDot(false);
-  }
-  _obCode=code;
-  _obRenderSlides();
-  obNext();
-  btn.disabled=false;btn.textContent=origText;
-}
-
-async function obRecoverWithCode(){
-  const raw=(document.getElementById('ob-auth-code').value||'').replace(/[^A-Za-z0-9]/g,'').toUpperCase();
-  const code=raw.length===8?raw.slice(0,4)+'-'+raw.slice(4):'';
-  if(code.length!==9){document.getElementById('ob-auth-err').textContent='Введите код из 8 символов';return;}
-  const btn=document.getElementById('ob-recover-btn');
-  btn.disabled=true;btn.textContent='Проверяем...';
-  document.getElementById('ob-auth-err').textContent='';
-  try{
-    const{data,error}=await db.auth.signInWithPassword({email:`${code}@doshik.app`,password:code});
-    if(error||!data.user){
-      document.getElementById('ob-auth-err').textContent='Код не найден. Проверьте правильность';
-      btn.disabled=false;btn.textContent='Войти по коду';return;
-    }
-    localStorage.setItem(K_CODE,code);currentUser=data.user;
-    S.txs=[];S.cats=[];S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0};S.budgetHistory=[];
-    saveLocal();goMain();
-    await syncFromSupabase();renderMain();
-    setSyncDot(true);toast('Данные восстановлены');
-    closeOnboarding();
-  }catch(e){
-    document.getElementById('ob-auth-err').textContent='Ошибка соединения с сервером';
-    btn.disabled=false;btn.textContent='Войти по коду';
-  }
 }
 
 function obBudAmtInput(){ _obUpdateBudPreview(); }
@@ -1736,7 +1668,6 @@ function obTouchStart(e){_obTouchX=e.touches[0].clientX;}
 function obTouchEnd(e){
   const dx=e.changedTouches[0].clientX-_obTouchX;
   if(Math.abs(dx)<45)return;
-  if(_obSlides[_obIdx]&&_obSlides[_obIdx].authSlide)return;
   if(dx<0&&_obIdx<_obSlides.length-1)obNext();
   else if(dx>0&&_obIdx>0){
     _obIdx--;
@@ -1758,7 +1689,6 @@ Object.assign(window, {
   recoverWithCode, createNewAccount,
   showToggleHint, maybeShowToggleHint,
   showOnboarding, obNext, obGoTo, closeOnboarding, obCopyCode, obTouchStart, obTouchEnd, replayOnboarding,
-  obCreateNewAccount, obRecoverWithCode,
   obBudAmtInput, obBudDateChange, obSaveBudget, obToggleDemo,
   selHistType, selHistTab,
   showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat, onTxEditAmtInput, deleteBudHistEntry,
