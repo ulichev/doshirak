@@ -571,16 +571,11 @@ function renderHistContent(){
   }
 
   function budMarkerHtml(b){
-    var hh=new Date(b.ts).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
-    var verb=b.prev_amount?'обновлён':'установлен';
-    var startFmt=new Date(localDateStr(b.ts)+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
     var endFmt=b.deadline?new Date(b.deadline+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'}):'';
-    var period=endFmt?startFmt+' – '+endFmt:startFmt+(b.days>0?' · '+b.days+' '+pluralDays(b.days):'');
-    var text='Бюджет '+verb+' · '+fmt(b.amount)+' ₽ · '+period+' · '+hh;
+    var datePart=endFmt?'до '+endFmt:(b.days>0?b.days+' '+pluralDays(b.days):'');
+    var text=fmt(b.amount)+' ₽'+(datePart?' · '+datePart:'');
     return '<div class="hist-bud-marker" data-bid="'+esc(b.id||'')+'" onclick="deleteBudHistEntry(this.dataset.bid)" role="button" title="Тап — удалить запись">'
-      +'<span class="hist-bud-line" aria-hidden="true"></span>'
       +'<span class="hist-bud-text">'+esc(text)+'</span>'
-      +'<span class="hist-bud-line" aria-hidden="true"></span>'
       +'</div>';
   }
 
@@ -819,8 +814,8 @@ async function deleteBudHistEntry(bid){
   var sortedTs=S.budgetHistory.slice().sort(function(a,b){return (b.ts||'').localeCompare(a.ts||'');});
   var isLatest=sortedTs[0] && sortedTs[0].id===bid;
   var msg=isLatest
-    ?'Удалить эту запись? Активный бюджет будет сброшен — нужно будет настроить заново.'
-    :'Удалить эту запись из истории? Активный бюджет не изменится.';
+    ?'Сбросить текущий бюджет? Придётся настроить заново.'
+    :'Удалить запись о бюджете из истории? Текущий бюджет не изменится.';
   if(!await customConfirm(msg,'Удалить',true)) return;
 
   S.budgetHistory.splice(idx,1);
