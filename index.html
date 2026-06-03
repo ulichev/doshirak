@@ -93,7 +93,10 @@
   <div class="top-bar">
     <button class="tb-btn" onclick="goMain()">Назад</button>
     <span class="tb-title">История</span>
-    <div style="width:60px"></div>
+    <button class="tb-pill" id="hist-period-btn" onclick="showHistPeriodSheet()">
+      <span id="hist-period-label">Всё время</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
   </div>
   <div class="hist-top-card">
     <div class="hist-sum-row">
@@ -130,7 +133,7 @@
   <div class="top-bar">
     <button class="tb-btn" onclick="goMain()">Назад</button>
     <span class="tb-title">Бюджет</span>
-    <button class="tb-btn" style="color:#F5A623;justify-content:flex-end;font-weight:600" onclick="saveBudget()">Сохранить</button>
+    <button class="tb-btn tb-action" onclick="saveBudget()">Сохранить</button>
   </div>
   <div class="budget-screen-content">
     <div class="budget-hero">
@@ -159,8 +162,8 @@
       <input type="date" id="bud-date-input" onchange="onBudDateChange()">
     </label>
 
-    <div class="bud-reset-hint" id="bud-reset-hint" style="display:none">
-      При вводе нового бюджета топ категорий по тратам и доходам за предыдущий период будет сброшен — и начнётся заново
+    <div class="bud-change-hint" id="bud-change-hint" style="display:none">
+      Обрати внимание: после сохранения нового бюджета топ категорий на главном экране сбросится
     </div>
 
     <div class="bud-noodles" aria-hidden="true">
@@ -243,7 +246,7 @@
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
     </div>
     <div class="sett-sec">
-      <div class="sett-label">Опасная зона</div>
+      <div class="sett-label">Сброс данных</div>
       <div class="sett-card sett-card--danger">
         <div class="sett-row" style="cursor:pointer" onclick="clearAll()">
           <span class="sett-row-icon sett-row-icon--danger" aria-hidden="true">
@@ -365,6 +368,14 @@
     <p id="confirm-msg" class="confirm-msg"></p>
     <button class="action-btn btn-danger" id="confirm-ok-btn" onclick="_confOk()" style="margin-bottom:0">Удалить</button>
     <button class="action-btn btn-secondary" onclick="_confNo()">Отмена</button>
+  </div>
+</div>
+
+<!-- ── PERIOD PICKER SHEET ── -->
+<div class="modal-bg" id="hist-period-sheet-bg" onclick="if(event.target===this)hideHistPeriodSheet()">
+  <div class="modal-sheet">
+    <p class="modal-title">Период</p>
+    <div class="hps-list" id="hist-period-sheet-list"></div>
   </div>
 </div>
 

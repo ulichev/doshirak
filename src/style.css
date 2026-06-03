@@ -5,9 +5,19 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .screen.hidden{transform:translateX(100%);pointer-events:none}
 
 /* TOP BAR */
-.top-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;min-height:58px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
-.tb-btn{background:none;border:none;color:rgba(255,255,255,.55);font-size:14px;cursor:pointer;min-height:36px;min-width:44px;display:flex;align-items:center;padding:0 2px}
-.tb-title{font-size:17px;font-weight:600;color:#fff;letter-spacing:-.4px}
+.top-bar{position:relative;display:flex;align-items:center;justify-content:space-between;padding:10px 20px;min-height:58px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0;background:#111}
+.tb-title{position:absolute;left:0;right:0;margin:auto;text-align:center;pointer-events:none;font-size:17px;font-weight:600;color:#fff;letter-spacing:-.4px}
+/* все кнопки шапки — пилюли (единый стиль) */
+.tb-btn,.tb-pill{position:relative;z-index:1;display:flex;align-items:center;gap:5px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.07);
+  border-radius:999px;color:rgba(255,255,255,.78);font-size:13px;font-weight:600;
+  letter-spacing:-.2px;white-space:nowrap;padding:7px 13px;min-height:34px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:background .18s,transform .12s}
+.tb-btn:active,.tb-pill:active{background:rgba(255,255,255,.14);transform:scale(.97)}
+.tb-pill svg{opacity:.6}
+/* правое действие в активном цвете (напр. «Сохранить») */
+.tb-action{background:#F5A623;border-color:#F5A623;color:#1a1a1a;font-weight:700}
+.tb-action:active{background:#e0941a;border-color:#e0941a}
 
 /* MAIN SCREEN */
 .main-top{padding:20px 20px 0;flex:1;display:flex;flex-direction:column}
@@ -82,7 +92,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   border-color:#3DBD74;
   color:#3DBD74
 }
-.hist-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.hist-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#111}
 .tx-meta{display:flex;flex-direction:column}
 .empty{text-align:center;padding:60px 20px;color:rgba(255,255,255,.28)}
 .empty-icon{font-size:44px;margin-bottom:10px}
@@ -267,13 +277,11 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .amount-int{font-size:72px;font-weight:700;letter-spacing:-2px;line-height:1;transition:none}
 .amount-dec{font-size:36px;font-weight:600;letter-spacing:-0.5px;line-height:1;opacity:.7;align-self:flex-end;padding-bottom:6px}
 #amount-row{display:flex;align-items:baseline;justify-content:flex-end;gap:1px}
-.bud-reset-hint{padding:4px 2px 0;font-size:12px;line-height:1.5;color:rgba(255,255,255,.4);margin:0;display:flex;gap:8px;align-items:flex-start}
 .bud-amount-wrap{display:inline-flex;align-items:baseline;cursor:text;max-width:100%;overflow:hidden}
 .bud-amount-hero{font-size:var(--hero-input-size,58px);font-weight:700;letter-spacing:-1.5px;color:#fff;background:none;border:none;outline:none;text-align:left;width:0;min-width:0;caret-color:#F5A623;padding:0;font-family:inherit;line-height:1.05}
 .bud-amount-hero::placeholder{color:rgba(255,255,255,.18)}
 .bud-mirror{font-size:var(--hero-input-size,58px);font-weight:700;letter-spacing:-1.5px;font-family:inherit;line-height:1.05;visibility:hidden;position:absolute;white-space:pre;pointer-events:none;top:0;left:0}
 .bud-ruble{font-size:var(--hero-input-size,58px);font-weight:700;letter-spacing:-1.5px;color:rgba(255,255,255,.18);line-height:1.05;padding-left:6px;flex-shrink:0;pointer-events:none;transition:color .18s;font-family:inherit}
-.bud-reset-hint:before{content:'↺';color:#F5A623;font-size:14px;line-height:1.5;flex-shrink:0}
 
 /* ── BUDGET DATE TILE (паттерн как .hist-sum-tile) ── */
 .bud-date-tile{
@@ -323,7 +331,6 @@ html,body,#app,.screen{max-width:100vw}
 .input-area{padding:10px calc(var(--screen-pad) - 4px) 6px}
 .sett-scroll{padding:20px var(--screen-pad) calc(32px + env(safe-area-inset-bottom,0px))}
 .budget-screen-content{padding:clamp(14px,4vw,18px) var(--screen-pad) calc(90px + env(safe-area-inset-bottom,0px))}
-.bud-reset-hint{padding:4px 2px 0}
 .today-num{font-size:var(--today-size);line-height:.95}
 .bud-amount-hero{font-size:var(--hero-input-size)}
 .note-input,.modal-inp,.sett-inp{font-size:16px}
@@ -353,7 +360,6 @@ html,body,#app,.screen{max-width:100vw}
   .main-top{padding-top:16px!important}
   .today-num{font-size:clamp(58px,17vw,72px)}
   .input-area{gap:6px}
-  .bud-reset-hint{font-size:11px}
 }
 
 @media (max-height: 700px){
@@ -488,7 +494,7 @@ html,body,#app,.screen{max-width:100vw}
 .day-sec-label > span:first-child{font-weight:600;color:rgba(255,255,255,.5)}
 .day-sec-total{font-size:12px;font-weight:500;color:rgba(255,255,255,.38)}
 .day-sec-exp,.day-sec-inc{color:rgba(255,255,255,.38);font-weight:500}
-.day-sec-dot{color:rgba(255,255,255,.18);font-size:10px;margin:0 5px;vertical-align:middle}
+.day-sec-gap{display:inline-block;width:10px}
 /* grouped card per day, inset iOS-style separator */
 .day-card{
   background:rgba(255,255,255,.06);
@@ -513,26 +519,28 @@ html,body,#app,.screen{max-width:100vw}
   background:rgba(255,255,255,.1)
 }
 
-/* ── BUDGET CHANGE MARKER IN HISTORY ── */
-.hist-bud-marker{
-  display:flex;align-items:center;justify-content:center;
-  margin:4px var(--screen-pad) 8px;
-  padding:0;
-  background:none;border:none;
-  cursor:pointer;
-  -webkit-tap-highlight-color:transparent;
-  transition:opacity .15s
+/* ── HISTORY PERIOD SHEET ── */
+.hps-list{display:flex;flex-direction:column;max-height:252px;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.hps-list::-webkit-scrollbar{display:none}
+.hps-option{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  width:100%;padding:15px 4px;
+  background:none;border:none;border-bottom:1px solid rgba(255,255,255,.06);
+  color:rgba(255,255,255,.82);
+  font-size:16px;text-align:left;
+  cursor:pointer;transition:opacity .15s
 }
-.hist-bud-marker:active{opacity:.6}
-.hist-bud-text{
-  font-size:12px;font-weight:500;letter-spacing:-.1px;
-  color:rgba(245,166,35,.75);
-  font-variant-numeric:tabular-nums;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  padding:5px 13px;
-  background:rgba(245,166,35,.07);
-  border:1px solid rgba(245,166,35,.18);
-  border-radius:20px
+.hps-option:last-child{border-bottom:none}
+.hps-option:active{opacity:.55}
+.hps-option.on{color:#F5A623;font-weight:600}
+.hps-check{flex-shrink:0;color:#F5A623}
+
+/* ── BUDGET CHANGE HINT ── */
+.bud-change-hint{
+  margin:0 var(--screen-pad);
+  padding:0 2px;
+  color:rgba(255,255,255,.55);
+  font-size:13px;line-height:1.45
 }
 
 /* ── TX EDIT MODAL ── */
@@ -867,19 +875,15 @@ html,body,#app,.screen{max-width:100vw}
 }
 .ob-dot.on{width:24px;border-radius:4px;background:#F5A623}
 .ob-cta{width:100%;margin-top:0!important}
-/* compact slides (budget form) */
-.ob-slide-compact{padding-top:48px!important}
+/* слайд бюджета выравнивается по верху как остальные (иконка/заголовок на той же высоте);
+   .ob-slide-compact оставлен как хук для возможных правок формы */
 /* ── budget form ── */
-.ob-bud-form{width:100%;display:flex;flex-direction:column;align-items:center;gap:14px}
-.ob-bud-hero{display:flex;align-items:baseline;justify-content:center;gap:6px;cursor:text;width:100%}
-.ob-bud-hero-input{
-  font-size:58px;font-weight:700;letter-spacing:-1.5px;color:#fff;
-  background:none;border:none;outline:none;
-  text-align:right;width:0;min-width:40px;max-width:220px;flex:1;
-  caret-color:#F5A623;font-family:inherit;line-height:1.05
-}
-.ob-bud-hero-input::placeholder{color:rgba(255,255,255,.18)}
-.ob-bud-ruble{font-size:32px;font-weight:700;color:#F5A623;flex-shrink:0}
+.ob-bud-form{width:100%;display:flex;flex-direction:column;align-items:center;gap:12px}
+.ob-bud-hero{display:flex;justify-content:center;width:100%}
+.ob-bud-hero .bud-amount-wrap{justify-content:center}
+.ob-bud-form .bud-amount-hero,
+.ob-bud-form .bud-ruble,
+.ob-bud-form .bud-mirror{font-size:clamp(46px,13vw,58px)}
 .ob-bud-perday{
   font-size:14px;color:rgba(255,255,255,.35);min-height:18px;
   text-align:center;transition:color .25s;padding:0 16px
@@ -912,11 +916,6 @@ html,body,#app,.screen{max-width:100vw}
 }
 .ob-tgl-icon.exp{background:#FFF0EA;color:#E8956A}
 .ob-tgl-icon.inc{background:#EAF5EE;color:#3DBD74}
-.ob-tgl-pill{
-  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);
-  border-radius:20px;padding:5px 14px;
-  font-size:12px;color:rgba(255,255,255,.4)
-}
 @media(max-height:700px){
   .ob-icon{font-size:54px;margin-bottom:14px}
   .ob-toggle-btn{width:60px;height:60px;font-size:26px}
