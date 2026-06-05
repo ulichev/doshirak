@@ -20,27 +20,24 @@ export default async function handler(req, res) {
     ? 'Бюджет: ' + budget.amount + '₽ на ' + budget.days + ' дней. '
     : '';
 
+  const prompt = budStr + 'Дай ровно 3 инсайта о тратах — каждый одним коротким предложением с числами. Разделяй переносом строки. Без нумерации.\n' + JSON.stringify(rows);
+
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + process.env.GEMINI_API_KEY;
+    const resp = await fetch(url, {
       method: 'POST',
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
-      },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 350,
-        system: 'Ты краткий финансовый аналитик. Пиши по-русски, только факты с конкретными цифрами. Без воды и вводных слов.',
-        messages: [{
-          role: 'user',
-          content: budStr + 'Дай ровно 3 инсайта о тратах — каждый одним коротким предложением с числами. Разделяй переносом строки. Без нумерации.\n' + JSON.stringify(rows)
-        }]
+        systemInstruction: {
+          parts: [{ text: 'Ты краткий финансовый аналитик. Пиши по-русски, только факты с конкретными цифрами. Без воды и вводных слов.' }]
+        },
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 350 }
       })
     });
     if (!resp.ok) throw new Error(String(resp.status));
     const data = await resp.json();
-    const text = (data.content && data.content[0] && data.content[0].text) || 'Нет данных.';
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Нет данных.';
     return res.status(200).json({ text });
   } catch (e) {
     return res.status(200).json({ text: 'Сервис временно недоступен — попробуй позже.' });
