@@ -30,7 +30,7 @@ export default async function handler(req, res) {
         'Authorization': 'Bearer ' + process.env.OPENROUTER_API_KEY,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://doshik.vercel.app',
-        'X-Title': 'Дошик'
+        'X-Title': 'Doshik'
       },
       body: JSON.stringify({
         model: 'meta-llama/llama-3.1-8b-instruct:free',
