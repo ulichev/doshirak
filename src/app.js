@@ -24,6 +24,20 @@ const DEF_CATS_INC = [
   {id:'debt_ret',name:'Возврат долга',color:'#F5A623',icon:'🤝',ctype:'income'},
 ];
 const DEF_CATS = [...DEF_CATS_EXP, ...DEF_CATS_INC];
+
+// Ключевые слова для авто-подбора категории из заметки
+const CAT_KEYWORDS = [
+  { keywords: ['еда','продукт','магазин','пятёрочк','пятерочк','перекрёст','перекрест','ашан','лент','вкусвилл','самокат','яндекс.еда','яндекс еда','delivery','доставк','супермарк','гастроном'], cat: 'food' },
+  { keywords: ['такси','метро','автобус','трамвай','транспорт','маршрутк','электричк','билет','uber','убер','яндекс.такси','яндекс такси','kazan express','каршер','бензин','заправк'], cat: 'transport' },
+  { keywords: ['кафе','ресторан','кофе','пицц','суши','бар','столов','обед','ужин','завтрак','coffee','bar'], cat: 'cafe' },
+  { keywords: ['озон','ozon','вайлдберрис','wildberries','lamoda','ламода','покупк','одежд','обувь','маркетплейс','авито'], cat: 'shopping' },
+  { keywords: ['аптек','врач','стоматолог','анализ','медицин','здоровь','лекарств','клиник','больниц','поликлин'], cat: 'health' },
+  { keywords: ['кино','театр','концерт','развлечен','игр','netflix','нетфликс','спотифай','spotify','steam','стрим','подписк'], cat: 'fun' },
+  { keywords: ['зарплат','получк','аванс'], cat: 'salary' },
+  { keywords: ['фриланс','подработк','проект','гонорар'], cat: 'freelance' },
+  { keywords: ['подарок','день рождения','подаро'], cat: 'gift' },
+  { keywords: ['долг','вернул','возврат'], cat: 'debt_ret' },
+];
 const ICON_OPTIONS=['🍔','🛍','🚌','☕','💊','🎮','🏠','✈️','💄','🎵',
   '📚','🏋','⚽','🎬','🐾','🎁','🔧','📱','🌮','🍕','🍺','💡','🔑',
   '🌿','🎸','🧴','🍫','🎯','💎','🚀','💼','💻','💵','🤝','🎲'];
@@ -416,6 +430,76 @@ function renderCatRow(){
   }).join('')+'<button class="cat-pill add" onclick="showCatModal()">＋ Новая</button>';
 }
 function selCat(id){ S.catId=(S.catId===id?null:id); renderCatRow(); }
+
+// ── УМНАЯ КАТЕГОРИЗАЦИЯ ───────────────────────────────────────────────────────
+var _noteHintTimer = null;
+function matchCatFromNote(note) {
+  for (var i = 0; i < CAT_KEYWORDS.length; i++) {
+    var entry = CAT_KEYWORDS[i];
+    for (var j = 0; j < entry.keywords.length; j++) {
+      if (note.indexOf(entry.keywords[j]) !== -1) {
+        var base = entry.cat;
+        // IDs могут быть точными (food) или с суффиксом (food_abc123)
+        var cat = S.cats.find(function(c) {
+          return (c.ctype || 'expense') === S.type && (c.id === base || c.id.startsWith(base + '_'));
+        });
+        if (cat) return cat.id;
+      }
+    }
+  }
+  return null;
+}
+function onNoteInput() {
+  clearTimeout(_noteHintTimer);
+  _noteHintTimer = setTimeout(function() {
+    var note = (document.getElementById('note-inp').value || '').toLowerCase();
+    if (!note.trim() || S.catId !== null) return;
+    var match = matchCatFromNote(note);
+    if (!match) return;
+    selCat(match);
+    // Краткая анимация на выбранном чипе + скролл в видимую область
+    var chip = document.querySelector('.cat-pill[data-id="' + match + '"]');
+    if (chip) {
+      chip.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+      chip.classList.add('cat-hint');
+      setTimeout(function() { chip.classList.remove('cat-hint'); }, 900);
+    }
+  }, 350);
+}
+
+// ── АНАЛИТИКА ТРАТ ────────────────────────────────────────────────────────────
+function runAnalytics() {
+  var modal = document.getElementById('analytics-modal');
+  var body = document.getElementById('analytics-body');
+  if (!modal || !body) return;
+  modal.classList.add('vis');
+  body.innerHTML = '<div class="analytics-loading"><div class="analytics-spinner"></div><span>Анализирую...</span></div>';
+
+  var cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  var cutoffStr = cutoff.toISOString().slice(0, 10);
+  var recent = S.txs.filter(function(t) { return t.date >= cutoffStr; });
+  var toSend = (recent.length >= 3 ? recent : S.txs).slice(-80);
+
+  fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ txs: toSend, cats: S.cats, budget: S.budget })
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    var lines = (data.text || '').split('\n').filter(function(l) { return l.trim(); });
+    if (!lines.length) { body.innerHTML = '<div class="analytics-empty">Нет данных.</div>'; return; }
+    body.innerHTML = lines.map(function(l) {
+      return '<div class="analytics-insight">' + esc(l.trim()) + '</div>';
+    }).join('');
+  }).catch(function() {
+    body.innerHTML = '<div class="analytics-empty">Нет соединения — попробуй позже.</div>';
+  });
+}
+function closeAnalytics() {
+  var modal = document.getElementById('analytics-modal');
+  if (modal) modal.classList.remove('vis');
+}
+
 function renderModeRow(){
   var toggleBtn=document.getElementById('np-toggle');
   if(toggleBtn){
@@ -575,6 +659,8 @@ function renderHistory(){
   if(S.histPeriod && !/^\d{4}-\d{2}$/.test(S.histPeriod)) S.histPeriod=null;
   var plbl=document.getElementById('hist-period-label');
   if(plbl) plbl.textContent=S.histPeriod?fmtMonthPill(S.histPeriod):'Всё время';
+  var aBar=document.getElementById('analytics-bar');
+  if(aBar) aBar.classList.toggle('hidden', S.txs.length < 3);
   var totalExp=getTxsForPeriod('expense').reduce(function(s,t){return s+t.amount;},0);
   var totalInc=getTxsForPeriod('income').reduce(function(s,t){return s+t.amount;},0);
   var expAmtEl=document.getElementById('hist-exp-total');
@@ -1752,6 +1838,7 @@ Object.assign(window, {
   showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat, onTxEditAmtInput, onTxEditDateChange,
   _confOk, _confNo,
   toastUndo, fmtCodeInput,
+  onNoteInput, runAnalytics, closeAnalytics,
 });
 
 // ── PWA: регистрация service worker + детектор обновлений ────────────────────

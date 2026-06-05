@@ -69,7 +69,7 @@
   <div class="input-panel">
     <div class="input-area">
       <div class="cat-row" id="cat-row"></div>
-      <input class="note-input" id="note-inp" placeholder="Уточни детали (необязательно)" maxlength="80" autocomplete="off">
+      <input class="note-input" id="note-inp" placeholder="Уточни детали (необязательно)" maxlength="80" autocomplete="off" oninput="onNoteInput()">
     </div>
     <div class="amount-display-bar">
       <div class="amount-row" id="amount-row">0</div>
@@ -129,6 +129,12 @@
       </button>
     </div>
     <div class="cat-tabs" id="hist-tabs"></div>
+  </div>
+  <div class="analytics-bar hidden" id="analytics-bar">
+    <button class="analytics-btn" onclick="runAnalytics()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      Разобрать траты
+    </button>
   </div>
   <div class="hist-scroll" id="hist-content"></div>
 </div>
@@ -439,6 +445,18 @@
 
 <div id="toggle-hint" class="toggle-hint">доход или расход</div>
 <div class="toast" id="toast"></div>
+
+<!-- ── ANALYTICS MODAL ── -->
+<div class="modal-bg" id="analytics-modal" onclick="if(event.target===this)closeAnalytics()">
+  <div class="modal-sheet analytics-sheet">
+    <div class="analytics-hdr">
+      <svg class="analytics-hdr-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span class="analytics-hdr-title">Разбор трат</span>
+    </div>
+    <div id="analytics-body" class="analytics-body"></div>
+    <button class="action-btn btn-secondary" style="margin-top:4px" onclick="closeAnalytics()">Закрыть</button>
+  </div>
+</div>
 
 </div>
 <script type="module" src="/src/app.js"></script>
