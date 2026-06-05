@@ -44,11 +44,16 @@ export default async function handler(req, res) {
         ]
       })
     });
-    if (!resp.ok) throw new Error(String(resp.status));
+    if (!resp.ok) {
+      const errBody = await resp.text();
+      console.error('OpenRouter error', resp.status, errBody);
+      throw new Error(resp.status + ': ' + errBody);
+    }
     const data = await resp.json();
     const text = data.choices?.[0]?.message?.content || 'Нет данных.';
     return res.status(200).json({ text });
   } catch (e) {
+    console.error('analyze catch:', e.message);
     return res.status(200).json({ text: 'Сервис временно недоступен — попробуй позже.' });
   }
 }
