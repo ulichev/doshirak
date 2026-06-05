@@ -535,11 +535,31 @@ function runAnalytics() {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ txs: toSend, cats: S.cats, budget: S.budget })
   }).then(function(r) { return r.json(); }).then(function(data) {
-    var lines = (data.text || '').split('\n').filter(function(l) { return l.trim(); });
-    if (!lines.length) { body.innerHTML = '<div class="analytics-empty">Нет данных.</div>'; return; }
-    body.innerHTML = lines.map(function(l) {
-      return '<div class="analytics-insight">' + esc(l.trim()) + '</div>';
-    }).join('');
+    if (data.error === 'few_data') {
+      body.innerHTML = '<div class="analytics-empty">Маловато данных — добавь ещё несколько записей.</div>';
+      return;
+    }
+    if (data.error === 'unavailable' || (!data.insights && !data.recommendations)) {
+      body.innerHTML = '<div class="analytics-empty">Нет соединения — попробуй позже.</div>';
+      return;
+    }
+    var html = '';
+    var insights = data.insights || [];
+    var recs = data.recommendations || [];
+    if (insights.length) {
+      html += '<div class="analytics-section-label">Инсайты</div>';
+      html += insights.map(function(l) {
+        return '<div class="analytics-insight">' + esc(l) + '</div>';
+      }).join('');
+    }
+    if (recs.length) {
+      html += '<div class="analytics-section-label analytics-section-label--rec">Рекомендации</div>';
+      html += recs.map(function(l) {
+        return '<div class="analytics-insight analytics-rec">' + esc(l) + '</div>';
+      }).join('');
+    }
+    if (!html) html = '<div class="analytics-empty">Нет данных.</div>';
+    body.innerHTML = html;
   }).catch(function() {
     body.innerHTML = '<div class="analytics-empty">Нет соединения — попробуй позже.</div>';
   });
