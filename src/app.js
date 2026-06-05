@@ -46,6 +46,13 @@ function determineCtype(catId, oldCats){
   }
   return 'expense';
 }
+
+// Парсим дату всегда через T12:00:00 чтобы избежать timezone-сдвига на ±1 день
+function parseLocalDate(s){ return new Date(s+'T12:00:00'); }
+function daysBetween(from,to){ return Math.round((parseLocalDate(to)-parseLocalDate(from))/86400000); }
+
+function vibrate(ms){ try{ navigator.vibrate?.(ms); }catch(e){} }
+
 let S = {
   type:'expense', amount:'', catId:null,
   histCat:null, histType:null, histPeriod:null, catSettTab:'expense',
@@ -100,8 +107,10 @@ function saveLocal(){
 }
 
 // ── SUPABASE SYNC ─────────────────────────────────────────────────────────────
+let _syncInFlight=false;
 async function syncFromSupabase(){
-  if(!currentUser) return;
+  if(!currentUser||_syncInFlight) return;
+  _syncInFlight=true;
   try {
     const [txRes,catRes,budRes]=await Promise.all([
       db.from('transactions').select('*').eq('user_id',currentUser.id).order('date',{ascending:false}),
@@ -125,7 +134,11 @@ async function syncFromSupabase(){
       S.budDays=S.budget.days||0;
     }
     saveLocal(); setSyncDot(true); renderMain(); processQueue();
-  } catch(e){ setSyncDot(false); }
+  } catch(e){
+    setSyncDot(false);
+  } finally {
+    _syncInFlight=false;
+  }
 }
 async function seedDefaultCats(){
   if(!currentUser) return;
@@ -148,6 +161,14 @@ async function deleteTxRemote(id){
 async function pushCats(){
   if(!currentUser) return;
   try { await db.from('categories').upsert(S.cats.map((c,i)=>({id:c.id,user_id:currentUser.id,name:c.name,color:c.color,icon:c.icon||'',ctype:c.ctype||'expense',sort_order:i}))); setSyncDot(true); } catch(e){ setSyncDot(false); offlineQueue.push({op:'pushCats'}); saveQueue(); }
+}
+async function pushCat(cat){
+  if(!currentUser) return;
+  const idx=S.cats.indexOf(cat);
+  try {
+    await db.from('categories').upsert({id:cat.id,user_id:currentUser.id,name:cat.name,color:cat.color,icon:cat.icon||'',ctype:cat.ctype||'expense',sort_order:idx>=0?idx:0});
+    setSyncDot(true);
+  } catch(e){ setSyncDot(false); offlineQueue.push({op:'pushCats'}); saveQueue(); }
 }
 async function deleteCatRemote(id){
   if(!currentUser) return;
@@ -228,10 +249,22 @@ function show(id){
     document.getElementById(s).classList.toggle('hidden',s!==id);
   });
 }
-function goMain(){ show('s-main'); renderMain(); maybeShowToggleHint(); }
+let _histScrollTop=0;
+function goMain(){
+  hideSplash();
+  if(!document.getElementById('s-history').classList.contains('hidden')){
+    const hc=document.getElementById('hist-content');
+    if(hc) _histScrollTop=hc.scrollTop;
+  }
+  show('s-main'); renderMain(); maybeShowToggleHint();
+}
 function goHistory(){
   show('s-history');
-  setTimeout(renderHistory,0);
+  setTimeout(()=>{
+    renderHistory();
+    const hc=document.getElementById('hist-content');
+    if(hc&&_histScrollTop>0) hc.scrollTop=_histScrollTop;
+  },0);
 }
 function goBudget(){ show('s-budget'); renderBudgetScreen(); }
 function goSettings(){
@@ -274,8 +307,6 @@ function renderMain(){
     fitBudgetNum(numEl);
 
     var isExpired=budgetDeadline<todayStr();
-    var dlFmt=new Date(budgetDeadline+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
-
     if(isExpired){
       lblEl.textContent='Период завершён';
       numEl.style.color='rgba(255,255,255,.45)';
@@ -443,7 +474,8 @@ function confirm_(){
   }
   const note=document.getElementById('note-inp').value.trim();
   const catId=S.catId||null; // null = без категории
-  const tx={id:Date.now()+'',amount:amt,type:S.type,catId:catId,note:note,date:new Date().toISOString()};
+  const tx={id:genUuid(),amount:amt,type:S.type,catId:catId,note:note,date:new Date().toISOString()};
+  vibrate(40);
   S.txs.unshift(tx); saveLocal(); pushTx(tx);
   S.amount=''; document.getElementById('note-inp').value=''; renderAmountRow();
   renderMain(); toastWithUndo((S.type==='expense'?'− ':'+ ')+fmt(amt)+'₽'+(catId?' · '+getCat(catId).name:''), tx);
@@ -614,9 +646,7 @@ function renderBudgetScreen(){
 function onBudDateChange(){
   var inp = document.getElementById('bud-date-input');
   if(!inp || !inp.value){ S.budDays = 0; updateBudDateBtn(); updateBudgetPreview(); return; }
-  var picked = new Date(inp.value + 'T00:00:00');
-  var today = new Date(); today.setHours(0,0,0,0);
-  var days = Math.round((picked - today) / 86400000) + 1;
+  var days = daysBetween(todayStr(), inp.value) + 1;
   if(days < 1){ toast('Дата должна быть сегодня или позже'); inp.value=''; S.budDays = 0; updateBudDateBtn(); updateBudgetPreview(); return; }
   S.budDays = days;
   updateBudDateBtn();
@@ -802,7 +832,8 @@ function importData(e){
       S.budDays=S.budget.days||0;
       saveLocal();
       if(currentUser){
-        S.txs.forEach(t=>pushTx(t));
+        const txRows=S.txs.map(t=>({id:t.id,user_id:currentUser.id,amount:t.amount,type:t.type,cat_id:t.catId,note:t.note||'',date:t.date}));
+        if(txRows.length) await db.from('transactions').upsert(txRows);
         pushCats(); pushBudget();
       }
       renderMain(); renderSettings(); toast('Данные импортированы');
@@ -813,6 +844,7 @@ function importData(e){
 }
 async function clearAll(){
   if(!await customConfirm('Сбросить всё? Все транзакции и бюджет удалятся, категории вернутся к стандартным.','Сбросить')) return;
+  offlineQueue=[]; saveQueue();
   S.txs=[];S.cats=[...DEF_CATS];S.budget={amount:0,deadline:null};
   saveLocal();
   if(currentUser){
@@ -883,15 +915,14 @@ function saveCat(){
     const idx=S.cats.findIndex(c=>c.id===_editCatId);
     if(idx>=0) S.cats[idx]={...S.cats[idx],name,color:S.budColor,icon:S.budIcon||ICON_OPTIONS[0]};
     _editCatId=null;
-    saveLocal();pushCats();hideCatModal();renderSettings();renderCatRow();
+    saveLocal();pushCat(S.cats[idx>=0?idx:0]);hideCatModal();renderSettings();renderCatRow();
     toast('"'+name+'" обновлена');
   } else {
-    // Определяем тип: из вкладки настроек или из переключателя на главной
     const onSettings=!document.getElementById('s-settings').classList.contains('hidden');
     const ctype=onSettings?S.catSettTab:S.type;
     const _sfx=ctype==='income'?'_inc':'_exp';
     S.cats.unshift({id:'c'+Date.now()+_sfx,name,color:S.budColor,icon:S.budIcon||ICON_OPTIONS[0],ctype});
-    saveLocal();pushCats();hideCatModal();renderSettings();renderCatRow();
+    saveLocal();pushCat(S.cats[0]);hideCatModal();renderSettings();renderCatRow();
     setTimeout(()=>{ const r=document.getElementById('cat-row'); if(r) r.scrollLeft=0; },60);
     toast('"'+name+'" добавлена');
   }
@@ -925,16 +956,19 @@ function pluralDays(n){
 // ── TX EDIT MODAL ─────────────────────────────────────────────────────────────
 var _editTxId=null;
 var _editTxCatId=null;
+var _editTxDate=null;
 
 function showTxEdit(id){
   var tx=S.txs.find(function(t){return t.id===id;});
   if(!tx) return;
   _editTxId=id;
   _editTxCatId=tx.catId||null;
+  _editTxDate=tx.date;
   var cat=getCat(tx.catId);
   var avatarEl=document.getElementById('tx-edit-avatar');
   var amtInputEl=document.getElementById('tx-edit-amount');
-  var dateEl=document.getElementById('tx-edit-date');
+  var dateDisplayEl=document.getElementById('tx-edit-date-display');
+  var dateInpEl=document.getElementById('tx-edit-date-input');
   var noteEl=document.getElementById('tx-edit-note');
   avatarEl.style.background=esc((cat.color||'#9E9E9E')+'26');
   avatarEl.textContent=cat.icon||'●';
@@ -949,7 +983,8 @@ function showTxEdit(id){
   }
   setTimeout(fitTxAmtInput,0);
   var d=new Date(tx.date);
-  dateEl.textContent=fmtDate(localDateStr(tx.date))+' · '+d.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+  if(dateDisplayEl) dateDisplayEl.textContent=fmtDate(localDateStr(tx.date))+' · '+d.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+  if(dateInpEl) dateInpEl.value=localDateStr(tx.date);
   noteEl.value=tx.note||'';
   renderTxEditCats(tx.type);
   document.getElementById('tx-edit-modal').classList.add('vis');
@@ -1008,7 +1043,19 @@ function onTxEditAmtInput(){
 function hideTxEdit(){
   _editTxId=null;
   _editTxCatId=null;
+  _editTxDate=null;
   document.getElementById('tx-edit-modal').classList.remove('vis');
+}
+
+function onTxEditDateChange(){
+  const inp=document.getElementById('tx-edit-date-input');
+  if(!inp||!inp.value) return;
+  const orig=new Date(_editTxDate||new Date().toISOString());
+  const [y,m,d]=inp.value.split('-').map(Number);
+  orig.setFullYear(y,m-1,d);
+  _editTxDate=orig.toISOString();
+  const disp=document.getElementById('tx-edit-date-display');
+  if(disp) disp.textContent=fmtDate(localDateStr(_editTxDate))+' · '+orig.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
 }
 
 function saveTxEdit(){
@@ -1017,6 +1064,7 @@ function saveTxEdit(){
   if(!tx){hideTxEdit();return;}
   tx.catId=_editTxCatId||null;
   tx.note=(document.getElementById('tx-edit-note').value||'').trim();
+  if(_editTxDate) tx.date=_editTxDate;
   var _amtInp=document.getElementById('tx-edit-amount');
   if(_amtInp){
     var _newAmt=parseFloat(String(_amtInp.value).replace(/\s/g,'').replace(',','.'));
@@ -1094,8 +1142,15 @@ function fmtCodeInput(el){
   el.value=v;
 }
 
+function hideSplash(){
+  const el=document.getElementById('splash');
+  if(!el||el.classList.contains('hiding')) return;
+  el.classList.add('hiding');
+  setTimeout(()=>el.remove(),400);
+}
+
 async function initApp(){
-  loadQueue(); // Загружаем offline queue при старте
+  loadQueue();
   const saved=localStorage.getItem(K_CODE);
 
   // Путь 1: K_CODE есть — входим
@@ -1129,6 +1184,7 @@ async function initApp(){
   }catch(e){}
 
   // Путь 3: Нет ничего — экран входа
+  hideSplash();
   document.getElementById('s-auth').style.display='flex';
 }
 async function generateAndLinkCode(showModal=false){
@@ -1508,7 +1564,7 @@ function obBudAmtInput(){
 function obBudDateChange(){
   const inp=document.getElementById('ob-bud-date-input');
   if(!inp||!inp.value){_obBudDays=0;_obUpdateBudPreview();return;}
-  const days=Math.round((new Date(inp.value+'T12:00:00')-new Date(todayStr()+'T12:00:00'))/86400000)+1;
+  const days=daysBetween(todayStr(),inp.value)+1;
   if(days<1){toast('Дата должна быть сегодня или позже');inp.value='';_obBudDays=0;_obUpdateBudPreview();return;}
   _obBudDays=days;
   const lbl=document.getElementById('ob-bud-date-label');
@@ -1593,7 +1649,7 @@ Object.assign(window, {
   obBudAmtInput, obBudDateChange, obSaveBudget, obToggleDemo,
   selHistType, selHistTab,
   showHistPeriodSheet, hideHistPeriodSheet, selHistPeriodOption,
-  showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat, onTxEditAmtInput,
+  showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat, onTxEditAmtInput, onTxEditDateChange,
   _confOk, _confNo,
   toastUndo, fmtCodeInput,
 });
@@ -1637,3 +1693,12 @@ if('serviceWorker' in navigator){
 }
 
 Object.assign(window,{applyUpdate});
+
+// Версия и дата сборки в футере настроек
+(function(){
+  const el=document.getElementById('app-version');
+  if(!el) return;
+  const v=import.meta.env.VITE_APP_VERSION||'1.0.0';
+  const d=import.meta.env.VITE_BUILD_DATE||'';
+  el.textContent='Дошик v'+v+(d?' · '+d:'');
+})();

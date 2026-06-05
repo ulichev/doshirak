@@ -15,6 +15,11 @@
 <body>
 <div id="app">
 
+<!-- ── SPLASH ── -->
+<div id="splash">
+  <div class="splash-icon" aria-hidden="true">🍜</div>
+</div>
+
 <!-- ── AUTH SCREEN ── -->
 <div class="auth-screen" id="s-auth" style="display:none">
   <div class="auth-hero">
@@ -266,7 +271,7 @@
         <span class="sett-footer-dot">·</span>
         <span id="sync-time">только что</span>
       </div>
-      <div class="sett-footer-meta">Дошик v1.0 · 26 мая 2026</div>
+      <div class="sett-footer-meta" id="app-version">Дошик</div>
       <a class="sett-footer-tg" href="https://t.me/aulichev">По вопросам: @aulichev</a>
     </div>
   </div>
@@ -344,7 +349,10 @@
             </svg>
           </span>
         </div>
-        <div class="tx-edit-date" id="tx-edit-date"></div>
+        <label class="tx-edit-date" id="tx-edit-date" for="tx-edit-date-input">
+          <span id="tx-edit-date-display"></span>
+          <input type="date" id="tx-edit-date-input" class="tx-edit-date-inp" onchange="onTxEditDateChange()">
+        </label>
       </div>
     </div>
     <p class="modal-sub-label" style="margin-top:16px">Категория</p>
