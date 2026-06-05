@@ -20,6 +20,9 @@ export default async function handler(req, res) {
     ? 'Бюджет: ' + budget.amount + '₽ на ' + budget.days + ' дней. '
     : '';
 
+  const apiKey = process.env.OPENROUTER_API_KEY || '';
+  console.log('key_len:', apiKey.length, 'char0:', apiKey.charCodeAt(0), 'prefix:', apiKey.slice(0, 8));
+
   try {
     const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
