@@ -20,24 +20,33 @@ export default async function handler(req, res) {
     ? 'Бюджет: ' + budget.amount + '₽ на ' + budget.days + ' дней. '
     : '';
 
-  const prompt = budStr + 'Дай ровно 3 инсайта о тратах — каждый одним коротким предложением с числами. Разделяй переносом строки. Без нумерации.\n' + JSON.stringify(rows);
-
   try {
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + process.env.GEMINI_API_KEY;
-    const resp = await fetch(url, {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'Authorization': 'Bearer ' + process.env.OPENROUTER_API_KEY,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://doshik.vercel.app',
+        'X-Title': 'Дошик'
+      },
       body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: 'Ты краткий финансовый аналитик. Пиши по-русски, только факты с конкретными цифрами. Без воды и вводных слов.' }]
-        },
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 350 }
+        model: 'meta-llama/llama-3.1-8b-instruct:free',
+        max_tokens: 350,
+        messages: [
+          {
+            role: 'system',
+            content: 'Ты краткий финансовый аналитик. Пиши по-русски, только факты с конкретными цифрами. Без воды и вводных слов.'
+          },
+          {
+            role: 'user',
+            content: budStr + 'Дай ровно 3 инсайта о тратах — каждый одним коротким предложением с числами. Разделяй переносом строки. Без нумерации.\n' + JSON.stringify(rows)
+          }
+        ]
       })
     });
     if (!resp.ok) throw new Error(String(resp.status));
     const data = await resp.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Нет данных.';
+    const text = data.choices?.[0]?.message?.content || 'Нет данных.';
     return res.status(200).json({ text });
   } catch (e) {
     return res.status(200).json({ text: 'Сервис временно недоступен — попробуй позже.' });
