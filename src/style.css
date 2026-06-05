@@ -537,10 +537,10 @@ html,body,#app,.screen{max-width:100vw}
 
 /* ── BUDGET CHANGE HINT ── */
 .bud-change-hint{
-  margin:0 var(--screen-pad);
-  padding:0 2px;
-  color:rgba(255,255,255,.55);
-  font-size:13px;line-height:1.45
+  text-align:center;
+  color:rgba(255,255,255,.32);
+  font-size:12px;line-height:1.5;
+  padding:0 8px
 }
 
 /* ── TX EDIT MODAL ── */
@@ -933,4 +933,43 @@ html,body,#app,.screen{max-width:100vw}
 
 /* ── TX-EDIT DATE INPUT ──────────────────────────────────────────────────────── */
 .tx-edit-date-inp{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0;margin:0;background:transparent;font-size:16px;-webkit-appearance:none}
+
+/* ── INCOME BUDGET SHEET ── */
+.inc-bud-sheet{padding-bottom:calc(28px + env(safe-area-inset-bottom,0px))}
+.inc-bud-hero{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:8px 0 20px
+}
+.inc-bud-sheet-avatar{
+  width:64px;height:64px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:30px
+}
+.inc-bud-sheet-amt{
+  font-size:30px;font-weight:700;letter-spacing:-.8px;color:#3DBD74
+}
+.inc-bud-sheet-cat{
+  font-size:14px;color:rgba(255,255,255,.4);margin-top:-2px
+}
+.inc-bud-question{
+  text-align:center;font-size:17px;font-weight:600;
+  color:#fff;margin-bottom:20px;letter-spacing:-.3px
+}
+.inc-bud-btn-yes{
+  background:#3DBD74;color:#fff;
+  box-shadow:0 10px 24px rgba(61,189,116,.16);
+  margin-bottom:0
+}
+
+/* ── CATEGORIES: add-row, count chip ── */
+.cat-avatar--add{
+  background:rgba(245,166,35,.1);color:#F5A623;
+  font-size:20px
+}
+.cat-add-label{color:rgba(255,255,255,.45);font-weight:400}
+.cat-add-item{cursor:pointer;transition:background .12s}
+.cat-add-item:active{background:rgba(255,255,255,.04)}
+.sett-row-count{
+  font-size:14px;color:rgba(255,255,255,.3);
+  margin-right:4px;flex-shrink:0
+}
 .tx-edit-date-inp::-webkit-calendar-picker-indicator{opacity:0;width:100%;height:100%;position:absolute;inset:0;cursor:pointer}

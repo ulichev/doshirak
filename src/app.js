@@ -245,7 +245,7 @@ function setSyncDot(ok){
 
 // ── SCREENS ───────────────────────────────────────────────────────────────────
 function show(id){
-  ['s-main','s-history','s-budget','s-settings'].forEach(s=>{
+  ['s-main','s-history','s-budget','s-settings','s-cats'].forEach(s=>{
     document.getElementById(s).classList.toggle('hidden',s!==id);
   });
 }
@@ -271,6 +271,10 @@ function goSettings(){
   updateSyncCard();
   show('s-settings');
   renderSettings();
+}
+function goCategories(){
+  show('s-cats');
+  renderCats();
 }
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
@@ -301,8 +305,14 @@ function renderMain(){
     var totalEverSpent=S.txs.filter(function(t){ return t.type==='expense'; })
                             .reduce(function(sum,t){ return sum+t.amount; },0);
     var spentAtStart=Number((S.budget&&S.budget.spent_at_start)||0);
+    var inBudgetIncome=S.txs.filter(function(t){
+      if(!t.inBudget||t.type!=='income') return false;
+      if(S.budget.set_at&&localDateStr(t.date)<S.budget.set_at) return false;
+      if(S.budget.deadline&&localDateStr(t.date)>S.budget.deadline) return false;
+      return true;
+    }).reduce(function(s,t){return s+t.amount;},0);
     var spentInBudget=Math.max(0, totalEverSpent - spentAtStart);
-    const remaining=budgetAmount-spentInBudget;
+    const remaining=budgetAmount+inBudgetIncome-spentInBudget;
     numEl.textContent=(remaining<0?'−':'')+fmt(Math.abs(remaining));
     fitBudgetNum(numEl);
 
@@ -473,12 +483,47 @@ function confirm_(){
     return;
   }
   const note=document.getElementById('note-inp').value.trim();
-  const catId=S.catId||null; // null = без категории
+  const catId=S.catId||null;
   const tx={id:genUuid(),amount:amt,type:S.type,catId:catId,note:note,date:new Date().toISOString()};
+  // Для дохода с активным бюджетом — показываем sheet выбора
+  const hasBudgetNow=S.budget&&S.budget.amount>0&&S.budget.deadline&&S.budget.deadline>=todayStr();
+  if(S.type==='income'&&hasBudgetNow){
+    _showIncomeBudgetSheet(tx);
+    return;
+  }
   vibrate(40);
   S.txs.unshift(tx); saveLocal(); pushTx(tx);
   S.amount=''; document.getElementById('note-inp').value=''; renderAmountRow();
   renderMain(); toastWithUndo((S.type==='expense'?'− ':'+ ')+fmt(amt)+'₽'+(catId?' · '+getCat(catId).name:''), tx);
+}
+
+// ── INCOME BUDGET SHEET ───────────────────────────────────────────────────────
+var _pendingIncomeTx=null;
+function _showIncomeBudgetSheet(tx){
+  _pendingIncomeTx=tx;
+  const cat=getCat(tx.catId);
+  const heroEl=document.getElementById('inc-bud-hero');
+  if(heroEl){
+    heroEl.innerHTML=
+      '<div class="inc-bud-sheet-avatar" style="background:'+esc((cat.color||'#3DBD74')+'22')+'">'+esc(cat.icon||'●')+'</div>'
+      +'<div class="inc-bud-sheet-amt">+'+fmt(tx.amount)+' ₽</div>'
+      +(cat.name?'<div class="inc-bud-sheet-cat">'+esc(cat.name)+'</div>':'');
+  }
+  document.getElementById('inc-budget-sheet').classList.add('vis');
+}
+function _incBudConfirm(inBudget){
+  if(!_pendingIncomeTx) return;
+  const tx=Object.assign({},_pendingIncomeTx,{inBudget});
+  _pendingIncomeTx=null;
+  document.getElementById('inc-budget-sheet').classList.remove('vis');
+  vibrate(40);
+  S.txs.unshift(tx); saveLocal(); pushTx(tx);
+  S.amount=''; document.getElementById('note-inp').value=''; renderAmountRow();
+  renderMain(); toastWithUndo('+ '+fmt(tx.amount)+'₽'+(tx.catId?' · '+getCat(tx.catId).name:''), tx);
+}
+function _incBudCancel(){
+  _pendingIncomeTx=null;
+  document.getElementById('inc-budget-sheet').classList.remove('vis');
 }
 
 // ── HISTORY ───────────────────────────────────────────────────────────────────
@@ -613,13 +658,24 @@ function renderHistContent(){
 // S.budget — {amount, days, set_at, deadline, spent_at_start, reset_ts}
 
 function renderBudgetScreen(){
-  // Читаем текущий сохранённый бюджет в поля ввода
   var inp = document.getElementById('bud-amount');
-  var existAmt = (S.budget && Number(S.budget.amount) > 0) ? S.budget.amount : '';
-  inp.value = existAmt ? fmtBudInput(String(existAmt)) : '';
+  var baseAmt = (S.budget && Number(S.budget.amount) > 0) ? Number(S.budget.amount) : 0;
+  var inBudgetIncome = baseAmt > 0 ? S.txs.filter(function(t){
+    if(!t.inBudget||t.type!=='income') return false;
+    if(S.budget.set_at&&localDateStr(t.date)<S.budget.set_at) return false;
+    if(S.budget.deadline&&localDateStr(t.date)>S.budget.deadline) return false;
+    return true;
+  }).reduce(function(s,t){return s+t.amount;},0) : 0;
+  // Показываем остаток (как главный экран): бюджет + доходы − расходы
+  var totalEverSpent = S.txs.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+  var spentAtStart = Number((S.budget&&S.budget.spent_at_start)||0);
+  var spentInBudget = Math.max(0, totalEverSpent - spentAtStart);
+  var remaining = baseAmt > 0 ? Math.max(0, baseAmt + inBudgetIncome - spentInBudget) : 0;
+  var existAmt = baseAmt > 0 ? remaining : '';
+  inp.value = existAmt !== '' ? fmtBudInput(String(Math.round(Number(existAmt)))) : '';
   var _ruble = document.getElementById('bud-ruble');
   var _mirror = document.getElementById('bud-mirror');
-  if(_ruble){ _ruble.style.color = existAmt ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.18)'; }
+  if(_ruble){ _ruble.style.color = existAmt !== '' ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.18)'; }
   fitInputToMirror(inp, _mirror);
 
   // Текущие дни из сохранённого бюджета (пересчитываем из deadline)
@@ -639,6 +695,12 @@ function renderBudgetScreen(){
   }
   updateBudDateBtn();
   updateBudgetPreview();
+  // ₽/день = остаток / оставшихся дней — одинаково с главным экраном
+  if(baseAmt > 0 && S.budget.deadline) {
+    var _dLeft=Math.max(daysUntil(S.budget.deadline),1);
+    var _sub=document.getElementById('bud-perday-display');
+    if(_sub&&remaining>0) _sub.textContent=fmt(Math.round(remaining/_dLeft))+' ₽ в день · '+S.budDays+' '+pluralDays(S.budDays);
+  }
   var hintEl=document.getElementById('bud-change-hint');
   if(hintEl) hintEl.style.display=(S.budget&&Number(S.budget.amount)>0)?'':'none';
 }
@@ -751,6 +813,8 @@ async function saveBudget(){
     reset_ts: now,
     spent_at_start: spentAtStart
   };
+  // Сбрасываем inBudget-флаги — их сумма уже поглощена в сохранённый amt
+  S.txs.forEach(function(t){ if(t.inBudget) t.inBudget=false; });
 
   _budDirtyTs = Date.now() + 30000; // защита 30 сек от перезаписи синком
   saveLocal();
@@ -778,37 +842,71 @@ function genUuid(){
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
-function selCatSettTab(t){S.catSettTab=t;renderSettings();}
+function selCatSettTab(t){S.catSettTab=t;renderCats();}
 function renderSettings(){
+  const countEl=document.getElementById('cats-count');
+  if(countEl) countEl.textContent=S.cats.length;
+  updateSyncCard();
+}
+function renderCats(){
   const cl=document.getElementById('cat-list');
   const tw=document.getElementById('cat-type-tabs-wrapper');
+  if(!cl||!tw) return;
   const filteredCats=S.cats.filter(c=>(c.ctype||'expense')===S.catSettTab);
   const incClass=S.catSettTab==='income'?' inc':'';
-  const tabs=`<div class="cat-type-tabs">
+  tw.innerHTML=`<div class="cat-type-tabs">
     <button class="cat-type-tab${S.catSettTab==='expense'?' on':''}" onclick="selCatSettTab('expense')">Расходы</button>
     <button class="cat-type-tab${incClass}${S.catSettTab==='income'?' on':''}" onclick="selCatSettTab('income')">Доходы</button>
   </div>`;
-  if(tw) tw.innerHTML=tabs;
   const trashSvg='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  cl.innerHTML=(filteredCats.length
-    ? filteredCats.map(c=>{
-        const avatarBg=esc((c.color||'#9E9E9E')+'22');
-        const icon=c.icon?esc(c.icon):'●';
-        return `<div class="cat-item" onclick="showCatModal('${c.id}')">`
-          +`<div class="cat-avatar" style="background:${avatarBg};color:${esc(c.color||'#fff')}">${icon}</div>`
-          +`<div class="cat-nm"><span class="cat-nm-text">${esc(c.name)}</span></div>`
-          +`<button class="del-cat" aria-label="Удалить" onclick="event.stopPropagation();deleteCat('${c.id}')">${trashSvg}</button>`
-          +`</div>`;
-      }).join('')
-    : '<div class="sett-row" style="justify-content:center"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>');
+  const plusSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
+  const catItems=filteredCats.map(c=>{
+    const avatarBg=esc((c.color||'#9E9E9E')+'22');
+    const icon=c.icon?esc(c.icon):'●';
+    return `<div class="cat-item" onclick="showCatModal('${c.id}')">`
+      +`<div class="cat-avatar" style="background:${avatarBg};color:${esc(c.color||'#fff')}">${icon}</div>`
+      +`<div class="cat-nm"><span class="cat-nm-text">${esc(c.name)}</span></div>`
+      +`<button class="del-cat" aria-label="Удалить" onclick="event.stopPropagation();deleteCat('${c.id}')">${trashSvg}</button>`
+      +`</div>`;
+  }).join('');
+  const emptyMsg=filteredCats.length===0
+    ?'<div class="sett-row" style="justify-content:center;border-bottom:1px solid rgba(255,255,255,.06)"><span style="color:rgba(255,255,255,.3);font-size:14px">Нет категорий</span></div>'
+    :'';
+  const addItem=`<div class="cat-item cat-add-item" onclick="showCatModal()">`
+    +`<div class="cat-avatar cat-avatar--add">${plusSvg}</div>`
+    +`<div class="cat-nm"><span class="cat-nm-text cat-add-label">Добавить категорию</span></div>`
+    +`</div>`;
+  cl.innerHTML=emptyMsg+catItems+addItem;
 }
+function defaultInBudget(catId){
+  if(!catId) return false;
+  const base=catId.replace(/_[a-zA-Z0-9]{1,8}$/,'');
+  if(base==='salary'||base==='freelance') return false;
+  if(base==='gift'||base==='debt_ret') return true;
+  return false; // кастомные income: безопасный default
+}
+function setIncomeBudget(val){
+  S.incomeInBudget=val;
+  renderIncomeBudgetToggle();
+}
+function renderIncomeBudgetToggle(){
+  const row=document.getElementById('inc-budget-row');
+  if(!row) return;
+  const hasBudget=S.budget&&S.budget.amount>0&&S.budget.deadline&&S.budget.deadline>=todayStr();
+  row.style.display=(S.type==='income'&&hasBudget)?'':'none';
+  const noBtn=document.getElementById('inc-bud-no');
+  const yesBtn=document.getElementById('inc-bud-yes');
+  if(noBtn) noBtn.classList.toggle('on',!S.incomeInBudget);
+  if(yesBtn) yesBtn.classList.toggle('on',S.incomeInBudget);
+}
+
 function showMyCode(){
   const code=localStorage.getItem(K_CODE)||(currentUser&&currentUser.user_metadata&&currentUser.user_metadata.code)||'';
   if(!code){toast('Код не привязан');return;}
   showCodeRevealModal(code,true);
 }
 function deleteCat(id){
-  customConfirm('Удалить категорию?').then(ok=>{ if(!ok) return; S.cats=S.cats.filter(c=>c.id!==id);saveLocal();pushCats();deleteCatRemote(id);renderSettings();renderCatRow();toast('Удалено'); });
+  customConfirm('Удалить категорию?').then(ok=>{ if(!ok) return; S.cats=S.cats.filter(c=>c.id!==id);saveLocal();pushCats();deleteCatRemote(id);renderCats();renderSettings();renderCatRow();toast('Удалено'); });
 }
 function exportData(){
   const blob=new Blob([JSON.stringify({txs:S.txs,cats:S.cats,budget:S.budget,date:new Date().toISOString()},null,2)],{type:'application/json'});
@@ -915,14 +1013,14 @@ function saveCat(){
     const idx=S.cats.findIndex(c=>c.id===_editCatId);
     if(idx>=0) S.cats[idx]={...S.cats[idx],name,color:S.budColor,icon:S.budIcon||ICON_OPTIONS[0]};
     _editCatId=null;
-    saveLocal();pushCat(S.cats[idx>=0?idx:0]);hideCatModal();renderSettings();renderCatRow();
+    saveLocal();pushCat(S.cats[idx>=0?idx:0]);hideCatModal();renderCats();renderSettings();renderCatRow();
     toast('"'+name+'" обновлена');
   } else {
-    const onSettings=!document.getElementById('s-settings').classList.contains('hidden');
-    const ctype=onSettings?S.catSettTab:S.type;
+    const onCats=!document.getElementById('s-cats').classList.contains('hidden');
+    const ctype=onCats?S.catSettTab:S.type;
     const _sfx=ctype==='income'?'_inc':'_exp';
     S.cats.unshift({id:'c'+Date.now()+_sfx,name,color:S.budColor,icon:S.budIcon||ICON_OPTIONS[0],ctype});
-    saveLocal();pushCat(S.cats[0]);hideCatModal();renderSettings();renderCatRow();
+    saveLocal();pushCat(S.cats[0]);hideCatModal();renderCats();renderSettings();renderCatRow();
     setTimeout(()=>{ const r=document.getElementById('cat-row'); if(r) r.scrollLeft=0; },60);
     toast('"'+name+'" добавлена');
   }
@@ -1636,12 +1734,13 @@ function obTouchEnd(e){
 
 // Expose functions for inline onclick handlers in HTML
 Object.assign(window, {
-  goMain, goHistory, goBudget, goSettings,
+  goMain, goHistory, goBudget, goSettings, goCategories,
   np, npDel, confirm_, toggleType, selCat,
   onBudDateChange, onBudAmtInput, saveBudget,
   selCatSettTab,
   showCatModal, hideCatModal, modalBgClick, selIcon, selColor, saveCat,
   showMyCode, deleteCat, exportData, importData, clearAll,
+  _incBudConfirm, _incBudCancel,
   showEnterCodeModal, hideEnterCodeModal, submitEnterCode,
   copyCodeReveal, dismissCodeReveal, onCodeRevealBtn, copyCode,
   recoverWithCode, createNewAccount,

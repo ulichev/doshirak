@@ -168,7 +168,7 @@
     </label>
 
     <div class="bud-change-hint" id="bud-change-hint" style="display:none">
-      Обрати внимание: после сохранения нового бюджета топ категорий на главном экране сбросится
+      Будь внимательнее — при установке нового бюджета топ категорий доходов и расходов на главном экране сбросится
     </div>
 
     <div class="bud-noodles" aria-hidden="true">
@@ -187,9 +187,21 @@
   <div class="sett-scroll">
     <div class="sett-sec">
       <div class="sett-label">Категории</div>
-      <div id="cat-type-tabs-wrapper"></div>
-      <div class="sett-card" id="cat-list"></div>
-      <button class="action-btn btn-outline" onclick="showCatModal()">+ Добавить категорию</button>
+      <div class="sett-card">
+        <div class="sett-row" style="cursor:pointer" onclick="goCategories()">
+          <span class="sett-row-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+              <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+              <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+              <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </span>
+          <span class="sett-row-label">Категории</span>
+          <span class="sett-row-count" id="cats-count"></span>
+          <span class="sett-chevron">›</span>
+        </div>
+      </div>
     </div>
     <div class="sett-sec">
       <div class="sett-label">Аккаунт</div>
@@ -274,6 +286,29 @@
       <div class="sett-footer-meta" id="app-version">Дошик</div>
       <a class="sett-footer-tg" href="https://t.me/aulichev">По вопросам: @aulichev</a>
     </div>
+  </div>
+</div>
+
+<!-- ── CATEGORIES SCREEN ── -->
+<div class="screen hidden" id="s-cats">
+  <div class="top-bar">
+    <button class="tb-btn" onclick="goSettings()">Назад</button>
+    <span class="tb-title">Категории</span>
+    <div style="width:60px"></div>
+  </div>
+  <div class="sett-scroll">
+    <div id="cat-type-tabs-wrapper"></div>
+    <div class="sett-card" id="cat-list"></div>
+  </div>
+</div>
+
+<!-- ── INCOME BUDGET SHEET ── -->
+<div class="modal-bg" id="inc-budget-sheet" onclick="if(event.target===this)_incBudCancel()">
+  <div class="modal-sheet inc-bud-sheet">
+    <div class="inc-bud-hero" id="inc-bud-hero"></div>
+    <p class="inc-bud-question">Прибавить к бюджету?</p>
+    <button class="action-btn inc-bud-btn-yes" onclick="_incBudConfirm(true)">Увеличить бюджет</button>
+    <button class="action-btn btn-secondary" onclick="_incBudConfirm(false)">Не изменять бюджет</button>
   </div>
 </div>
 
