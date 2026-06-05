@@ -256,7 +256,7 @@ function goMain(){
     const hc=document.getElementById('hist-content');
     if(hc) _histScrollTop=hc.scrollTop;
   }
-  show('s-main'); renderMain(); maybeShowToggleHint();
+  show('s-main'); renderMain();
 }
 function goHistory(){
   show('s-history');
@@ -756,9 +756,9 @@ async function saveBudget(){
   saveLocal();
 
   show('s-main');
-  // Принудительно перерисовываем с НОВЫМ бюджетом после CSS-перехода (280ms)
   renderMain();
   setTimeout(renderMain, 320);
+  maybeShowToggleHint();
 
   toast('Бюджет установлен');
   await pushBudget();
@@ -984,7 +984,7 @@ function showTxEdit(id){
   setTimeout(fitTxAmtInput,0);
   var d=new Date(tx.date);
   if(dateDisplayEl) dateDisplayEl.textContent=fmtDate(localDateStr(tx.date))+' · '+d.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
-  if(dateInpEl) dateInpEl.value=localDateStr(tx.date);
+  if(dateInpEl){ dateInpEl.value=localDateStr(tx.date); dateInpEl.max=todayStr(); }
   noteEl.value=tx.note||'';
   renderTxEditCats(tx.type);
   document.getElementById('tx-edit-modal').classList.add('vis');
@@ -1050,6 +1050,11 @@ function hideTxEdit(){
 function onTxEditDateChange(){
   const inp=document.getElementById('tx-edit-date-input');
   if(!inp||!inp.value) return;
+  if(inp.value>todayStr()){
+    toast('Нельзя ставить будущую дату');
+    inp.value=localDateStr(_editTxDate||new Date().toISOString());
+    return;
+  }
   const orig=new Date(_editTxDate||new Date().toISOString());
   const [y,m,d]=inp.value.split('-').map(Number);
   orig.setFullYear(y,m-1,d);
@@ -1092,7 +1097,7 @@ function customConfirm(msg,okText='Удалить',dangerOk=true){
   document.getElementById('confirm-msg').textContent=msg;
   const ok=document.getElementById('confirm-ok-btn');
   ok.textContent=okText;
-  ok.style.background=dangerOk?'#FF3B30':'#3DBD74';
+  ok.style.background=dangerOk==='warn'?'#F5A623':dangerOk?'#FF3B30':'#3DBD74';
   const icon=document.getElementById('confirm-icon');
   if(icon) icon.classList.toggle('modal-hero-icon--danger',!!dangerOk);
   el.classList.add('vis');
@@ -1224,12 +1229,11 @@ async function createNewAccount(btn){
     document.getElementById('s-auth').style.display='none';
     loadLocal();goMain();
     if(currentUser){await seedDefaultCats();setSyncDot(true);}
-    setTimeout(()=>showOnboarding(code),600);
+    setTimeout(()=>showOnboarding(code),0);
   }catch(e){
-    // Даже при ошибке сети — код в localStorage, показываем его
     document.getElementById('s-auth').style.display='none';
     loadLocal();goMain();
-    setTimeout(()=>showOnboarding(code),600);
+    setTimeout(()=>showOnboarding(code),0);
     setSyncDot(false);
     btn.disabled=false;btn.textContent='Начать с нуля';
     document.getElementById('auth-err').textContent='Ошибка соединения с сервером';
@@ -1312,7 +1316,7 @@ function legacyCopy(text){
 
 
 function showEnterCodeModal(){
-  customConfirm('Данные этого устройства будут заменены данными введённого аккаунта.','Продолжить',false).then(ok=>{
+  customConfirm('Данные этого устройства будут заменены данными введённого аккаунта.','Продолжить','warn').then(ok=>{
     if(!ok) return;
     document.getElementById('enter-code-inp').value='';
     document.getElementById('enter-code-err').textContent='';
@@ -1527,12 +1531,9 @@ function obGoTo(idx){
 function closeOnboarding(){
   localStorage.setItem(K_OB,'1');
   document.getElementById('onboarding').classList.remove('vis');
-  renderMain(); // подхватываем бюджет, заданный во время онбординга
-  // показываем подсказку новым пользователям после онбординга
-  if(!localStorage.getItem(K_TGL)&&!_tglPending){
-    _tglPending=true;
-    setTimeout(()=>{_tglPending=false;localStorage.setItem(K_TGL,'1');showToggleHint();},1200);
-  }
+  renderMain();
+  // Подсказка к кнопке +/− только если бюджет уже задан в онбординге
+  if(S.budget&&S.budget.amount>0) maybeShowToggleHint();
 }
 
 function obCopyCode(el){

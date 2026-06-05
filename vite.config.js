@@ -18,11 +18,12 @@ function swVersionPlugin() {
 }
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://stfdtkorhvdmsrhelide.supabase.co';
+const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 
 export default defineConfig({
   plugins: [swVersionPlugin()],
   define: {
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version || '1.0.0'),
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
     'import.meta.env.VITE_BUILD_DATE': JSON.stringify(
       new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
     ),
