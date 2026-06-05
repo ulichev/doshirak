@@ -99,7 +99,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .empty p{font-size:15px;max-width:200px;margin:0 auto}
 
 /* SETTINGS */
-.sett-scroll{flex:1;overflow-y:auto;padding:16px var(--screen-pad) calc(96px + env(safe-area-inset-bottom,0px));overscroll-behavior:contain;display:flex;flex-direction:column;gap:18px}
+.sett-scroll{flex:1;min-height:0;overflow-y:auto;padding:16px var(--screen-pad) calc(96px + env(safe-area-inset-bottom,0px));overscroll-behavior:contain;display:flex;flex-direction:column;gap:18px}
+.sett-scroll>*{flex-shrink:0}
 .sett-sec{margin-bottom:0;display:flex;flex-direction:column}
 .sett-label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.4);margin:0 4px 8px;font-weight:600}
 .sett-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);border-radius:18px;overflow:hidden}
