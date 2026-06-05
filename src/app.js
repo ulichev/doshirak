@@ -27,16 +27,50 @@ const DEF_CATS = [...DEF_CATS_EXP, ...DEF_CATS_INC];
 
 // Ключевые слова для авто-подбора категории из заметки
 const CAT_KEYWORDS = [
-  { keywords: ['еда','продукт','магазин','пятёрочк','пятерочк','перекрёст','перекрест','ашан','лент','вкусвилл','самокат','яндекс.еда','яндекс еда','delivery','доставк','супермарк','гастроном'], cat: 'food' },
-  { keywords: ['такси','метро','автобус','трамвай','транспорт','маршрутк','электричк','билет','uber','убер','яндекс.такси','яндекс такси','kazan express','каршер','бензин','заправк'], cat: 'transport' },
-  { keywords: ['кафе','ресторан','кофе','пицц','суши','бар','столов','обед','ужин','завтрак','coffee','bar'], cat: 'cafe' },
-  { keywords: ['озон','ozon','вайлдберрис','wildberries','lamoda','ламода','покупк','одежд','обувь','маркетплейс','авито'], cat: 'shopping' },
-  { keywords: ['аптек','врач','стоматолог','анализ','медицин','здоровь','лекарств','клиник','больниц','поликлин'], cat: 'health' },
-  { keywords: ['кино','театр','концерт','развлечен','игр','netflix','нетфликс','спотифай','spotify','steam','стрим','подписк'], cat: 'fun' },
-  { keywords: ['зарплат','получк','аванс'], cat: 'salary' },
-  { keywords: ['фриланс','подработк','проект','гонорар'], cat: 'freelance' },
-  { keywords: ['подарок','день рождения','подаро'], cat: 'gift' },
-  { keywords: ['долг','вернул','возврат'], cat: 'debt_ret' },
+  { keywords: [
+    'еда','продукт','магазин','пятёрочк','пятерочк','перекрёст','перекрест',
+    'ашан','лент','вкусвилл','самокат','яндекс.еда','яндекс еда','delivery',
+    'доставк','супермарк','гастроном','дикси','магнит','сезон','metro cash',
+    'глобус','o\'кей','окей','свежий','хлеб','молок','groceries','food',
+    'фастфуд','макдак','mcdonalds','мак ','бургер','кфс','kfc','subway',
+    'шаурм','фалафель','пирожк','шашлык','блин','пельмен','булочн',
+  ], cat: 'food' },
+  { keywords: [
+    'такси','метро','автобус','трамвай','транспорт','маршрутк','электричк',
+    'билет','uber','убер','яндекс.такси','яндекс такси','каршер','ситидрайв',
+    'бензин','заправк','парковк','мкад','шерегеш','аэроэкспресс','ласточк',
+    'сапсан','ржд','rzd','авиа','самолёт','самолет','поезд','автовокзал',
+  ], cat: 'transport' },
+  { keywords: [
+    'кафе','ресторан','кофе','пицц','pizza','суши','sushi','бар','столов',
+    'обед','ужин','завтрак','coffee','bar','капучин','латте','эспрессо',
+    'старбакс','starbucks','шоколадниц','кофеман','ваби саби','якитория',
+    'теремок','крошка картошка','додо','dodo','папа джонс','papa john',
+    'роллы','wok','вок','тайск','итальянск','японск','бранч','lunch','dinner',
+  ], cat: 'cafe' },
+  { keywords: [
+    'озон','ozon','вайлдберрис','wildberries','wb ','lamoda','ламода',
+    'покупк','одежд','обувь','маркетплейс','авито','юла','сберм','яндекс маркет',
+    'мегамарк','мвидео','эльдорадо','dns ','re:store','apple store',
+    'зара','zara','h&m','uniqlo','юникло','спортмастер','декатлон',
+    'икеа','ikea','леруа','lerua','obi ','castorama',
+  ], cat: 'shopping' },
+  { keywords: [
+    'аптек','врач','стоматолог','анализ','медицин','здоровь','лекарств',
+    'клиник','больниц','поликлин','скорая','узи','мрт','рентген',
+    'витамин','биодобавк','таблетк','капли','мазь','аллергия',
+    'инвитро','helix','гемотест','сдэк лаб','операц',
+  ], cat: 'health' },
+  { keywords: [
+    'кино','театр','концерт','развлечен','игр','netflix','нетфликс',
+    'spotify','спотифай','steam','стрим','подписк','twitch','youtube premium',
+    'боулинг','каток','батут','квест','escape','кальян','клуб',
+    'зоопарк','музей','выставк','парк развлечен','аквапарк',
+  ], cat: 'fun' },
+  { keywords: ['зарплат','получк','аванс','оклад','выплат'], cat: 'salary' },
+  { keywords: ['фриланс','подработк','проект','гонорар','заказ','клиент оплат'], cat: 'freelance' },
+  { keywords: ['подарок','день рождения','подаро','сувенир','букет'], cat: 'gift' },
+  { keywords: ['долг','вернул','возврат','отдал','перевод от'], cat: 'debt_ret' },
 ];
 const ICON_OPTIONS=['🍔','🛍','🚌','☕','💊','🎮','🏠','✈️','💄','🎵',
   '📚','🏋','⚽','🎬','🐾','🎁','🔧','📱','🌮','🍕','🍺','💡','🔑',
@@ -131,19 +165,34 @@ async function syncFromSupabase(){
       db.from('categories').select('*').eq('user_id',currentUser.id).order('sort_order'),
       db.from('budget_settings').select('*').eq('user_id',currentUser.id).maybeSingle(),
     ]);
-    if(txRes.data&&txRes.data.length>0)
-      S.txs=txRes.data.map(r=>({id:r.id,amount:r.amount,type:r.type,catId:r.cat_id,note:r.note||'',date:r.date}));
+    if(txRes.data&&txRes.data.length>0){
+      // Сохраняем inBudget-флаги из localStorage — они не хранятся в Supabase
+      var _inBudgetMap={};
+      S.txs.forEach(function(t){ if(t.inBudget) _inBudgetMap[t.id]=true; });
+      S.txs=txRes.data.map(function(r){
+        var t={id:r.id,amount:r.amount,type:r.type,catId:r.cat_id,note:r.note||'',date:r.date};
+        if(_inBudgetMap[r.id]) t.inBudget=true;
+        return t;
+      });
+    }
     if(catRes.data&&catRes.data.length>0){
       S.cats=catRes.data.map(function(r){var ic=r.icon||'';if(!ic){var b=r.id.replace(/_[a-zA-Z0-9]{1,8}$/,'');var df=DEF_CATS.find(function(d){return d.id===b||d.id===r.id;});if(df)ic=df.icon||'';}return {id:r.id,name:r.name,color:r.color,icon:ic,ctype:r.ctype||determineCtype(r.id,[...S.cats])};});
     }
     else await seedDefaultCats();
     if(budRes.data&&budRes.data.amount&&(Date.now()-_budDirtyTs>5000)){
       var budSetAt=budRes.data.set_at||null;
-      var _baseline=S.txs.filter(function(t){
-        if(t.type!=='expense') return false;
-        if(!budSetAt) return true;
-        return localDateStr(t.date)<budSetAt;
-      }).reduce(function(sum,t){ return sum+t.amount; },0);
+      var _baseline;
+      // Если в памяти уже есть spent_at_start для того же периода бюджета — сохраняем его.
+      // Пересчёт по date < set_at некорректен: он не учитывает расходы в день сохранения бюджета.
+      if(S.budget&&S.budget.set_at===budSetAt&&S.budget.spent_at_start!=null){
+        _baseline=Number(S.budget.spent_at_start);
+      } else {
+        _baseline=S.txs.filter(function(t){
+          if(t.type!=='expense') return false;
+          if(!budSetAt) return true;
+          return localDateStr(t.date)<budSetAt;
+        }).reduce(function(sum,t){ return sum+t.amount; },0);
+      }
       S.budget={amount:Number(budRes.data.amount)||0,days:Number(budRes.data.days)||0,deadline:budRes.data.deadline||null,set_at:budSetAt,spent_at_start:_baseline};
       S.budDays=S.budget.days||0;
     }
