@@ -783,19 +783,65 @@ function onNoteInput() {
 }
 
 // ── АНАЛИТИКА ТРАТ ────────────────────────────────────────────────────────────
+// Минимум расходных операций, при котором анализ осмысленный.
+// Меньше — показываем пример, не дёргая API (мгновенно + не жжём лимит Groq).
+var ANALYTICS_MIN_TX = 8;
+var ANALYTICS_DEMO = {
+  insights: [
+    'Доставка еды выросла на 90% за месяц — почти 11 000₽.',
+    'На кофе навынос ушло 4 060₽: 14 стаканов за месяц.',
+    '60% трат пришлось на выходные.'
+  ],
+  recommendations: [
+    'Готовь дома 2-3 раза в неделю вместо доставки — вернёшь ~5 000₽.',
+    'Подписки на 3 000₽/мес — проверь, всеми ли пользуешься.'
+  ]
+};
+
+function renderAnalyticsResult(body, insights, recs, demo) {
+  var sub = document.getElementById('analytics-hdr-sub');
+  if (sub) sub.textContent = demo ? 'Пример — как будет с твоими данными' : 'Анализ на основе твоих данных · Llama 3';
+  var html = '';
+  if (demo) {
+    html += '<div class="analytics-demo-note">✨ Это пример. Записывай траты с комментариями — и здесь появятся твои реальные инсайты.</div>';
+  }
+  if (insights.length) {
+    html += '<div class="analytics-section-label">Инсайты</div>';
+    html += insights.map(function(l) {
+      return '<div class="analytics-insight">' + esc(l) + '</div>';
+    }).join('');
+  }
+  if (recs.length) {
+    html += '<div class="analytics-section-label analytics-section-label--rec">Рекомендации</div>';
+    html += recs.map(function(l) {
+      return '<div class="analytics-insight analytics-rec">' + esc(l) + '</div>';
+    }).join('');
+  }
+  if (!html) html = '<div class="analytics-empty">Нет данных.</div>';
+  body.innerHTML = html;
+}
+
 function runAnalytics() {
   var modal = document.getElementById('analytics-modal');
   var body = document.getElementById('analytics-body');
   if (!modal || !body) return;
   modal.classList.add('vis');
-  body.innerHTML = '<div class="analytics-loading"><div class="analytics-spinner"></div><span>Анализирую...</span></div>';
 
   // Шлём 60 дней — движок сравнивает текущий период с предыдущим
   var cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 60);
   var cutoffStr = cutoff.toISOString().slice(0, 10);
   var recent = S.txs.filter(function(t) { return t.date >= cutoffStr; });
-  var toSend = (recent.length >= 3 ? recent : S.txs).slice(-400);
+  var expCount = recent.filter(function(t) { return t.type === 'expense'; }).length;
+
+  // Мало данных — показываем пример без захода в API
+  if (expCount < ANALYTICS_MIN_TX) {
+    renderAnalyticsResult(body, ANALYTICS_DEMO.insights, ANALYTICS_DEMO.recommendations, true);
+    return;
+  }
+
+  body.innerHTML = '<div class="analytics-loading"><div class="analytics-spinner"></div><span>Анализирую...</span></div>';
+  var toSend = recent.slice(-400);
 
   fetch('/api/analyze', {
     method: 'POST',
@@ -803,30 +849,14 @@ function runAnalytics() {
     body: JSON.stringify({ txs: toSend, cats: S.cats, budget: S.budget })
   }).then(function(r) { return r.json(); }).then(function(data) {
     if (data.error === 'few_data') {
-      body.innerHTML = '<div class="analytics-empty">Маловато данных — добавь ещё несколько записей.</div>';
+      renderAnalyticsResult(body, ANALYTICS_DEMO.insights, ANALYTICS_DEMO.recommendations, true);
       return;
     }
     if (data.error === 'unavailable' || (!data.insights && !data.recommendations)) {
       body.innerHTML = '<div class="analytics-empty">Нет соединения — попробуй позже.</div>';
       return;
     }
-    var html = '';
-    var insights = data.insights || [];
-    var recs = data.recommendations || [];
-    if (insights.length) {
-      html += '<div class="analytics-section-label">Инсайты</div>';
-      html += insights.map(function(l) {
-        return '<div class="analytics-insight">' + esc(l) + '</div>';
-      }).join('');
-    }
-    if (recs.length) {
-      html += '<div class="analytics-section-label analytics-section-label--rec">Рекомендации</div>';
-      html += recs.map(function(l) {
-        return '<div class="analytics-insight analytics-rec">' + esc(l) + '</div>';
-      }).join('');
-    }
-    if (!html) html = '<div class="analytics-empty">Нет данных.</div>';
-    body.innerHTML = html;
+    renderAnalyticsResult(body, data.insights || [], data.recommendations || [], false);
   }).catch(function() {
     body.innerHTML = '<div class="analytics-empty">Нет соединения — попробуй позже.</div>';
   });
