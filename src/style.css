@@ -487,10 +487,17 @@ html,body,#app,.screen{max-width:100vw}
   display:flex;justify-content:space-between;align-items:baseline;
   font-size:13px;font-weight:500;
   color:rgba(255,255,255,.42);
-  padding:6px var(--screen-pad) 8px;
+  padding:13px 16px 11px;
   letter-spacing:-.1px;
   font-variant-numeric:tabular-nums;
-  position:sticky;top:0;z-index:5;background:#111
+  position:relative
+}
+.day-sec-label::after{
+  content:'';
+  position:absolute;
+  bottom:0;left:16px;right:0;
+  height:0.5px;
+  background:rgba(255,255,255,.1)
 }
 .day-sec-label > span:first-child{font-weight:600;color:rgba(255,255,255,.5)}
 .day-sec-total{font-size:12px;font-weight:500;color:rgba(255,255,255,.38)}
@@ -989,12 +996,11 @@ html,body,#app,.screen{max-width:100vw}
   50%{box-shadow:0 0 26px 6px rgba(139,92,246,.6)}
 }
 .analytics-bar{
-  flex-shrink:0;
+  position:absolute;left:0;right:0;bottom:0;
   display:flex;justify-content:center;align-items:flex-end;
-  padding:40px var(--screen-pad) calc(18px + env(safe-area-inset-bottom,0px));
-  background:linear-gradient(to bottom,transparent,#111 48%);
-  margin-top:-40px;
-  position:relative;z-index:10;
+  padding:70px var(--screen-pad) calc(22px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(to bottom,transparent 0%,#111 70%);
+  z-index:10;
   pointer-events:none
 }
 .analytics-btn{

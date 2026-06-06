@@ -1052,8 +1052,8 @@ function renderHistContent(){
     var dayParts=[];
     if(dayExp>0) dayParts.push('<span class="day-sec-exp">−'+fmt(dayExp)+' ₽</span>');
     if(dayInc>0) dayParts.push('<span class="day-sec-inc">+'+fmt(dayInc)+' ₽</span>');
-    html += '<div class="day-sec-label"><span>'+fmtDate(day)+'</span><span class="day-sec-total">'+dayParts.join('<span class="day-sec-gap"></span>')+'</span></div>';
     html += '<div class="day-card">';
+    html += '<div class="day-sec-label"><span>'+fmtDate(day)+'</span><span class="day-sec-total">'+dayParts.join('<span class="day-sec-gap"></span>')+'</span></div>';
     dayTxs.forEach(function(t){
       var cat=getCat(t.catId);
       var avatarBg=esc((cat.color||'#9E9E9E')+'22');
