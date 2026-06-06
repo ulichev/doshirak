@@ -481,7 +481,7 @@ html,body,#app,.screen{max-width:100vw}
 .tx-amt-main.income{color:#3DBD74}
 
 /* ── HISTORY DAY CARDS ── */
-.hist-scroll{padding:0 0 100px!important}
+.hist-scroll{padding:14px 0 100px!important}
 .day-section{margin-bottom:12px}
 .day-sec-label{
   display:flex;justify-content:space-between;align-items:baseline;
@@ -1083,12 +1083,9 @@ html,body,#app,.screen{max-width:100vw}
   font-size:15px;text-align:center
 }
 .analytics-demo-note{
-  background:rgba(168,85,247,.08);
-  border:1px dashed rgba(168,85,247,.45);
-  border-radius:14px;
-  padding:11px 14px;
-  font-size:13px;line-height:1.45;
-  color:rgba(216,180,254,.95);
+  padding:0 2px;
+  font-size:13px;line-height:1.5;
+  color:rgba(216,180,254,.75);
   letter-spacing:-.1px;
-  margin-bottom:6px
+  margin-bottom:8px
 }
