@@ -142,14 +142,27 @@ export default async function handler(req, res) {
     const remaining = Math.max(0, totalDays - elapsed);
     const spent = sum(allExp.filter(t => { const x = ts(t); return x >= start && x <= Math.min(now, deadline); }));
     const burn = spent / elapsed;
-    const projected = burn * totalDays;
-    const over = projected - budget.amount;
     facts.push(`Бюджет ${round(budget.amount)}₽ на ${totalDays} дн.: за ${elapsed} дн. потрачено ${round(spent)}₽ (${round(burn)}₽/день).`);
-    if (remaining > 0) {
-      const dailyLeft = Math.max(0, (budget.amount - spent) / remaining);
-      if (over > budget.amount * 0.05) {
+
+    if (spent >= budget.amount) {
+      // Бюджет уже исчерпан — «трать 0₽/день» бессмысленно, говорим прямо
+      const overNow = round(spent - budget.amount);
+      if (overNow > 0) {
+        facts.push(`Бюджет уже превышен на ${overNow}₽${remaining > 0 ? `, а до конца срока ещё ${remaining} дн.` : ''}.`);
+        actions.push(remaining > 0
+          ? `Бюджет на этот период исчерпан (перерасход ${overNow}₽), но срок ещё не вышел. Сократи всё необязательное до конца периода, а на следующий — заложи реалистичнее.`
+          : `Период закрыт с перерасходом ${overNow}₽. На следующий период имеет смысл поднять бюджет или заранее урезать крупнейшую категорию.`);
+      } else {
+        facts.push(`Бюджет выбран полностью (${round(spent)}₽ из ${round(budget.amount)}₽).`);
+      }
+    } else if (remaining > 0) {
+      const dailyLeft = (budget.amount - spent) / remaining;        // > 0, т.к. spent < budget
+      // Прогноз надёжен только если прошло хотя бы 3 дня
+      const projected = burn * totalDays;
+      const over = projected - budget.amount;
+      if (elapsed >= 3 && over > budget.amount * 0.05) {
         const exhaust = burn > 0 ? Math.max(0, Math.round((budget.amount - spent) / burn)) : remaining;
-        actions.push(`При темпе ${round(burn)}₽/день бюджет кончится примерно через ${exhaust} дн. — на ${Math.max(0, remaining - exhaust)} дн. раньше срока (перерасход ~${round(over)}₽). Чтобы уложиться, держи не больше ${round(dailyLeft)}₽/день.`);
+        actions.push(`Темп ${round(burn)}₽/день — при нём бюджета хватит ещё на ~${exhaust} дн. (на ${Math.max(0, remaining - exhaust)} дн. меньше срока), перерасход выйдет ~${round(over)}₽. Чтобы дотянуть, держи не больше ${round(dailyLeft)}₽/день.`);
       } else if (spent > 0) {
         facts.push(`Идёшь в рамках бюджета: оставшиеся ${remaining} дн. можно тратить до ${round(dailyLeft)}₽/день.`);
       }
@@ -162,9 +175,27 @@ export default async function handler(req, res) {
     facts.push(`${Math.round(weekendExp / curTotal * 100)}% трат приходится на выходные.`);
   }
 
+  // ── комментарии к тратам — сырьё для качественного инсайта ──────
+  // Категории не передают «доставка вечером» или «такси, хотя есть проездной».
+  // Группируем одинаковые заметки (повтор = привычка) — нагляднее и экономит токены.
+  const noteAgg = {};
+  curExp.forEach(t => {
+    const k = norm(t.note);
+    if (k.length < 2) return;
+    const g = noteAgg[k] || (noteAgg[k] = { label: t.note.slice(0, 40), cat: catName(t.catId), count: 0, total: 0, last: 0 });
+    g.count++; g.total += t.amount; g.last = Math.max(g.last, ts(t));
+  });
+  const noted = Object.values(noteAgg)
+    .sort((a, b) => (b.count > 1 || a.count > 1 ? b.total - a.total : b.last - a.last))
+    .slice(0, 20)
+    .map(g => g.count > 1
+      ? `${g.label} ×${g.count} — ${round(g.total)}₽ суммарно [${g.cat}]`
+      : `${g.label} — ${round(g.total)}₽ [${g.cat}]`);
+
   // ── сборка промпта ───────────────────────────────────────────────
   const factsBlock  = facts.map(f => `- ${f}`).join('\n');
   const actionBlock = actions.length ? actions.map(a => `- ${a}`).join('\n') : '(значимых поводов для рекомендаций нет)';
+  const notesBlock  = noted.length ? noted.map(n => `- ${n}`).join('\n') : '(комментариев нет)';
 
   const userPrompt =
 `Посчитанные факты о тратах пользователя. Все числа уже точные — бери только их, ничего не считай заново и не выдумывай.
@@ -175,16 +206,21 @@ ${factsBlock}
 ВОЗМОЖНЫЕ ДЕЙСТВИЯ (основа для рекомендаций):
 ${actionBlock}
 
+КОММЕНТАРИИ К ТРАТАМ (что человек писал сам — ищи здесь конкретные привычки, которые не видны по категориям):
+${notesBlock}
+
 Ответь СТРОГО в этом формате, без вступлений и пояснений:
 ИНСАЙТЫ
-<2-3 строки: самое важное и неочевидное из ФАКТОВ, по-человечески, с числами>
+<2-3 строки: самое важное и неочевидное; хотя бы один инсайт построй на КОММЕНТАРИЯХ, если они есть (конкретная привычка/закономерность), с числами>
 РЕКОМЕНДАЦИИ
-<1-3 строки на основе ВОЗМОЖНЫХ ДЕЙСТВИЙ; каждая с конкретной категорией/суммой и понятной выгодой>
+<1-3 строки на основе ВОЗМОЖНЫХ ДЕЙСТВИЙ и КОММЕНТАРИЕВ; каждая с конкретной категорией/суммой и понятной выгодой>
 
 Правила:
-- Только числа из данных выше.
+- Только числа из данных выше. Сумму экономии бери из ВОЗМОЖНЫХ ДЕЙСТВИЙ, не выдумывай.
+- Опирайся на конкретику из КОММЕНТАРИЕВ (например частые «доставка», «такси», «кофе»), а не на общие категории.
 - Если «возможных действий» нет — дай ровно одну рекомендацию: «Траты под контролем, резких аномалий нет — продолжай фиксировать расходы, чтобы накопить историю».
-- Никаких банальностей вроде «тратьте меньше» или «ведите учёт». Каждая рекомендация привязана к конкретике.
+- Никогда не советуй «лимит 0₽/день», «не тратить вообще» или прочие нереалистичные крайности.
+- Никаких банальностей вроде «тратьте меньше» или «ведите учёт».
 - Одна мысль = одна строка. Без нумерации, маркеров и заголовков внутри блоков.`;
 
   try {
