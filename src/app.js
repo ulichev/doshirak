@@ -790,11 +790,12 @@ function runAnalytics() {
   modal.classList.add('vis');
   body.innerHTML = '<div class="analytics-loading"><div class="analytics-spinner"></div><span>Анализирую...</span></div>';
 
+  // Шлём 60 дней — движок сравнивает текущий период с предыдущим
   var cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 30);
+  cutoff.setDate(cutoff.getDate() - 60);
   var cutoffStr = cutoff.toISOString().slice(0, 10);
   var recent = S.txs.filter(function(t) { return t.date >= cutoffStr; });
-  var toSend = (recent.length >= 3 ? recent : S.txs).slice(-80);
+  var toSend = (recent.length >= 3 ? recent : S.txs).slice(-400);
 
   fetch('/api/analyze', {
     method: 'POST',
