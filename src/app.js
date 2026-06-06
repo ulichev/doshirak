@@ -1499,11 +1499,7 @@ function copyCodeReveal(b){
     btn.textContent='Скопировано';setTimeout(()=>btn.textContent='Скопировать код',1800);
   });
 }
-function copyCode(){
-  const code=localStorage.getItem(K_CODE);
-  if(!code)return;
-  copyToClipboard(code).then(()=>toast('Код скопирован'));
-}
+
 function copyToClipboard(text){
   if(navigator.clipboard&&navigator.clipboard.writeText)
     return navigator.clipboard.writeText(text).catch(()=>legacyCopy(text));
@@ -1852,7 +1848,7 @@ Object.assign(window, {
   showMyCode, deleteCat, exportData, importData, clearAll,
   _incBudConfirm, _incBudCancel,
   showEnterCodeModal, hideEnterCodeModal, submitEnterCode,
-  copyCodeReveal, dismissCodeReveal, onCodeRevealBtn, copyCode,
+  copyCodeReveal, dismissCodeReveal, onCodeRevealBtn,
   recoverWithCode, createNewAccount,
   showToggleHint, maybeShowToggleHint,
   showOnboarding, obNext, obGoTo, closeOnboarding, obCopyCode, obTouchStart, obTouchEnd, replayOnboarding,
