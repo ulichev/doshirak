@@ -54,14 +54,16 @@ function daysBetween(from,to){ return Math.round((parseLocalDate(to)-parseLocalD
 
 function vibrate(ms){ try{ navigator.vibrate?.(ms); }catch(e){} }
 
+function emptyBudget(){ return {amount:0,days:0,deadline:null,set_at:null,spent_at_start:0,reset_ts:null}; }
+
 let S = {
   type:'expense', amount:'', catId:null,
   histCat:null, histType:null, histPeriod:null, catSettTab:'expense',
   budColor:COLORS[0], budDays:0,
-  txs:[], cats:[], budget:{amount:0,days:0,deadline:null,set_at:null},
+  txs:[], cats:[], budget:emptyBudget(),
 };
 
-let _budDirtyTs=0; // timestamp последнего локального сохранения бюджета
+let _budLockUntil=0; // до этого момента синхронизация не перезаписывает локальный бюджет
 // ── OFFLINE QUEUE ─────────────────────────────────────────────────────────────
 let offlineQueue=[];
 function saveQueue(){ try{localStorage.setItem('tk_oq',JSON.stringify(offlineQueue));}catch(e){} }
@@ -72,6 +74,8 @@ async function processQueue(){
   for(const item of q){
     try{
       if(item.op==='pushTx') await pushTx(item.data,true);
+      else if(item.op==='deleteTx') await deleteTxRemote(item.data,true);
+      else if(item.op==='deleteCat') await deleteCatRemote(item.data,true);
       else if(item.op==='pushCats') await pushCats();
       else if(item.op==='pushBudget') await pushBudget();
     }catch(e){ offlineQueue.push(item); }
@@ -95,9 +99,9 @@ function loadLocal(){
       var _lbBaseline=(_sb.spent_at_start!=null)?Number(_sb.spent_at_start):
         S.txs.filter(function(t){ if(t.type!=='expense') return false; if(!_lbSetAt) return true; return localDateStr(t.date)<_lbSetAt; }).reduce(function(s,t){ return s+t.amount; },0);
       S.budget={amount:Number(_sb.amount)||0,days:Number(_sb.days)||0,deadline:_sb.deadline||null,set_at:_lbSetAt,spent_at_start:_lbBaseline};
-    } else { S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0}; }
+    } else { S.budget=emptyBudget(); }
     S.budDays=S.budget.days||0;
-  } catch(e){ S.txs=[]; S.cats=[...DEF_CATS]; S.budget={amount:0,deadline:null}; }
+  } catch(e){ S.txs=[]; S.cats=[...DEF_CATS]; S.budget=emptyBudget(); }
 }
 function _store(k,v){ try{localStorage.setItem(k,v);}catch(e){} try{sessionStorage.setItem(k,v);}catch(e){} }
 function _load(k){ try{var v=localStorage.getItem(k);if(v)return v;}catch(e){} try{return sessionStorage.getItem(k);}catch(e){} return null; }
@@ -122,17 +126,22 @@ async function syncFromSupabase(){
       // Сохраняем inBudget-флаги из localStorage — они не хранятся в Supabase
       var _inBudgetMap={};
       S.txs.forEach(function(t){ if(t.inBudget) _inBudgetMap[t.id]=true; });
-      S.txs=txRes.data.map(function(r){
+      var serverTxs=txRes.data.map(function(r){
         var t={id:r.id,amount:r.amount,type:r.type,catId:r.cat_id,note:r.note||'',date:r.date};
         if(_inBudgetMap[r.id]) t.inBudget=true;
         return t;
       });
+      // Не затираем локальные записи, которые ещё не дошли до сервера (ждут в оффлайн-очереди)
+      var _srvIds={}; serverTxs.forEach(function(t){ _srvIds[t.id]=true; });
+      var _pendIds={}; offlineQueue.forEach(function(i){ if(i.op==='pushTx'&&i.data) _pendIds[i.data.id]=true; });
+      var localPending=S.txs.filter(function(t){ return _pendIds[t.id]&&!_srvIds[t.id]; });
+      S.txs=localPending.concat(serverTxs).sort(function(a,b){ return a.date<b.date?1:-1; });
     }
     if(catRes.data&&catRes.data.length>0){
       S.cats=catRes.data.map(function(r){var ic=r.icon||'';if(!ic){var b=r.id.replace(/_[a-zA-Z0-9]{1,8}$/,'');var df=DEF_CATS.find(function(d){return d.id===b||d.id===r.id;});if(df)ic=df.icon||'';}return {id:r.id,name:r.name,color:r.color,icon:ic,ctype:r.ctype||determineCtype(r.id,[...S.cats])};});
     }
     else await seedDefaultCats();
-    if(budRes.data&&budRes.data.amount&&(Date.now()-_budDirtyTs>5000)){
+    if(budRes.data&&budRes.data.amount&&Date.now()>_budLockUntil){
       var budSetAt=budRes.data.set_at||null;
       var _baseline;
       // Если в памяти уже есть spent_at_start для того же периода бюджета — сохраняем его.
@@ -165,34 +174,55 @@ async function seedDefaultCats(){
   const {error}=await db.from('categories').upsert(rows);
   if(!error){ S.cats=DEF_CATS.map((c)=>({...c,id:c.id+'_'+currentUser.id.slice(0,8),ctype:c.ctype||'expense'})); saveLocal(); }
 }
+// supabase-js не бросает исключений на ошибках запроса — возвращает {error}.
+// Поэтому везде: if(error) throw error, иначе catch никогда не сработает.
 async function pushTx(tx,isRetry=false){
   if(!currentUser) return;
-  try { await db.from('transactions').upsert({id:tx.id,user_id:currentUser.id,amount:tx.amount,type:tx.type,cat_id:tx.catId,note:tx.note||'',date:tx.date}); setSyncDot(true); }
-  catch(e){ setSyncDot(false); if(!isRetry){offlineQueue.push({op:'pushTx',data:tx}); saveQueue();} }
+  try {
+    const {error}=await db.from('transactions').upsert({id:tx.id,user_id:currentUser.id,amount:tx.amount,type:tx.type,cat_id:tx.catId,note:tx.note||'',date:tx.date});
+    if(error) throw error;
+    setSyncDot(true);
+  }
+  catch(e){ setSyncDot(false); if(isRetry) throw e; offlineQueue.push({op:'pushTx',data:tx}); saveQueue(); }
 }
-async function deleteTxRemote(id){
+async function deleteTxRemote(id,isRetry=false){
   if(!currentUser) return;
-  try { await db.from('transactions').delete().eq('id',id).eq('user_id',currentUser.id); } catch(e){}
+  try {
+    const {error}=await db.from('transactions').delete().eq('id',id).eq('user_id',currentUser.id);
+    if(error) throw error;
+  } catch(e){ if(isRetry) throw e; offlineQueue.push({op:'deleteTx',data:id}); saveQueue(); }
 }
 async function pushCats(){
   if(!currentUser) return;
-  try { await db.from('categories').upsert(S.cats.map((c,i)=>({id:c.id,user_id:currentUser.id,name:c.name,color:c.color,icon:c.icon||'',ctype:c.ctype||'expense',sort_order:i}))); setSyncDot(true); } catch(e){ setSyncDot(false); offlineQueue.push({op:'pushCats'}); saveQueue(); }
+  try {
+    const {error}=await db.from('categories').upsert(S.cats.map((c,i)=>({id:c.id,user_id:currentUser.id,name:c.name,color:c.color,icon:c.icon||'',ctype:c.ctype||'expense',sort_order:i})));
+    if(error) throw error;
+    setSyncDot(true);
+  } catch(e){ setSyncDot(false); offlineQueue.push({op:'pushCats'}); saveQueue(); }
 }
 async function pushCat(cat){
   if(!currentUser) return;
   const idx=S.cats.indexOf(cat);
   try {
-    await db.from('categories').upsert({id:cat.id,user_id:currentUser.id,name:cat.name,color:cat.color,icon:cat.icon||'',ctype:cat.ctype||'expense',sort_order:idx>=0?idx:0});
+    const {error}=await db.from('categories').upsert({id:cat.id,user_id:currentUser.id,name:cat.name,color:cat.color,icon:cat.icon||'',ctype:cat.ctype||'expense',sort_order:idx>=0?idx:0});
+    if(error) throw error;
     setSyncDot(true);
   } catch(e){ setSyncDot(false); offlineQueue.push({op:'pushCats'}); saveQueue(); }
 }
-async function deleteCatRemote(id){
+async function deleteCatRemote(id,isRetry=false){
   if(!currentUser) return;
-  try { await db.from('categories').delete().eq('id',id).eq('user_id',currentUser.id); } catch(e){}
+  try {
+    const {error}=await db.from('categories').delete().eq('id',id).eq('user_id',currentUser.id);
+    if(error) throw error;
+  } catch(e){ if(isRetry) throw e; offlineQueue.push({op:'deleteCat',data:id}); saveQueue(); }
 }
 async function pushBudget(){
   if(!currentUser) return;
-  try { await db.from('budget_settings').upsert({user_id:currentUser.id,amount:S.budget.amount,days:S.budget.days||0,deadline:S.budget.deadline,set_at:S.budget.set_at||todayStr()}); setSyncDot(true); }
+  try {
+    const {error}=await db.from('budget_settings').upsert({user_id:currentUser.id,amount:S.budget.amount,days:S.budget.days||0,deadline:S.budget.deadline,set_at:S.budget.set_at||todayStr()});
+    if(error) throw error;
+    setSyncDot(true);
+  }
   catch(e){ setSyncDot(false); offlineQueue.push({op:'pushBudget'}); saveQueue(); }
 }
 
@@ -450,12 +480,60 @@ var ANALYTICS_DEMO = {
   ]
 };
 
-function renderAnalyticsResult(body, insights, recs, demo) {
+// Кэш последнего анализа + память показанных инсайтов (для «не повторяйся»)
+var ANALYTICS_CACHE_KEY = 'tk_ai_cache';
+var ANALYTICS_SEEN_KEY  = 'tk_ai_seen';
+var ANALYTICS_CACHE_TTL = 3 * 86400000;  // старше 3 дней — не показываем, считаем заново
+var ANALYTICS_SEEN_TTL  = 30 * 86400000; // что показывали месяц назад, можно повторить
+
+function _aiCacheLoad() {
+  try {
+    var c = JSON.parse(_load(ANALYTICS_CACHE_KEY) || 'null');
+    if (c && c.ts && Date.now() - c.ts < ANALYTICS_CACHE_TTL && (c.insights || []).length) return c;
+  } catch (e) {}
+  return null;
+}
+function _aiSeenLoad() {
+  var s;
+  try { s = JSON.parse(_load(ANALYTICS_SEEN_KEY) || 'null'); } catch (e) {}
+  if (!s || !s.insights || !s.recKeys) s = { insights: [], recKeys: [] };
+  var cut = Date.now() - ANALYTICS_SEEN_TTL;
+  s.insights = s.insights.filter(function(x) { return x.ts > cut; });
+  s.recKeys  = s.recKeys.filter(function(x) { return x.ts > cut; });
+  return s;
+}
+function _aiSeenAdd(insights, recKeys) {
+  var s = _aiSeenLoad(), now = Date.now();
+  (insights || []).forEach(function(t) {
+    if (!s.insights.some(function(x) { return x.t === t; })) s.insights.push({ t: t, ts: now });
+  });
+  (recKeys || []).forEach(function(k) {
+    s.recKeys = s.recKeys.filter(function(x) { return x.k !== k; });
+    s.recKeys.push({ k: k, ts: now });
+  });
+  // Храним только хвост — больше серверу всё равно не шлём
+  s.insights = s.insights.slice(-12);
+  s.recKeys  = s.recKeys.slice(-30);
+  _store(ANALYTICS_SEEN_KEY, JSON.stringify(s));
+}
+function _fmtAnalysisDate(ts) {
+  var d = new Date(ts), n = new Date();
+  var time = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  if (d.toDateString() === n.toDateString()) return 'сегодня в ' + time;
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + ' в ' + time;
+}
+
+function renderAnalyticsResult(body, insights, recs, demo, remaining, cachedAt) {
   var sub = document.getElementById('analytics-hdr-sub');
-  if (sub) sub.textContent = demo ? 'Пример — как будет с твоими данными' : 'Анализ на основе твоих данных · Llama 3';
+  if (sub) sub.textContent = demo ? 'Пример — как будет с твоими данными'
+    : cachedAt ? 'Анализ от ' + _fmtAnalysisDate(cachedAt) + ' · Llama 3'
+    : 'Анализ на основе твоих данных · Llama 3';
   var html = '';
   if (demo) {
-    html += '<div class="analytics-demo-note">✨ Это пример. Записывай траты с комментариями — и здесь появятся твои реальные инсайты.</div>';
+    var more = (typeof remaining === 'number' && remaining > 0)
+      ? 'Добавь ещё ' + remaining + ' ' + plural(remaining, 'запись', 'записи', 'записей') + ' расходов с комментариями — и здесь появятся твои реальные инсайты.'
+      : 'Записывай траты с комментариями — и здесь появятся твои реальные инсайты.';
+    html += '<div class="analytics-demo-note">✨ Это пример. ' + more + '</div>';
   }
   if (insights.length) {
     html += '<div class="analytics-section-label">Инсайты</div>';
@@ -470,10 +548,13 @@ function renderAnalyticsResult(body, insights, recs, demo) {
     }).join('');
   }
   if (!html) html = '<div class="analytics-empty">Нет данных.</div>';
+  if (cachedAt) {
+    html += '<button class="analytics-refresh" onclick="runAnalytics(true)">Обновить анализ</button>';
+  }
   body.innerHTML = html;
 }
 
-function runAnalytics() {
+function runAnalytics(force) {
   var modal = document.getElementById('analytics-modal');
   var body = document.getElementById('analytics-body');
   if (!modal || !body) return;
@@ -488,26 +569,53 @@ function runAnalytics() {
 
   // Мало данных — показываем пример без захода в API
   if (expCount < ANALYTICS_MIN_TX) {
-    renderAnalyticsResult(body, ANALYTICS_DEMO.insights, ANALYTICS_DEMO.recommendations, true);
+    renderAnalyticsResult(body, ANALYTICS_DEMO.insights, ANALYTICS_DEMO.recommendations, true, ANALYTICS_MIN_TX - expCount);
     return;
   }
 
-  body.innerHTML = '<div class="analytics-loading"><div class="analytics-spinner"></div><span>Анализирую...</span></div>';
-  var toSend = recent.slice(-400);
+  // Кэш: повторное открытие — мгновенно готовый результат без запроса к Groq
+  if (!force) {
+    var cached = _aiCacheLoad();
+    if (cached) {
+      renderAnalyticsResult(body, cached.insights || [], cached.recommendations || [], false, 0, cached.ts);
+      return;
+    }
+  }
 
-  fetch('/api/analyze', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ txs: toSend, cats: S.cats, budget: S.budget })
+  body.innerHTML = '<div class="analytics-loading"><div class="analytics-spinner"></div><span>Анализирую...</span></div>';
+  // S.txs отсортирован от новых к старым — берём первые 400 (самые свежие)
+  var toSend = recent.slice(0, 400);
+  var seen = _aiSeenLoad();
+
+  // Серверная функция пускает к Groq только залогиненных — шлём токен сессии
+  db.auth.getSession().then(function(sess) {
+    var token = sess && sess.data && sess.data.session ? sess.data.session.access_token : '';
+    return fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + token },
+      body: JSON.stringify({
+        txs: toSend, cats: S.cats, budget: S.budget,
+        seen: {
+          insights: seen.insights.map(function(x) { return x.t; }),
+          recKeys: seen.recKeys.map(function(x) { return x.k; })
+        }
+      })
+    });
   }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.error === 'unauthorized') {
+      body.innerHTML = '<div class="analytics-empty">Анализ доступен после синхронизации с сервером — проверь соединение и попробуй ещё раз.</div>';
+      return;
+    }
     if (data.error === 'few_data') {
-      renderAnalyticsResult(body, ANALYTICS_DEMO.insights, ANALYTICS_DEMO.recommendations, true);
+      renderAnalyticsResult(body, ANALYTICS_DEMO.insights, ANALYTICS_DEMO.recommendations, true, ANALYTICS_MIN_TX - expCount);
       return;
     }
     if (data.error === 'unavailable' || (!data.insights && !data.recommendations)) {
       body.innerHTML = '<div class="analytics-empty">Нет соединения — попробуй позже.</div>';
       return;
     }
+    _store(ANALYTICS_CACHE_KEY, JSON.stringify({ ts: Date.now(), insights: data.insights || [], recommendations: data.recommendations || [] }));
+    _aiSeenAdd(data.insights || [], data.recKeys || []);
     renderAnalyticsResult(body, data.insights || [], data.recommendations || [], false);
   }).catch(function() {
     body.innerHTML = '<div class="analytics-empty">Нет соединения — попробуй позже.</div>';
@@ -526,14 +634,11 @@ function renderModeRow(){
   }
   var enter=document.getElementById('np-enter');
   if(enter) enter.className='np-btn np-enter'+(S.type==='income'?' inc-mode':'');
-  renderAmountRow();
 }
 function toggleType(){ setType(S.type==='expense'?'income':'expense'); }
 function setType(t){
   S.type=t; S.catId=null;
-  renderModeRow();
-  renderCatRow();
-  renderMain();
+  renderMain(); // renderMain сам вызывает renderAmountRow/renderModeRow/renderCatRow
 }
 
 // ── NUMPAD ────────────────────────────────────────────────────────────────────
@@ -920,7 +1025,7 @@ async function saveBudget(){
   // Сбрасываем inBudget-флаги — их сумма уже поглощена в сохранённый amt
   S.txs.forEach(function(t){ if(t.inBudget) t.inBudget=false; });
 
-  _budDirtyTs = Date.now() + 30000; // защита 30 сек от перезаписи синком
+  _budLockUntil = Date.now() + 30000; // защита 30 сек от перезаписи синком
   saveLocal();
 
   show('s-main');
@@ -930,7 +1035,7 @@ async function saveBudget(){
 
   toast('Бюджет установлен');
   await pushBudget();
-  _budDirtyTs = Date.now();
+  _budLockUntil = Date.now() + 5000;
 }
 
 
@@ -982,28 +1087,6 @@ function renderCats(){
     +`</div>`;
   cl.innerHTML=emptyMsg+catItems+addItem;
 }
-function defaultInBudget(catId){
-  if(!catId) return false;
-  const base=catId.replace(/_[a-zA-Z0-9]{1,8}$/,'');
-  if(base==='salary'||base==='freelance') return false;
-  if(base==='gift'||base==='debt_ret') return true;
-  return false; // кастомные income: безопасный default
-}
-function setIncomeBudget(val){
-  S.incomeInBudget=val;
-  renderIncomeBudgetToggle();
-}
-function renderIncomeBudgetToggle(){
-  const row=document.getElementById('inc-budget-row');
-  if(!row) return;
-  const hasBudget=S.budget&&S.budget.amount>0&&S.budget.deadline&&S.budget.deadline>=todayStr();
-  row.style.display=(S.type==='income'&&hasBudget)?'':'none';
-  const noBtn=document.getElementById('inc-bud-no');
-  const yesBtn=document.getElementById('inc-bud-yes');
-  if(noBtn) noBtn.classList.toggle('on',!S.incomeInBudget);
-  if(yesBtn) yesBtn.classList.toggle('on',S.incomeInBudget);
-}
-
 function showMyCode(){
   const code=localStorage.getItem(K_CODE)||(currentUser&&currentUser.user_metadata&&currentUser.user_metadata.code)||'';
   if(!code){toast('Код не привязан');return;}
@@ -1035,7 +1118,10 @@ function importData(e){
       saveLocal();
       if(currentUser){
         const txRows=S.txs.map(t=>({id:t.id,user_id:currentUser.id,amount:t.amount,type:t.type,cat_id:t.catId,note:t.note||'',date:t.date}));
-        if(txRows.length) await db.from('transactions').upsert(txRows);
+        if(txRows.length){
+          const {error}=await db.from('transactions').upsert(txRows);
+          if(error){ setSyncDot(false); S.txs.forEach(t=>offlineQueue.push({op:'pushTx',data:t})); saveQueue(); }
+        }
         pushCats(); pushBudget();
       }
       renderMain(); renderSettings(); toast('Данные импортированы');
@@ -1046,18 +1132,21 @@ function importData(e){
 }
 async function clearAll(){
   if(!await customConfirm('Сбросить всё? Все транзакции и бюджет удалятся, категории вернутся к стандартным.','Сбросить')) return;
-  offlineQueue=[]; saveQueue();
-  S.txs=[];S.cats=[...DEF_CATS];S.budget={amount:0,deadline:null};
-  saveLocal();
   if(currentUser){
-    // Сначала удалить ВСЁ из Supabase (sequentially, не fire-and-forget)
-    await db.from('transactions').delete().eq('user_id',currentUser.id);
-    await db.from('budget_settings').delete().eq('user_id',currentUser.id);
-    await db.from('categories').delete().eq('user_id',currentUser.id);
-    try { await db.from('budget_history').delete().eq('user_id',currentUser.id); } catch(e){} // таблица может остаться в БД, чистим на всякий
-    // Затем посеять дефолтные категории заново
-    await seedDefaultCats();
+    // Сначала удалить ВСЁ из Supabase — если не вышло, не трогаем локальные данные,
+    // иначе после reload синк вернёт «удалённое» с сервера
+    const results=await Promise.all([
+      db.from('transactions').delete().eq('user_id',currentUser.id),
+      db.from('budget_settings').delete().eq('user_id',currentUser.id),
+      db.from('categories').delete().eq('user_id',currentUser.id),
+    ]);
+    if(results.some(r=>r.error)){ toast('Не удалось очистить сервер — проверь соединение'); return; }
+    await db.from('budget_history').delete().eq('user_id',currentUser.id); // таблицы может не быть — ошибку игнорируем
   }
+  offlineQueue=[]; saveQueue();
+  S.txs=[];S.cats=[...DEF_CATS];S.budget=emptyBudget();
+  saveLocal();
+  if(currentUser) await seedDefaultCats();
   toast('Данные сброшены');
   setTimeout(()=>location.reload(),800);
 }
@@ -1115,9 +1204,10 @@ function saveCat(){
   if(!name){toast('Введите название');return;}
   if(_editCatId){
     const idx=S.cats.findIndex(c=>c.id===_editCatId);
-    if(idx>=0) S.cats[idx]={...S.cats[idx],name,color:S.budColor,icon:S.budIcon||ICON_OPTIONS[0]};
     _editCatId=null;
-    saveLocal();pushCat(S.cats[idx>=0?idx:0]);hideCatModal();renderCats();renderSettings();renderCatRow();
+    if(idx<0){ hideCatModal(); return; }
+    S.cats[idx]={...S.cats[idx],name,color:S.budColor,icon:S.budIcon||ICON_OPTIONS[0]};
+    saveLocal();pushCat(S.cats[idx]);hideCatModal();renderCats();renderSettings();renderCatRow();
     toast('"'+name+'" обновлена');
   } else {
     const onCats=!document.getElementById('s-cats').classList.contains('hidden');
@@ -1134,7 +1224,18 @@ function saveCat(){
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function getCat(id){ if(!id) return {name:'Без категории',color:'#9E9E9E',icon:''}; return S.cats.find(function(x){return x.id===id;})||{name:'Без категории',color:'#9E9E9E',icon:''}; }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function localDateStr(isoStr){ const d=new Date(isoStr); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+// Мемоизация: вызывается на каждую транзакцию при каждом рендере, new Date() дорогой
+const _ldsCache=new Map();
+function localDateStr(isoStr){
+  let v=_ldsCache.get(isoStr);
+  if(v===undefined){
+    const d=new Date(isoStr);
+    v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if(_ldsCache.size>10000) _ldsCache.clear();
+    _ldsCache.set(isoStr,v);
+  }
+  return v;
+}
 function daysUntil(ds){
   if(!ds||typeof ds!=='string') return 1;
   const p=ds.split('-'); const t=new Date(+p[0],+p[1]-1,+p[2]);
@@ -1318,17 +1419,18 @@ function toastUndo(){
   toast('Отменено');
 }
 
+// msg всегда эскейпим — туда попадают пользовательские строки (имена категорий)
 function toastWithUndo(msg, tx){
   _lastTx=tx;
   const t=document.getElementById('toast');
-  t.innerHTML='<span>'+msg+'</span><button class="toast-undo" onclick="toastUndo()">Отменить</button>';
+  t.innerHTML='<span>'+esc(msg)+'</span><button class="toast-undo" onclick="toastUndo()">Отменить</button>';
   t.classList.add('show','toast--undo');
   clearTimeout(t._t);
-  t._t=setTimeout(function(){ t.classList.remove('show','toast--undo'); _lastTx=null; }, 4000);
+  t._t=setTimeout(function(){ t.classList.remove('show','toast--undo'); _lastTx=null; }, 6000);
 }
 function toast(msg){
   const t=document.getElementById('toast');
-  t.innerHTML='<span>'+msg+'</span>';
+  t.innerHTML='<span>'+esc(msg)+'</span>';
   t.classList.remove('toast--undo');
   t.classList.add('show');
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);
@@ -1457,7 +1559,7 @@ async function recoverWithCode(){
     localStorage.setItem(K_CODE,code);currentUser=data.user;
     document.getElementById('s-auth').style.display='none';
     // Не подгружаем локальные данные предыдущего юзера — берём только с сервера
-    S.txs=[];S.cats=[];S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0};
+    S.txs=[];S.cats=[];S.budget=emptyBudget();
     saveLocal();
     goMain();
     await syncFromSupabase();
@@ -1542,7 +1644,7 @@ async function submitEnterCode(){
     currentUser=data.user;
     hideEnterCodeModal();
     // Reset local data and sync from server
-    S.txs=[];S.cats=[];S.budget={amount:0,days:0,deadline:null,set_at:null,spent_at_start:0};
+    S.txs=[];S.cats=[];S.budget=emptyBudget();
     saveLocal();
     await syncFromSupabase();
     renderMain();
@@ -1803,11 +1905,11 @@ async function obSaveBudget(){
   var now=new Date().toISOString();
   var spentAtStart=S.txs.filter(t=>t.type==='expense').reduce((sum,t)=>sum+t.amount,0);
   S.budget={amount:amt,days:_obBudDays,deadline,set_at:startDate,reset_ts:now,spent_at_start:spentAtStart};
-  _budDirtyTs=Date.now()+30000;
+  _budLockUntil=Date.now()+30000;
   saveLocal();
   toast('Бюджет установлен');
   await pushBudget();
-  _budDirtyTs=Date.now();
+  _budLockUntil=Date.now()+5000;
   obNext();
 }
 

@@ -18,6 +18,8 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const { request } = e;
+  // POST и прочие мутации не кэшируем (cache.put с POST бросает TypeError)
+  if (request.method !== 'GET') return;
   const url = new URL(request.url);
 
   // Supabase API — только сеть, не кэшируем
