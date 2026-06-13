@@ -384,7 +384,15 @@ export default async function handler(req, res) {
   const staleRecs = recs.filter(r => seenRecKeys.has(r.key));
   const picked = freshRecs.concat(staleRecs).slice(0, 4).sort((a, b) => b.save - a.save);
   if (!picked.length) {
-    picked.push({ key: 'all_good', save: 0, text: 'Траты под контролем — резких аномалий и перерасхода нет. Продолжай фиксировать расходы с комментариями, чтобы анализ был точнее.' });
+    // Гарантированный совет: главный рычаг — крупнейшая категория. Лучше пустого
+    // «всё под контролем», из-за которого казалось, что фича не работает.
+    const t = catRows[0];
+    if (t && curTotal > 0 && t.cur >= 1000) {
+      const pct = Math.round(t.cur / curTotal * 100);
+      picked.push({ key: 'top:' + t.name, save: round(t.cur * 0.1), text: `Резких аномалий нет. Главный рычаг — «${t.name}»: ${rub(t.cur)}/мес (${pct}% трат), ${yr(t.cur)} за год. Урежешь на 10% — оставишь у себя ${rub(round(t.cur * 0.1))}/мес.` });
+    } else {
+      picked.push({ key: 'all_good', save: 0, text: 'Пока мало данных для рекомендаций. Записывай траты с комментариями и задай бюджет — анализ станет точнее.' });
+    }
   }
   const recommendations = picked.map(r => r.text);
   const recKeys = picked.map(r => r.key);
