@@ -68,6 +68,7 @@ export default async function handler(req, res) {
 
   const facts = [];   // материал для ИНСАЙТОВ (идёт в LLM)
   const recs  = [];   // готовые РЕКОМЕНДАЦИИ {key, save, text} — отдаём напрямую, без LLM
+  let savingsRate = null;   // % дохода отложено — для персонализации fallback-рекомендации
   // key — стабильный идентификатор темы рекомендации: по нему клиент помнит,
   // что уже показывал, и сервер опускает повторы в пользу свежих
 
@@ -83,6 +84,7 @@ export default async function handler(req, res) {
   if (curInc > 0) {
     const saved = curInc - curTotal;
     const rate = Math.round(saved / curInc * 100);
+    savingsRate = rate;
     if (saved >= 0) {
       facts.push(`Доход за 30 дней ${rub(curInc)}, расход ${rub(curTotal)} — отложить удалось ${rub(saved)} (${rate}% дохода).`);
     } else {
@@ -117,7 +119,7 @@ export default async function handler(req, res) {
 
   if (catRows.length) {
     const top = catRows[0];
-    facts.push(`Самая крупная категория — ${top.name}: ${rub(top.cur)} (${Math.round(top.share * 100)}% всех трат).`);
+    facts.push(`Самая крупная категория — «${top.name}»: ${rub(top.cur)} (${Math.round(top.share * 100)}% всех трат).`);
   }
 
   if (hasPrev) {
@@ -125,7 +127,7 @@ export default async function handler(req, res) {
       if (r.cur < 300) return;
       if (r.prev === 0) {
         if (r.cur >= 700) {
-          facts.push(`Новая статья: ${r.name} — ${rub(r.cur)} (в прошлом периоде не было).`);
+          facts.push(`Новая статья: «${r.name}» — ${rub(r.cur)} (в прошлом периоде не было).`);
           recs.push({ key: 'newcat:' + r.name, save: round(r.cur * 0.5), text: `Появилась новая статья «${r.name}» на ${rub(r.cur)}. Проверь: разовая это трата или новая регулярная — если регулярная, заложи её в бюджет заранее.` });
         }
         return;
@@ -137,13 +139,13 @@ export default async function handler(req, res) {
         // аннуализировать и советовать «экономь каждый месяц» нельзя.
         const catMax = Math.max(...curExp.filter(t => t.catId === r.id).map(t => t.amount));
         const oneOff = catMax >= r.cur * 0.55;
-        facts.push(`${r.name}: ${rub(r.cur)} — рост на ${deltaPct}% к прошлым 30 дням (было ${rub(r.prev)}, +${rub(deltaAbs)})${oneOff ? ', в основном из-за крупной разовой траты' : ''}.`);
+        facts.push(`«${r.name}»: ${rub(r.cur)} — рост на ${deltaPct}% к прошлым 30 дням (было ${rub(r.prev)}, +${rub(deltaAbs)})${oneOff ? ', в основном из-за крупной разовой траты' : ''}.`);
         if (!oneOff) {
-          recs.push({ key: 'growth:' + r.name, save: deltaAbs, text: `${r.name} выросла на ${deltaPct}% за месяц (+${rub(deltaAbs)}). Разберись, что добавилось — вернув к прежним ${rub(r.prev)}, сэкономишь ${rub(deltaAbs)}/мес, ${yr(deltaAbs)} за год.` });
+          recs.push({ key: 'growth:' + r.name, save: deltaAbs, text: `«${r.name}» выросла на ${deltaPct}% за месяц (+${rub(deltaAbs)}). Разберись, что добавилось — вернув к прежним ${rub(r.prev)}, сэкономишь ${rub(deltaAbs)}/мес, ${yr(deltaAbs)} за год.` });
           grownCats.add(r.id);
         }
       } else if (deltaPct <= -25 && -deltaAbs >= 300) {
-        facts.push(`${r.name}: ${rub(r.cur)} — снижение на ${Math.abs(deltaPct)}% к прошлым 30 дням (было ${rub(r.prev)}).`);
+        facts.push(`«${r.name}»: ${rub(r.cur)} — снижение на ${Math.abs(deltaPct)}% к прошлым 30 дням (было ${rub(r.prev)}).`);
       }
     });
   }
@@ -257,7 +259,7 @@ export default async function handler(req, res) {
   const catCount = {};
   curExp.forEach(t => { catCount[t.catId] = (catCount[t.catId] || 0) + 1; });
   Object.entries(catCount).forEach(([id, n]) => {
-    if (n >= 10) facts.push(`${catName(id)}: ${n} покупок за месяц в среднем по ${rub(byCatCur[id] / n)} — частая привычка.`);
+    if (n >= 10) facts.push(`«${catName(id)}»: ${n} покупок за месяц в среднем по ${rub(byCatCur[id] / n)} — частая привычка.`);
   });
 
   // ── крупнейшие разовые траты ────────────────────────────────────
@@ -265,7 +267,7 @@ export default async function handler(req, res) {
   const big = [...curExp].sort((a, b) => b.amount - a.amount).slice(0, 3)
     .filter(t => t.amount >= avgTx * 2.5 && t.amount >= 1000);
   if (big.length) {
-    facts.push(`Крупнейшие разовые траты: ${big.map(t => `${rub(t.amount)} (${t.note ? t.note : catName(t.catId)})`).join(', ')}.`);
+    facts.push(`Крупнейшие разовые траты: ${big.map(t => `${rub(t.amount)} (${t.note ? t.note : '«' + catName(t.catId) + '»'})`).join(', ')}.`);
   }
 
   // ── прогноз бюджета ──────────────────────────────────────────────
@@ -287,7 +289,7 @@ export default async function handler(req, res) {
         facts.push(`Бюджет уже превышен на ${rub(overNow)}${remaining > 0 ? `, а до конца срока ещё ${remaining} дн.` : ''}.`);
         recs.push(remaining > 0
           ? { key: 'budget_over', save: overNow, text: `Бюджет уже превышен на ${rub(overNow)}, а до конца ${remaining} дн. Поставь стоп на необязательное — доставку и развлечения — чтобы не уходить в минус глубже.` }
-          : { key: 'budget_closed', save: overNow, text: `Период закрылся с перерасходом ${rub(overNow)}. На следующий заложи бюджет реалистичнее или заранее ужми крупнейшую категорию${catRows[0] ? ` — ${catRows[0].name}` : ''}.` });
+          : { key: 'budget_closed', save: overNow, text: `Период закрылся с перерасходом ${rub(overNow)}. На следующий заложи бюджет реалистичнее или заранее ужми крупнейшую категорию${catRows[0] ? ` — «${catRows[0].name}»` : ''}.` });
       } else {
         facts.push(`Бюджет выбран полностью (${rub(spent)} из ${rub(budget.amount)}).`);
       }
@@ -317,7 +319,7 @@ export default async function handler(req, res) {
       const avgCur = r.cur / nc, avgPrev = r.prev / np;
       const growth = Math.round((avgCur - avgPrev) / avgPrev * 100);
       if (growth >= 25 && avgCur - avgPrev >= 100) {
-        facts.push(`${r.name}: покупок столько же (${nc} за месяц), но средний чек вырос с ${rub(avgPrev)} до ${rub(avgCur)} (+${growth}%).`);
+        facts.push(`«${r.name}»: покупок столько же (${nc} за месяц), но средний чек вырос с ${rub(avgPrev)} до ${rub(avgCur)} (+${growth}%).`);
         if (!grownCats.has(r.id)) {
           const extra = round((avgCur - avgPrev) * nc);
           recs.push({ key: 'avgcheck:' + r.name, save: extra, text: `В «${r.name}» покупаешь так же часто, но средний чек вырос на ${growth}% — это +${rub(extra)}/мес. Глянь, что подорожало: возможно, есть замена дешевле.` });
@@ -402,6 +404,8 @@ export default async function handler(req, res) {
     if (t) {
       const pct = Math.round(t.cur / curTotal * 100);
       picked.push({ key: 'top:' + t.name, save: round(t.cur * 0.1), text: `Резких аномалий нет. Главный рычаг — «${t.name}»: ${rub(t.cur)}/мес (${pct}% трат), ${yr(t.cur)} за год. Урежешь на 10% — оставишь у себя ${rub(round(t.cur * 0.1))}/мес.` });
+    } else if (savingsRate !== null && savingsRate >= 20) {
+      picked.push({ key: 'all_good', save: 0, text: `Ты откладываешь ${savingsRate}% дохода — отлично. Резких трат нет; для детальных советов нужно больше регулярных трат с заметками.` });
     } else {
       picked.push({ key: 'all_good', save: 0, text: 'Резких аномалий и перерасхода нет. Записывай траты с комментариями и задай бюджет — со временем анализ найдёт, на чём сэкономить.' });
     }
@@ -435,7 +439,10 @@ ${factsBlock}
 КОММЕНТАРИИ К ТРАТАМ (что человек писал сам — здесь конкретные привычки и состав категорий, не видные по названию категории):
 ${notesBlock}${seenBlock}
 
-ЗАДАЧА: выбери 2-3 самых важных и неочевидных инсайта — то, что человек сам не замечает (состав категории по комментариям, сдвиг к прошлому месяцу, привычка, норма сбережений, перекос). Если во входе есть разбивка категории по комментариям (строки «Внутри ...») — обязательно построй на ней хотя бы один инсайт: что именно внутри категории съедает деньги и какая это доля. Если данных мало — дай 1-2 точных инсайта, не выдумывай третий.
+ЗАДАЧА: выбери 2-3 самых важных и неочевидных инсайта — то, что человек сам не замечает (состав категории по комментариям, сдвиг к прошлому месяцу, привычка, перекос).
+- Если в фактах есть норма сбережений (сколько % дохода отложено) или перерасход — ОБЯЗАТЕЛЬНО сделай это одним из инсайтов и сохрани процент. Высокую норму сбережений отметь как успех.
+- Если есть разбивка категории по комментариям (строки «Внутри ...») — построй на ней хотя бы один инсайт: что именно внутри категории съедает деньги и какая это доля.
+- Если данных мало — дай 1-2 точных инсайта, не выдумывай третий.
 
 Ответь ТОЛЬКО JSON-объектом вида:
 {"insights":[{"emoji":"☕","text":"..."}]}
@@ -443,8 +450,10 @@ ${notesBlock}${seenBlock}
 Правила:
 - emoji — один эмодзи по теме инсайта.
 - text: на «ты», по-дружески, коротко (до ~18 слов). Начинай с числа или факта.
+- ОБЪЯСНЯЙ, а не пересказывай. Плохо: «7 265₽ — Подарки» (голая сумма). Хорошо: «65% трат в месяце — разовые «Подарки»» (доля, вывод).
+- Названия категорий пиши в кавычках-ёлочках: «Еда», «Подарки».
 - Числа и названия бери ДОСЛОВНО из входа (формат «4500₽» не меняй). Если нужного числа во входе нет — не пиши его.
-- Без оценочных эпитетов («необычная», «тревожная»), без банальностей, без советов и сумм экономии.
+- Без драматизации («необычная», «тревожная») и банальностей; без советов и сумм экономии — это делают рекомендации. Хороший показатель (высокую норму сбережений) можно похвалить.
 - Не повторяй мысли из блока «уже показывал», даже другими словами.`;
 
   let insights;
