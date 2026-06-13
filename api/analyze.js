@@ -101,6 +101,16 @@ export default async function handler(req, res) {
     share: curTotal > 0 ? byCatCur[id] / curTotal : 0
   })).sort((a, b) => b.cur - a.cur);
 
+  // Категория «регулярная» = несколько покупок и нет одной доминирующей разовой.
+  // Только такую честно проецировать на год (×12) и предлагать урезать —
+  // иначе советуем «экономить каждый месяц» на разовых подарках/покупках.
+  const catTxs = {};
+  curExp.forEach(t => { (catTxs[t.catId] = catTxs[t.catId] || []).push(t.amount); });
+  const isRecurringCat = (id, total) => {
+    const a = catTxs[id] || [];
+    return a.length >= 3 && Math.max(...a) < total * 0.55;
+  };
+
   // Категории, по которым уже дали рекомендацию о росте суммы, —
   // чтобы не дублировать её рекомендацией о росте среднего чека
   const grownCats = new Set();
@@ -233,7 +243,8 @@ export default async function handler(req, res) {
   // главную статью (безопасно даже для обязательных категорий вроде жилья).
   if (catRows.length && (!budget || !budget.amount) && curTotal > 0) {
     const t = catRows[0];
-    if (t.cur >= 2000 && t.cur / curTotal >= 0.45) {
+    // только регулярная категория — годовую проекцию на разовых подарках не даём
+    if (t.cur >= 2000 && t.cur / curTotal >= 0.45 && isRecurringCat(t.id, t.cur)) {
       recs.push({
         key: 'concentration',
         save: round(t.cur * 0.05),
@@ -384,14 +395,15 @@ export default async function handler(req, res) {
   const staleRecs = recs.filter(r => seenRecKeys.has(r.key));
   const picked = freshRecs.concat(staleRecs).slice(0, 4).sort((a, b) => b.save - a.save);
   if (!picked.length) {
-    // Гарантированный совет: главный рычаг — крупнейшая категория. Лучше пустого
-    // «всё под контролем», из-за которого казалось, что фича не работает.
-    const t = catRows[0];
-    if (t && curTotal > 0 && t.cur >= 1000) {
+    // Гарантированный совет: главный рычаг — крупнейшая РЕГУЛЯРНАЯ категория.
+    // Разовые всплески (подарки, крупная покупка) пропускаем — их нельзя честно
+    // проецировать на год и советовать «урезать на 10%/мес».
+    const t = (curTotal > 0 ? catRows : []).find(r => r.cur >= 1000 && isRecurringCat(r.id, r.cur));
+    if (t) {
       const pct = Math.round(t.cur / curTotal * 100);
       picked.push({ key: 'top:' + t.name, save: round(t.cur * 0.1), text: `Резких аномалий нет. Главный рычаг — «${t.name}»: ${rub(t.cur)}/мес (${pct}% трат), ${yr(t.cur)} за год. Урежешь на 10% — оставишь у себя ${rub(round(t.cur * 0.1))}/мес.` });
     } else {
-      picked.push({ key: 'all_good', save: 0, text: 'Пока мало данных для рекомендаций. Записывай траты с комментариями и задай бюджет — анализ станет точнее.' });
+      picked.push({ key: 'all_good', save: 0, text: 'Резких аномалий и перерасхода нет. Записывай траты с комментариями и задай бюджет — со временем анализ найдёт, на чём сэкономить.' });
     }
   }
   const recommendations = picked.map(r => r.text);
