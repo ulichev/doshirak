@@ -100,7 +100,6 @@ function loadLocal(){
         S.txs.filter(function(t){ if(t.type!=='expense') return false; if(!_lbSetAt) return true; return localDateStr(t.date)<_lbSetAt; }).reduce(function(s,t){ return s+t.amount; },0);
       S.budget={amount:Number(_sb.amount)||0,days:Number(_sb.days)||0,deadline:_sb.deadline||null,set_at:_lbSetAt,spent_at_start:_lbBaseline};
     } else { S.budget=emptyBudget(); }
-    S.budDays=S.budget.days||0;
   } catch(e){ S.txs=[]; S.cats=[...DEF_CATS]; S.budget=emptyBudget(); }
 }
 function _store(k,v){ try{localStorage.setItem(k,v);}catch(e){} try{sessionStorage.setItem(k,v);}catch(e){} }
@@ -156,7 +155,6 @@ async function syncFromSupabase(){
         }).reduce(function(sum,t){ return sum+t.amount; },0);
       }
       S.budget={amount:Number(budRes.data.amount)||0,days:Number(budRes.data.days)||0,deadline:budRes.data.deadline||null,set_at:budSetAt,spent_at_start:_baseline};
-      S.budDays=S.budget.days||0;
     }
     saveLocal(); setSyncDot(true); renderMain(); processQueue();
   } catch(e){
@@ -887,20 +885,19 @@ function renderBudgetScreen(){
   if(_ruble){ _ruble.style.color = existAmt !== '' ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.18)'; }
   fitInputToMirror(inp, _mirror);
 
-  // Текущие дни из сохранённого бюджета (пересчитываем из deadline)
-  var existDays = 0;
-  if(S.budget && S.budget.days) {
-    existDays = S.budget.days;
-  } else if(S.budget && S.budget.deadline && S.budget.set_at) {
-    var d1 = new Date(S.budget.set_at), d2 = new Date(S.budget.deadline);
-    existDays = Math.max(1, Math.round((d2-d1)/86400000)+1);
-  }
-  S.budDays = existDays || S.budget.days || 0;
-
+  // Дата окончания — это фиксированная сохранённая дата (deadline), а не «N дней от сегодня».
+  // Поэтому показываем сохранённый deadline как есть, а S.budDays считаем как остаток дней
+  // от сегодня до этого дедлайна (чтобы пересохранение давало ровно ту же дату, без дрейфа).
   var dInp = document.getElementById('bud-date-input');
   if(dInp){
     dInp.min = todayStr();
-    dInp.value = S.budDays > 0 ? daysToDeadline(S.budDays) : '';
+    if(S.budget && S.budget.deadline){
+      dInp.value = S.budget.deadline;
+      S.budDays = Math.max(daysBetween(todayStr(), S.budget.deadline) + 1, 1);
+    } else {
+      dInp.value = '';
+      S.budDays = 0;
+    }
   }
   updateBudDateBtn();
   updateBudgetPreview();
@@ -1114,7 +1111,6 @@ function importData(e){
       var ibBaseline=(ib.spent_at_start!=null)?Number(ib.spent_at_start)
         :S.txs.filter(t=>{if(t.type!=='expense')return false;if(!ibSetAt)return true;return localDateStr(t.date)<ibSetAt;}).reduce((s,t)=>s+t.amount,0);
       S.budget={amount:Number(ib.amount)||0,days:Number(ib.days)||0,deadline:ib.deadline||null,set_at:ibSetAt,spent_at_start:ibBaseline,reset_ts:ib.reset_ts||null};
-      S.budDays=S.budget.days||0;
       saveLocal();
       if(currentUser){
         const txRows=S.txs.map(t=>({id:t.id,user_id:currentUser.id,amount:t.amount,type:t.type,cat_id:t.catId,note:t.note||'',date:t.date}));
