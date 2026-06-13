@@ -210,7 +210,37 @@ export default async function handler(req, res) {
     let line = `Внутри «${r.name}» (${rub(r.cur)}): ${parts.join(', ')}`;
     if (rest >= r.cur * 0.1) line += `; остальное — ${rub(rest)} (${Math.round(rest / r.cur * 100)}%)`;
     facts.push(line + '.');
+
+    // РЕКОМЕНДАЦИЯ: крупнейший «скрытый кусок» категории. Работает на 1 месяце
+    // (прошлый период не нужен). Текст фактический, прескриптив мягкий — не знаем
+    // наверняка, обязательная это трата. count≥3 → это повтор, а не разовый всплеск,
+    // поэтому годовую проекцию давать честно. Дедуп против habit и подписок.
+    const lead = shown[0];
+    const leadKey = norm(lead.label);
+    const dupHabit = habit && norm(habit.label) === leadKey;
+    const dupSub = topSubs.some(s => norm(s.label) === leadKey);
+    if (!dupHabit && !dupSub && lead.count >= 3 && lead.total >= 1500 && lead.total >= r.cur * 0.30) {
+      recs.push({
+        key: 'chunk:' + leadKey,
+        save: round(lead.total * 0.3),
+        text: `«${lead.label}» — это ${Math.round(lead.total / r.cur * 100)}% твоей «${r.name}»: ${rub(lead.total)}/мес за ${lead.count} раз, ${yr(lead.total)} за год. По отдельным чекам незаметно — глянь, что здесь можно урезать.`
+      });
+    }
   });
+
+  // ── концентрация: топ-категория съедает большую долю (работает на 1 мес) ──
+  // Прошлый период не нужен. Если бюджета нет — подсказываем задать его на
+  // главную статью (безопасно даже для обязательных категорий вроде жилья).
+  if (catRows.length && (!budget || !budget.amount) && curTotal > 0) {
+    const t = catRows[0];
+    if (t.cur >= 2000 && t.cur / curTotal >= 0.45) {
+      recs.push({
+        key: 'concentration',
+        save: round(t.cur * 0.05),
+        text: `«${t.name}» — ${Math.round(t.cur / curTotal * 100)}% всех трат (${rub(t.cur)}/мес, ${yr(t.cur)} за год), твоя крупнейшая статья. Задай на неё бюджет — так проще держать под контролем.`
+      });
+    }
+  }
 
   // ── привычка по категории (если заметок нет) ────────────────────
   const catCount = {};
