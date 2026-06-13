@@ -468,13 +468,11 @@ var ANALYTICS_MIN_TX = 8;
 var ANALYTICS_DEMO = {
   insights: [
     '🛵 42% твоей «Еды» — это доставка: 6 000₽ за 8 заказов, по чеку незаметно.',
-    '📈 «Кафе» выросло на 90% за месяц — +10 110₽ к прошлому периоду.',
     '💸 38% дохода отложено — отличный темп, держи планку.'
   ],
   recommendations: [
     '«доставка» — это 42% твоей «Еды»: 6 000₽/мес за 8 раз, 72 000₽ за год. По отдельным чекам незаметно — глянь, что здесь можно урезать.',
-    'Регулярные платежи — 3 067₽/мес (Netflix, Spotify, iCloud), а за год это 36 804₽. Пройдись по списку и отмени то, чем не пользуешься — деньги списываются незаметно.',
-    '«кофе» — 14 раз за месяц на 4 060₽, а за год это 48 720₽. По чеку незаметно, но даже срезав вдвое, оставишь у себя 2 030₽/мес.'
+    'Регулярные платежи — 3 067₽/мес (Netflix, Spotify, iCloud), а за год это 36 804₽. Пройдись по списку и отмени то, чем не пользуешься — деньги списываются незаметно.'
   ]
 };
 
@@ -524,8 +522,8 @@ function _fmtAnalysisDate(ts) {
 function renderAnalyticsResult(body, insights, recs, demo, remaining, cachedAt) {
   var sub = document.getElementById('analytics-hdr-sub');
   if (sub) sub.textContent = demo ? 'Пример — как будет с твоими данными'
-    : cachedAt ? 'Анализ от ' + _fmtAnalysisDate(cachedAt) + ' · Llama 3'
-    : 'Анализ на основе твоих данных · Llama 3';
+    : cachedAt ? 'За 30 дней · от ' + _fmtAnalysisDate(cachedAt)
+    : 'За 30 дней · Llama 3';
   var html = '';
   if (demo) {
     var more = (typeof remaining === 'number' && remaining > 0)
