@@ -544,10 +544,9 @@ function renderAnalyticsResult(body, insights, recs, demo, remaining, cachedAt) 
     }).join('');
   }
   if (!html) html = '<div class="analytics-empty">Нет данных.</div>';
-  if (cachedAt) {
-    html += '<button class="analytics-refresh" onclick="runAnalytics(true)">Обновить анализ</button>';
-  }
   body.innerHTML = html;
+  var refreshBtn = document.getElementById('analytics-refresh-btn');
+  if (refreshBtn) refreshBtn.style.display = cachedAt ? '' : 'none';
 }
 
 function runAnalytics(force) {
@@ -555,6 +554,8 @@ function runAnalytics(force) {
   var body = document.getElementById('analytics-body');
   if (!modal || !body) return;
   modal.classList.add('vis');
+  var refreshBtn = document.getElementById('analytics-refresh-btn');
+  if (refreshBtn) refreshBtn.style.display = 'none';
 
   // Шлём 60 дней — движок сравнивает текущий период с предыдущим
   var cutoff = new Date();
@@ -1732,8 +1733,8 @@ function buildObSlides(code){
     },
     {
       icon:'🤖',
-      title:'ИИ-анализ трат',
-      text:'Накопишь записей — нажми «ИИ-анализ трат» внизу истории. Нейросеть разберёт твои расходы и скажет, где реально утекают деньги.',
+      title:'AI-анализ трат',
+      text:'Накопишь записей — нажми «AI-анализ трат» внизу истории. Нейросеть разберёт твои расходы и скажет, где реально утекают деньги.',
       btn:'Красавчик!'
     },
     {
