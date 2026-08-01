@@ -334,6 +334,31 @@ function fitBudgetNum(el){
   el.style.setProperty('font-size', size+'px', 'important');
   el.style.setProperty('letter-spacing', ls, 'important');
 }
+// Транзакция попадает в текущий период бюджета: от момента запуска (reset_ts,
+// для старых бюджетов — set_at) до дедлайна включительно.
+// Считаем именно по периоду, а не «всего потрачено минус отметка на старте»:
+// иначе правка или удаление старой траты вне периода двигает остаток.
+function inBudgetPeriod(t){
+  if(!S.budget) return false;
+  if(S.budget.reset_ts){ if(t.date<S.budget.reset_ts) return false; }
+  else if(S.budget.set_at){ if(localDateStr(t.date)<S.budget.set_at) return false; }
+  if(S.budget.deadline&&localDateStr(t.date)>S.budget.deadline) return false;
+  return true;
+}
+function spentInBudgetPeriod(){
+  return S.txs.filter(function(t){ return t.type==='expense'&&inBudgetPeriod(t); })
+              .reduce(function(s,t){ return s+t.amount; },0);
+}
+function incomeInBudgetPeriod(){
+  return S.txs.filter(function(t){ return t.type==='income'&&t.inBudget&&inBudgetPeriod(t); })
+              .reduce(function(s,t){ return s+t.amount; },0);
+}
+function budgetRemaining(){
+  var amt=Number((S.budget&&S.budget.amount)||0);
+  if(!(amt>0)) return 0;
+  return amt+incomeInBudgetPeriod()-spentInBudgetPeriod();
+}
+
 function renderMain(){
   const numEl=document.getElementById('today-num');
   const lblEl=document.getElementById('today-label');
@@ -346,17 +371,7 @@ function renderMain(){
   lblEl.onclick=null;
 
   if(hasBudget){
-    var totalEverSpent=S.txs.filter(function(t){ return t.type==='expense'; })
-                            .reduce(function(sum,t){ return sum+t.amount; },0);
-    var spentAtStart=Number((S.budget&&S.budget.spent_at_start)||0);
-    var inBudgetIncome=S.txs.filter(function(t){
-      if(!t.inBudget||t.type!=='income') return false;
-      if(S.budget.set_at&&localDateStr(t.date)<S.budget.set_at) return false;
-      if(S.budget.deadline&&localDateStr(t.date)>S.budget.deadline) return false;
-      return true;
-    }).reduce(function(s,t){return s+t.amount;},0);
-    var spentInBudget=Math.max(0, totalEverSpent - spentAtStart);
-    const remaining=budgetAmount+inBudgetIncome-spentInBudget;
+    const remaining=budgetRemaining();
     numEl.textContent=(remaining<0?'−':'')+fmt(Math.abs(remaining));
     fitBudgetNum(numEl);
 
@@ -410,18 +425,8 @@ function renderMain(){
     var isInc=S.type==='income';
     var periodTxs=(S.txs||[]).filter(function(t){
       if(t.type!==S.type) return false;
-      if(hasBudget){
-        // reset_ts — точный момент запуска бюджета; фильтруем строго после него
-        if(S.budget&&S.budget.reset_ts){
-          if(t.date<S.budget.reset_ts) return false;
-        } else if(S.budget&&S.budget.set_at){
-          if(localDateStr(t.date)<S.budget.set_at) return false;
-        }
-        if(S.budget&&S.budget.deadline&&localDateStr(t.date)>S.budget.deadline) return false;
-      } else {
-        if(localDateStr(t.date)!==todayStr()) return false;
-      }
-      return true;
+      // Тот же период, по которому считается остаток — числа на экране не расходятся
+      return hasBudget?inBudgetPeriod(t):localDateStr(t.date)===todayStr();
     });
     var totals={};
     periodTxs.forEach(function(t){
@@ -735,10 +740,11 @@ var _MONTHS_RU=['Январь','Февраль','Март','Апрель','Ма�
 function fmtMonthYM(ym){ var p=ym.split('-'); return _MONTHS_RU[parseInt(p[1],10)-1]+' '+p[0]; }
 // Короткая подпись для пилюли: «Июнь», но «Июнь 2025» если год не текущий
 function fmtMonthPill(ym){ var p=ym.split('-'); var m=_MONTHS_RU[parseInt(p[1],10)-1]; return p[0]===todayStr().slice(0,4)?m:m+' '+p[0]; }
-function getTxsForPeriod(type){
+function getTxsForPeriod(type,catId){
   var period=S.histPeriod; // null = all time, 'YYYY-MM' = specific month
   return S.txs.filter(function(t){
     if(type&&t.type!==type) return false;
+    if(catId&&t.catId!==catId) return false;
     if(period&&localDateStr(t.date).slice(0,7)!==period) return false;
     return true;
   });
@@ -747,6 +753,8 @@ function _histAvailMonths(){
   var set={};
   S.txs.forEach(function(t){ set[localDateStr(t.date).slice(0,7)]=true; });
   set[todayStr().slice(0,7)]=true;
+  // Выбранный месяц всегда в списке, даже если из него удалили все записи
+  if(S.histPeriod) set[S.histPeriod]=true;
   return Object.keys(set).sort().reverse(); // от новых к старым
 }
 function showHistPeriodSheet(){
@@ -781,8 +789,9 @@ function renderHistory(){
   if(plbl) plbl.textContent=S.histPeriod?fmtMonthPill(S.histPeriod):'Всё время';
   var aBar=document.getElementById('analytics-bar');
   if(aBar) aBar.classList.toggle('hidden', S.txs.length < 3);
-  var totalExp=getTxsForPeriod('expense').reduce(function(s,t){return s+t.amount;},0);
-  var totalInc=getTxsForPeriod('income').reduce(function(s,t){return s+t.amount;},0);
+  // Суммы считаются в рамках выбранного периода И выбранной категории
+  var totalExp=getTxsForPeriod('expense',S.histCat).reduce(function(s,t){return s+t.amount;},0);
+  var totalInc=getTxsForPeriod('income',S.histCat).reduce(function(s,t){return s+t.amount;},0);
   var expAmtEl=document.getElementById('hist-exp-total');
   var incAmtEl=document.getElementById('hist-inc-total');
   if(expAmtEl) expAmtEl.textContent='−'+fmt(totalExp)+' ₽';
@@ -803,9 +812,7 @@ function selHistTab(id){ S.histCat=(S.histCat===id?null:id); renderHistory(); }
 function renderHistContent(){
   var con=document.getElementById('hist-content');
   if(!con) return;
-  var txs=S.txs.slice();
-  if(S.histType) txs=txs.filter(function(t){ return t.type===S.histType; });
-  if(S.histCat)  txs=txs.filter(function(t){ return t.catId===S.histCat; });
+  var txs=getTxsForPeriod(S.histType,S.histCat);
 
   if(!txs.length){
     con.innerHTML='<div class="empty">'
@@ -816,7 +823,7 @@ function renderHistContent(){
       +'<path d="M9 13h6M9 17h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
       +'</svg>'
       +'</div>'
-      +'<p>Записей пока нет</p></div>';
+      +'<p>'+((S.histPeriod||S.histType||S.histCat)?'Нет записей по фильтру':'Записей пока нет')+'</p></div>';
     return;
   }
   var groups={};
@@ -866,17 +873,8 @@ function renderHistContent(){
 function renderBudgetScreen(){
   var inp = document.getElementById('bud-amount');
   var baseAmt = (S.budget && Number(S.budget.amount) > 0) ? Number(S.budget.amount) : 0;
-  var inBudgetIncome = baseAmt > 0 ? S.txs.filter(function(t){
-    if(!t.inBudget||t.type!=='income') return false;
-    if(S.budget.set_at&&localDateStr(t.date)<S.budget.set_at) return false;
-    if(S.budget.deadline&&localDateStr(t.date)>S.budget.deadline) return false;
-    return true;
-  }).reduce(function(s,t){return s+t.amount;},0) : 0;
-  // Показываем остаток (как главный экран): бюджет + доходы − расходы
-  var totalEverSpent = S.txs.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
-  var spentAtStart = Number((S.budget&&S.budget.spent_at_start)||0);
-  var spentInBudget = Math.max(0, totalEverSpent - spentAtStart);
-  var remaining = baseAmt > 0 ? Math.max(0, baseAmt + inBudgetIncome - spentInBudget) : 0;
+  // Показываем остаток (как главный экран): бюджет + доходы «в бюджет» − траты периода
+  var remaining = baseAmt > 0 ? Math.max(0, budgetRemaining()) : 0;
   var existAmt = baseAmt > 0 ? remaining : '';
   inp.value = existAmt !== '' ? fmtBudInput(String(Math.round(Number(existAmt)))) : '';
   var _ruble = document.getElementById('bud-ruble');
@@ -890,7 +888,9 @@ function renderBudgetScreen(){
   var dInp = document.getElementById('bud-date-input');
   if(dInp){
     dInp.min = todayStr();
-    if(S.budget && S.budget.deadline){
+    // Прошедший дедлайн не подставляем: input его не примет, а подпись и то,
+    // что реально сохранится, разъедутся. Период завершён — нужна новая дата.
+    if(S.budget && S.budget.deadline && S.budget.deadline >= todayStr()){
       dInp.value = S.budget.deadline;
       S.budDays = Math.max(daysBetween(todayStr(), S.budget.deadline) + 1, 1);
     } else {
@@ -1957,6 +1957,20 @@ Object.assign(window, {
   toastUndo, fmtCodeInput,
   runAnalytics, closeAnalytics,
 });
+
+// Тестовый хук: даёт тестам доступ к состоянию и чистым хелперам.
+// В прод-сборке import.meta.env.MODE === 'production', и весь блок вырезается минификатором.
+if(import.meta.env.MODE === 'test'){
+  window.__test = {
+    get S(){ return S; },
+    get currentUser(){ return currentUser; },
+    K, DEF_CATS,
+    fmt, fmtThousands, fmtDate, esc, plural, pluralDays, timeAgo,
+    todayStr, localDateStr, daysUntil, daysBetween, daysToDeadline,
+    determineCtype, getTxsForPeriod, emptyBudget,
+    loadLocal, saveLocal, renderMain, renderHistory, renderBudgetScreen, renderCats, setType,
+  };
+}
 
 // ── PWA: регистрация service worker + детектор обновлений ────────────────────
 function showUpdateToast(reg){
