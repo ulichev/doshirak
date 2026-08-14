@@ -161,7 +161,7 @@ async function syncFromSupabase(){
     }
     saveLocal(); setSyncDot(true); renderMain(); processQueue();
   } catch(e){
-    setSyncDot(false);
+    setSyncDot(false,e);
   } finally {
     _syncInFlight=false;
   }
@@ -184,7 +184,7 @@ async function pushTx(tx,isRetry=false){
     if(error) throw error;
     setSyncDot(true);
   }
-  catch(e){ setSyncDot(false); if(isRetry) throw e; offlineQueue.push({op:'pushTx',data:tx}); saveQueue(); }
+  catch(e){ setSyncDot(false,e); if(isRetry) throw e; offlineQueue.push({op:'pushTx',data:tx}); saveQueue(); }
 }
 async function deleteTxRemote(id,isRetry=false){
   if(!currentUser) return;
@@ -199,7 +199,7 @@ async function pushCats(){
     const {error}=await db.from('categories').upsert(S.cats.map((c,i)=>({id:c.id,user_id:currentUser.id,name:c.name,color:c.color,icon:c.icon||'',ctype:c.ctype||'expense',sort_order:i})));
     if(error) throw error;
     setSyncDot(true);
-  } catch(e){ setSyncDot(false); offlineQueue.push({op:'pushCats'}); saveQueue(); }
+  } catch(e){ setSyncDot(false,e); offlineQueue.push({op:'pushCats'}); saveQueue(); }
 }
 async function pushCat(cat){
   if(!currentUser) return;
@@ -208,7 +208,7 @@ async function pushCat(cat){
     const {error}=await db.from('categories').upsert({id:cat.id,user_id:currentUser.id,name:cat.name,color:cat.color,icon:cat.icon||'',ctype:cat.ctype||'expense',sort_order:idx>=0?idx:0});
     if(error) throw error;
     setSyncDot(true);
-  } catch(e){ setSyncDot(false); offlineQueue.push({op:'pushCats'}); saveQueue(); }
+  } catch(e){ setSyncDot(false,e); offlineQueue.push({op:'pushCats'}); saveQueue(); }
 }
 async function deleteCatRemote(id,isRetry=false){
   if(!currentUser) return;
@@ -224,12 +224,24 @@ async function pushBudget(){
     if(error) throw error;
     setSyncDot(true);
   }
-  catch(e){ setSyncDot(false); offlineQueue.push({op:'pushBudget'}); saveQueue(); }
+  catch(e){ setSyncDot(false,e); offlineQueue.push({op:'pushBudget'}); saveQueue(); }
 }
 
 // ── SYNC STATUS ──────────────────────────────────────────────────────────────
 var _lastSyncTs = null;   // Date объект последней успешной синхронизации
 var _syncStatus = 'ok';   // 'ok' | 'syncing' | 'offline'
+var _lastSyncErr = null;  // {code, message} последней неудачи — показываем в настройках
+
+// Красная точка раньше всегда подписывалась «Нет соединения», хотя причина может быть
+// совсем другой: отказ RLS, невалидный токен, ошибка схемы. Без текста ошибки такие
+// случаи неотличимы от оффлайна и не диагностируются на устройстве пользователя.
+function describeSyncErr(e){
+  if(!e) return null;
+  var code=e.code||e.status||'';
+  var msg=e.message||e.error_description||e.error||String(e);
+  if(/Failed to fetch|NetworkError|Load failed/i.test(msg)) return null; // это настоящий оффлайн
+  return { code:String(code), message:String(msg).slice(0,120) };
+}
 
 function timeAgo(date){
   if(!date) return '';
@@ -256,14 +268,22 @@ function updateSyncCard(){
   var time  = document.getElementById('sync-time');
   if(!icon||!title||!time) return;
   icon.className='sync-dot';
+  // разделитель «·» уместен только когда подпись короткая и стоит в одну строку
+  var dotSep=document.querySelector('.sett-footer-dot');
+  if(dotSep) dotSep.style.display=(_syncStatus==='offline'&&_lastSyncErr)?'none':'';
   if(_syncStatus==='syncing'){
     icon.classList.add('sync-dot--sync');
     title.textContent='Синхронизируется…';
     time.textContent='';
   } else if(_syncStatus==='offline'){
     icon.classList.add('sync-dot--err');
-    title.textContent='Нет соединения';
-    time.textContent='Данные сохранены локально';
+    if(_lastSyncErr){
+      title.textContent='Ошибка синхронизации';
+      time.textContent=(_lastSyncErr.code?_lastSyncErr.code+': ':'')+_lastSyncErr.message;
+    } else {
+      title.textContent='Нет соединения';
+      time.textContent='Данные сохранены локально';
+    }
   } else {
     icon.classList.add('sync-dot--ok');
     title.textContent='Синхронизировано';
@@ -277,15 +297,17 @@ setInterval(function(){
   if(s && !s.classList.contains('hidden')) updateSyncCard();
 }, 30000);
 
-function setSyncDot(ok){
-  // ok=true → синхронизировано, ok=false → оффлайн, ok=null → идёт синхронизация
+function setSyncDot(ok,err){
+  // ok=true → синхронизировано, ok=false → сбой, ok=null → идёт синхронизация
   if(ok===true){
     _syncStatus='ok';
     _lastSyncTs=new Date();
+    _lastSyncErr=null;
   } else if(ok===null){
     _syncStatus='syncing';
   } else {
     _syncStatus='offline';
+    _lastSyncErr=describeSyncErr(err);
   }
   updateSyncCard();
 }
@@ -1124,7 +1146,7 @@ function importData(e){
         const txRows=S.txs.map(t=>({id:t.id,user_id:currentUser.id,amount:t.amount,type:t.type,cat_id:t.catId,note:t.note||'',date:t.date}));
         if(txRows.length){
           const {error}=await db.from('transactions').upsert(txRows);
-          if(error){ setSyncDot(false); S.txs.forEach(t=>offlineQueue.push({op:'pushTx',data:t})); saveQueue(); }
+          if(error){ setSyncDot(false,error); S.txs.forEach(t=>offlineQueue.push({op:'pushTx',data:t})); saveQueue(); }
         }
         pushCats(); pushBudget();
       }
@@ -1550,7 +1572,7 @@ async function createNewAccount(btn){
     document.getElementById('s-auth').style.display='none';
     loadLocal();goMain();
     setTimeout(()=>showOnboarding(code),0);
-    setSyncDot(false);
+    setSyncDot(false,e);
     btn.disabled=false;btn.textContent='Начать с нуля';
     document.getElementById('auth-err').textContent='Ошибка соединения с сервером';
   }
@@ -1986,6 +2008,7 @@ if(import.meta.env.MODE === 'test'){
     todayStr, localDateStr, daysUntil, daysBetween, daysToDeadline,
     determineCtype, getTxsForPeriod, emptyBudget,
     loadLocal, saveLocal, renderMain, renderHistory, renderBudgetScreen, renderCats, setType,
+    setSyncDot, describeSyncErr,
   };
 }
 
