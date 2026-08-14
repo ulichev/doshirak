@@ -394,14 +394,14 @@ function renderMain(){
       lblEl.style.color='rgba(255,255,255,.38)';
       const daysLeft=Math.max(daysUntil(budgetDeadline),1);
       const perDay=fmt(Math.max(Math.round(Math.max(remaining,0)/daysLeft),0));
-      pill.textContent=perDay+' ₽/день';
+      pill.textContent=perDay+' ₽/день · до '+fmtDeadlineShort(budgetDeadline);
       pill.classList.remove('nav-pill--highlight');
       pill.style.cssText='';
     } else {
       lblEl.textContent='Не останавливайся — вноси траты, чтобы понять реальный перерасход';
       numEl.style.color='rgba(255,90,80,.9)';
       lblEl.style.color='rgba(255,90,80,.65)';
-      pill.textContent='0 ₽/день';
+      pill.textContent='0 ₽/день · до '+fmtDeadlineShort(budgetDeadline);
       pill.classList.remove('nav-pill--highlight');
       pill.style.cssText='';
     }
@@ -1253,6 +1253,14 @@ function fmtDate(ds){
   const ys=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
   if(ds===t)return'Сегодня';if(ds===ys)return'Вчера';
   return new Date(ds+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+}
+
+// Короткая дата для пилюли бюджета: «31 авг». Год не пишем — бюджет ставится
+// максимум на несколько месяцев вперёд, а место в шапке дорогое.
+function fmtDeadlineShort(ds){
+  return new Date(ds+'T12:00:00')
+    .toLocaleDateString('ru-RU',{day:'numeric',month:'short'})
+    .replace('.','');
 }
 
 function pluralDays(n){

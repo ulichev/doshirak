@@ -431,6 +431,11 @@ html,body,#app,.screen{max-width:100vw}
   }
   .top-bar{padding:8px var(--screen-pad);min-height:52px}
   .tb-title{font-size:16px}
+  /* пилюля бюджета несёт «₽/день · до 31 авг» — на узких экранах поджимаем,
+     иначе она упирается в иконку настроек. Селектор с .nav-pills — правило
+     .nav-pill объявлено ниже по файлу и при равной специфичности перебивало бы */
+  .nav-pills .nav-pill{font-size:12px;padding:7px 11px}
+  .nav-pills{gap:4px}
 }
 
 /* ── HISTORY TOP CARD (shared bg для тайлов + категорий) ── */
