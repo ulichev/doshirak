@@ -1,5 +1,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-html{color-scheme:dark}  /* дублирует мету: нативные элементы (date-пикер, скроллбары) тоже тёмные */
+/* only dark — «схема одна, автоподмену не применять»; дублирует мету в index.html
+   и заодно делает тёмными нативные элементы (date-пикер, скроллбары) */
+html{color-scheme:only dark}
 html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Arial,sans-serif;background:#111;color:#fff;overscroll-behavior:none;position:fixed;width:100%}
 #app{height:100dvh;position:relative;overflow:hidden}
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;background:#111;transition:transform .28s cubic-bezier(.16,1,.3,1),opacity .28s}
@@ -17,8 +19,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .tb-btn:active,.tb-pill:active{background:rgba(255,255,255,.14);transform:scale(.97)}
 .tb-pill svg{opacity:.6}
 /* правое действие в активном цвете (напр. «Сохранить») */
-.tb-action{background:#F5A623;border-color:#F5A623;color:#1a1a1a;font-weight:700}
-.tb-action:active{background:#e0941a;border-color:#e0941a}
+.tb-action{background:#F5A623 linear-gradient(#F5A623,#F5A623);border-color:#F5A623;color:#1a1a1a;font-weight:700}
+.tb-action:active{background:#e0941a linear-gradient(#e0941a,#e0941a);border-color:#e0941a}
 
 /* MAIN SCREEN */
 /* min-height:0 — аварийный клапан: если места совсем мало, ужимается разбивка
@@ -45,7 +47,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .type-row{display:flex;gap:7px}
 .type-btn{flex:1;padding:10px 0;border-radius:12px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:background .18s,color .18s}
 .type-btn.exp{background:rgba(255,255,255,.07);color:rgba(255,255,255,.45)}
-.type-btn.exp.on{background:#F5A623;color:#000}
+.type-btn.exp.on{background:#F5A623 linear-gradient(#F5A623,#F5A623);color:#000}
 .type-btn.inc{background:rgba(255,255,255,.07);color:rgba(255,255,255,.45)}
 .type-btn.inc.on{background:#3DBD74;color:#fff}
 .cat-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;padding-top:4px;scrollbar-width:none;touch-action:pan-x;overscroll-behavior-x:contain}
@@ -61,16 +63,21 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .input-panel{background:rgba(255,255,255,.04);border-radius:24px 24px 0 0;border-top:1px solid rgba(255,255,255,.1);flex-shrink:0;overflow:hidden;margin-top:8px}.amount-display-bar{padding:4px 20px 10px;flex-shrink:0}
 .amount-row{text-align:right;line-height:1;font-size:min(72px,8.2dvh);letter-spacing:-2px}
 
-/* NUMPAD */
-.numpad{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#C8C5BF;flex-shrink:0;padding-bottom:env(safe-area-inset-bottom,0px)}
+/* NUMPAD
+   Все заливки клавиатуры заданы плоским linear-gradient, а не background-color.
+   Выглядит идентично, но принудительное затемнение Android (chrome://flags force-dark,
+   «тёмный режим для веб-страниц» в Samsung Internet) пропускает элементы с
+   background-image — оно не берётся угадывать итоговый цвет. Без этого светлые
+   клавиши уезжают в серость поверх нашей и без того тёмной темы. */
+.numpad{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#C8C5BF linear-gradient(#C8C5BF,#C8C5BF);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom,0px)}
 /* Высота ряда привязана к экрану: на высоких — прежние 64px, на коротких ужимается,
    иначе клавиатура уезжает под системную навигацию (см. .main-top{min-height:0}) */
-.np-btn{background:#F2EFEA;border:none;color:#1a1a1a;font-size:26px;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:min(64px,7.9dvh);transition:background .12s;font-weight:400;-webkit-tap-highlight-color:rgba(0,0,0,.08)}
-.np-btn:active{background:#E5E2DC}
-.np-del{background:#E8E4DB;font-size:20px;color:#555}.np-toggle{background:#FFF0EA;font-size:24px;font-weight:600;color:#E8956A;transition:background .2s,color .2s}.np-toggle.inc{background:#EAF5EE;color:#3DBD74}
-.np-enter{background:#F5A623;color:#000;font-size:30px;font-weight:700;grid-row:span 3;transition:background .15s}
-.np-enter:active{background:#e09520}
-.np-enter.inc-mode{background:#3DBD74;color:#fff}
+.np-btn{background:#F2EFEA linear-gradient(#F2EFEA,#F2EFEA);border:none;color:#1a1a1a;font-size:26px;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:min(64px,7.9dvh);transition:background .12s;font-weight:400;-webkit-tap-highlight-color:rgba(0,0,0,.08)}
+.np-btn:active{background:#E5E2DC linear-gradient(#E5E2DC,#E5E2DC)}
+.np-del{background:#E8E4DB linear-gradient(#E8E4DB,#E8E4DB);font-size:20px;color:#555}.np-toggle{background:#FFF0EA linear-gradient(#FFF0EA,#FFF0EA);font-size:24px;font-weight:600;color:#E8956A;transition:background .2s,color .2s}.np-toggle.inc{background:#EAF5EE linear-gradient(#EAF5EE,#EAF5EE);color:#3DBD74}
+.np-enter{background:#F5A623 linear-gradient(#F5A623,#F5A623);color:#000;font-size:30px;font-weight:700;grid-row:span 3;transition:background .15s}
+.np-enter:active{background:#e09520 linear-gradient(#e09520,#e09520)}
+.np-enter.inc-mode{background:#3DBD74 linear-gradient(#3DBD74,#3DBD74);color:#fff}
 
 /* HISTORY */
 .cat-tabs{display:flex;overflow-x:auto;scrollbar-width:none;padding:0;flex-shrink:0;user-select:none;-webkit-user-select:none;touch-action:pan-x;overscroll-behavior-x:contain;-webkit-touch-callout:none;gap:6px}
@@ -145,9 +152,9 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .del-cat:active{color:#FF6060;background:rgba(255,59,48,.12);transform:scale(.9)}
 .del-cat svg{display:block}
 .action-btn{width:100%;padding:15px 16px;border-radius:16px;border:none;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px;letter-spacing:-.2px;transition:transform .18s,opacity .18s}.action-btn:active{transform:scale(.985)}
-.btn-primary{background:#F5A623;color:#000;box-shadow:0 10px 24px rgba(245,166,35,.16)}
+.btn-primary{background:#F5A623 linear-gradient(#F5A623,#F5A623);color:#000;box-shadow:0 10px 24px rgba(245,166,35,.16)}
 .btn-secondary{background:rgba(255,255,255,.07);color:rgba(255,255,255,.72);margin-top:8px;border:1px solid rgba(255,255,255,.06)}
-.btn-danger{background:#FF3B30;color:#fff;margin-top:8px;border:none}
+.btn-danger{background:#FF3B30 linear-gradient(#FF3B30,#FF3B30);color:#fff;margin-top:8px;border:none}
 .btn-outline{background:rgba(245,166,35,.07);border:1.5px dashed rgba(245,166,35,.4);color:#F5A623;}
 
 /* MODAL */
@@ -876,8 +883,8 @@ html,body,#app,.screen{max-width:100vw}
   display:flex;align-items:center;justify-content:center;
   font-size:32px;font-weight:700
 }
-.ob-toggle-exp{background:#FFF0EA;color:#E8956A}
-.ob-toggle-inc{background:#EAF5EE;color:#3DBD74}
+.ob-toggle-exp{background:#FFF0EA linear-gradient(#FFF0EA,#FFF0EA);color:#E8956A}
+.ob-toggle-inc{background:#EAF5EE linear-gradient(#EAF5EE,#EAF5EE);color:#3DBD74}
 .ob-footer{
   padding:14px 20px calc(24px + env(safe-area-inset-bottom,0px));
   display:flex;flex-direction:column;align-items:center;gap:14px;flex-shrink:0
@@ -889,7 +896,7 @@ html,body,#app,.screen{max-width:100vw}
   transition:all .3s cubic-bezier(.16,1,.3,1);
   cursor:pointer;-webkit-tap-highlight-color:transparent
 }
-.ob-dot.on{width:24px;border-radius:4px;background:#F5A623}
+.ob-dot.on{width:24px;border-radius:4px;background:#F5A623 linear-gradient(#F5A623,#F5A623)}
 .ob-cta{width:100%;margin-top:0!important}
 /* слайд бюджета выравнивается по верху как остальные (иконка/заголовок на той же высоте);
    .ob-slide-compact оставлен как хук для возможных правок формы */
@@ -930,8 +937,8 @@ html,body,#app,.screen{max-width:100vw}
   transition:background .3s,color .3s;
   margin-bottom:10px;flex-shrink:0
 }
-.ob-tgl-icon.exp{background:#FFF0EA;color:#E8956A}
-.ob-tgl-icon.inc{background:#EAF5EE;color:#3DBD74}
+.ob-tgl-icon.exp{background:#FFF0EA linear-gradient(#FFF0EA,#FFF0EA);color:#E8956A}
+.ob-tgl-icon.inc{background:#EAF5EE linear-gradient(#EAF5EE,#EAF5EE);color:#3DBD74}
 @media(max-height:700px){
   .ob-icon{font-size:54px;margin-bottom:14px}
   .ob-toggle-btn{width:60px;height:60px;font-size:26px}
