@@ -129,7 +129,7 @@ async function syncFromSupabase(){
       var _inBudgetMap={};
       S.txs.forEach(function(t){ if(t.inBudget) _inBudgetMap[t.id]=true; });
       var serverTxs=txRes.data.map(function(r){
-        var t={id:r.id,amount:r.amount,type:r.type,catId:r.cat_id,note:r.note||'',date:r.date};
+        var t={id:r.id,amount:r.amount,type:r.type,catId:r.cat_id||null,note:r.note||'',date:r.date};
         if(_inBudgetMap[r.id]) t.inBudget=true;
         return t;
       });
@@ -177,10 +177,19 @@ async function seedDefaultCats(){
 }
 // supabase-js не бросает исключений на ошибках запроса — возвращает {error}.
 // Поэтому везде: if(error) throw error, иначе catch никогда не сработает.
+//
+// Строка транзакции для БД. cat_id уходит пустой строкой, а не null: категория в
+// приложении необязательна, но колонка объявлена NOT NULL — null отбивался ошибкой
+// 23502, запись падала в оффлайн-очередь и билась туда при каждом запуске (красная
+// точка навсегда). Внешнего ключа на categories нет, пустая строка принимается;
+// при чтении с сервера она превращается обратно в null (см. syncFromSupabase).
+function txRow(t,uid){
+  return {id:t.id,user_id:uid,amount:t.amount,type:t.type,cat_id:t.catId||'',note:t.note||'',date:t.date};
+}
 async function pushTx(tx,isRetry=false){
   if(!currentUser) return;
   try {
-    const {error}=await db.from('transactions').upsert({id:tx.id,user_id:currentUser.id,amount:tx.amount,type:tx.type,cat_id:tx.catId,note:tx.note||'',date:tx.date});
+    const {error}=await db.from('transactions').upsert(txRow(tx,currentUser.id));
     if(error) throw error;
     setSyncDot(true);
   }
@@ -1143,7 +1152,7 @@ function importData(e){
       S.budget={amount:Number(ib.amount)||0,days:Number(ib.days)||0,deadline:ib.deadline||null,set_at:ibSetAt,spent_at_start:ibBaseline,reset_ts:ib.reset_ts||null};
       saveLocal();
       if(currentUser){
-        const txRows=S.txs.map(t=>({id:t.id,user_id:currentUser.id,amount:t.amount,type:t.type,cat_id:t.catId,note:t.note||'',date:t.date}));
+        const txRows=S.txs.map(t=>txRow(t,currentUser.id));
         if(txRows.length){
           const {error}=await db.from('transactions').upsert(txRows);
           if(error){ setSyncDot(false,error); S.txs.forEach(t=>offlineQueue.push({op:'pushTx',data:t})); saveQueue(); }
@@ -2008,7 +2017,7 @@ if(import.meta.env.MODE === 'test'){
     todayStr, localDateStr, daysUntil, daysBetween, daysToDeadline,
     determineCtype, getTxsForPeriod, emptyBudget,
     loadLocal, saveLocal, renderMain, renderHistory, renderBudgetScreen, renderCats, setType,
-    setSyncDot, describeSyncErr,
+    setSyncDot, describeSyncErr, txRow,
   };
 }
 

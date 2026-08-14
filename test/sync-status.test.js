@@ -37,6 +37,19 @@ describe('статус синхронизации', () => {
     expect(txt('sync-time').length).toBeLessThan(140);
   });
 
+  // Колонка cat_id в БД NOT NULL, а категория в приложении необязательна:
+  // null отбивался ошибкой 23502 и намертво вешал оффлайн-очередь.
+  it('транзакция без категории уходит с пустым cat_id, а не с null', () => {
+    const row = t.txRow({ id: 'a1', amount: 100, type: 'expense', catId: null, note: '', date: '2026-08-14T10:00:00' }, 'u1');
+    expect(row.cat_id).toBe('');
+    expect(row.cat_id).not.toBe(null);
+  });
+
+  it('выбранная категория уходит как есть', () => {
+    const row = t.txRow({ id: 'a2', amount: 100, type: 'expense', catId: 'food_ab12', note: 'кофе', date: '2026-08-14T10:00:00' }, 'u1');
+    expect(row).toMatchObject({ id: 'a2', user_id: 'u1', cat_id: 'food_ab12', note: 'кофе' });
+  });
+
   it('ошибка без кода показывается одним текстом', () => {
     expect(t.describeSyncErr({ message: 'JWT expired' })).toEqual({ code: '', message: 'JWT expired' });
     expect(t.describeSyncErr(new TypeError('NetworkError when attempting to fetch resource'))).toBe(null);
