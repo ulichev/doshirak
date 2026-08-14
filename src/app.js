@@ -101,7 +101,9 @@ function loadLocal(){
       var _lbSetAt=_sb.set_at||null;
       var _lbBaseline=(_sb.spent_at_start!=null)?Number(_sb.spent_at_start):
         S.txs.filter(function(t){ if(t.type!=='expense') return false; if(!_lbSetAt) return true; return localDateStr(t.date)<_lbSetAt; }).reduce(function(s,t){ return s+t.amount; },0);
-      S.budget={amount:Number(_sb.amount)||0,days:Number(_sb.days)||0,deadline:_sb.deadline||null,set_at:_lbSetAt,spent_at_start:_lbBaseline};
+      // reset_ts обязан пережить перезапуск: без него период считается от полуночи set_at,
+      // и остаток бюджета менялся сам собой после каждого запуска приложения
+      S.budget={amount:Number(_sb.amount)||0,days:Number(_sb.days)||0,deadline:_sb.deadline||null,set_at:_lbSetAt,spent_at_start:_lbBaseline,reset_ts:_sb.reset_ts||null};
     } else { S.budget=emptyBudget(); }
   } catch(e){ S.txs=[]; S.cats=[...DEF_CATS]; S.budget=emptyBudget(); }
 }
@@ -125,19 +127,29 @@ async function syncFromSupabase(){
       db.from('budget_settings').select('*').eq('user_id',currentUser.id).maybeSingle(),
     ]);
     if(txRes.data&&txRes.data.length>0){
-      // Сохраняем inBudget-флаги из localStorage — они не хранятся в Supabase
+      // in_budget приходит с сервера (после миграции). Пока колонки нет — подставляем
+      // локальный флаг, иначе доходы «в бюджет» обнулялись бы при каждой синхронизации.
       var _inBudgetMap={};
       S.txs.forEach(function(t){ if(t.inBudget) _inBudgetMap[t.id]=true; });
+      // Сразу после миграции у всех старых строк in_budget=false, а локально флаг мог
+      // стоять — поэтому побеждает «true», и такие записи до-заливаются на сервер.
+      // Ложных срабатываний нет: снять флаг вручную нельзя, а сброс при установке
+      // нового бюджета выносит доход за границы периода, где он всё равно не считается.
+      var _flagFixups=[];
       var serverTxs=txRes.data.map(function(r){
         var t={id:r.id,amount:r.amount,type:r.type,catId:r.cat_id||null,note:r.note||'',date:r.date};
-        if(_inBudgetMap[r.id]) t.inBudget=true;
+        var srvFlag=('in_budget' in r)&&!!r.in_budget;
+        var locFlag=!!_inBudgetMap[r.id];
+        if(srvFlag||locFlag) t.inBudget=true;
+        if(locFlag&&!srvFlag&&('in_budget' in r)) _flagFixups.push(t);
         return t;
       });
+      _flagFixups.slice(0,100).forEach(function(t){ pushTx(t); });
       // Не затираем локальные записи, которые ещё не дошли до сервера (ждут в оффлайн-очереди)
       var _srvIds={}; serverTxs.forEach(function(t){ _srvIds[t.id]=true; });
       var _pendIds={}; offlineQueue.forEach(function(i){ if(i.op==='pushTx'&&i.data) _pendIds[i.data.id]=true; });
       var localPending=S.txs.filter(function(t){ return _pendIds[t.id]&&!_srvIds[t.id]; });
-      S.txs=localPending.concat(serverTxs).sort(function(a,b){ return a.date<b.date?1:-1; });
+      S.txs=localPending.concat(serverTxs).sort(function(a,b){ return tsOf(b.date)-tsOf(a.date); });
     }
     if(catRes.data&&catRes.data.length>0){
       S.cats=catRes.data.map(function(r){var ic=r.icon||'';if(!ic){var b=r.id.replace(/_[a-zA-Z0-9]{1,8}$/,'');var df=DEF_CATS.find(function(d){return d.id===b||d.id===r.id;});if(df)ic=df.icon||'';}return {id:r.id,name:r.name,color:r.color,icon:ic,ctype:r.ctype||determineCtype(r.id,[...S.cats])};});
@@ -157,7 +169,9 @@ async function syncFromSupabase(){
           return localDateStr(t.date)<budSetAt;
         }).reduce(function(sum,t){ return sum+t.amount; },0);
       }
-      S.budget={amount:Number(budRes.data.amount)||0,days:Number(budRes.data.days)||0,deadline:budRes.data.deadline||null,set_at:budSetAt,spent_at_start:_baseline};
+      // reset_ts с сервера главнее локального: период должен быть один на всех устройствах
+      S.budget={amount:Number(budRes.data.amount)||0,days:Number(budRes.data.days)||0,deadline:budRes.data.deadline||null,set_at:budSetAt,spent_at_start:_baseline,
+                reset_ts:budRes.data.reset_ts||(S.budget&&S.budget.set_at===budSetAt?S.budget.reset_ts:null)||null};
     }
     saveLocal(); setSyncDot(true); renderMain(); processQueue();
   } catch(e){
@@ -184,12 +198,29 @@ async function seedDefaultCats(){
 // точка навсегда). Внешнего ключа на categories нет, пустая строка принимается;
 // при чтении с сервера она превращается обратно в null (см. syncFromSupabase).
 function txRow(t,uid){
-  return {id:t.id,user_id:uid,amount:t.amount,type:t.type,cat_id:t.catId||'',note:t.note||'',date:t.date};
+  var row={id:t.id,user_id:uid,amount:t.amount,type:t.type,cat_id:t.catId||'',note:t.note||'',date:t.date};
+  if(_colInBudget) row.in_budget=!!t.inBudget;
+  return row;
+}
+
+// Колонки in_budget (transactions) и reset_ts (budget_settings) добавляются миграцией
+// db/migrations.sql. Пока её не применили, база отвечает PGRST204/42703 — тогда молча
+// откатываемся на схему без них, чтобы синхронизация не вставала. После применения
+// миграции флаги живут на сервере и одинаковы на всех устройствах.
+var _colInBudget=true, _colResetTs=true;
+function isMissingColumn(e,col){
+  if(!e) return false;
+  var m=(e.message||'')+' '+(e.details||'');
+  return (e.code==='PGRST204'||e.code==='42703') && m.indexOf(col)>=0;
 }
 async function pushTx(tx,isRetry=false){
   if(!currentUser) return;
   try {
-    const {error}=await db.from('transactions').upsert(txRow(tx,currentUser.id));
+    let {error}=await db.from('transactions').upsert(txRow(tx,currentUser.id));
+    if(isMissingColumn(error,'in_budget')){       // миграция ещё не применена
+      _colInBudget=false;
+      ({error}=await db.from('transactions').upsert(txRow(tx,currentUser.id)));
+    }
     if(error) throw error;
     setSyncDot(true);
   }
@@ -226,10 +257,21 @@ async function deleteCatRemote(id,isRetry=false){
     if(error) throw error;
   } catch(e){ if(isRetry) throw e; offlineQueue.push({op:'deleteCat',data:id}); saveQueue(); }
 }
+// reset_ts — момент запуска периода. Без него другое устройство считает период от
+// даты set_at (с полуночи), и остаток бюджета расходится на траты того же дня.
+function budgetRow(){
+  var row={user_id:currentUser.id,amount:S.budget.amount,days:S.budget.days||0,deadline:S.budget.deadline,set_at:S.budget.set_at||todayStr()};
+  if(_colResetTs) row.reset_ts=S.budget.reset_ts||null;
+  return row;
+}
 async function pushBudget(){
   if(!currentUser) return;
   try {
-    const {error}=await db.from('budget_settings').upsert({user_id:currentUser.id,amount:S.budget.amount,days:S.budget.days||0,deadline:S.budget.deadline,set_at:S.budget.set_at||todayStr()});
+    let {error}=await db.from('budget_settings').upsert(budgetRow());
+    if(isMissingColumn(error,'reset_ts')){        // миграция ещё не применена
+      _colResetTs=false;
+      ({error}=await db.from('budget_settings').upsert(budgetRow()));
+    }
     if(error) throw error;
     setSyncDot(true);
   }
@@ -372,9 +414,15 @@ function fitBudgetNum(el){
 // для старых бюджетов — set_at) до дедлайна включительно.
 // Считаем именно по периоду, а не «всего потрачено минус отметка на старте»:
 // иначе правка или удаление старой траты вне периода двигает остаток.
+// Даты сравниваем по времени, а не по строкам: локально они пишутся как
+// «…T19:57:07.579Z», а с сервера возвращаются как «…T19:57:07.921+00:00» —
+// один и тот же момент, но лексикографически это разные строки. После первой
+// синхронизации формат менялся, и одна и та же трата могла то попадать в период
+// бюджета, то выпадать из него.
+function tsOf(v){ var n=Date.parse(v); return isNaN(n)?0:n; }
 function inBudgetPeriod(t){
   if(!S.budget) return false;
-  if(S.budget.reset_ts){ if(t.date<S.budget.reset_ts) return false; }
+  if(S.budget.reset_ts){ if(tsOf(t.date)<tsOf(S.budget.reset_ts)) return false; }
   else if(S.budget.set_at){ if(localDateStr(t.date)<S.budget.set_at) return false; }
   if(S.budget.deadline&&localDateStr(t.date)>S.budget.deadline) return false;
   return true;
@@ -1058,8 +1106,11 @@ async function saveBudget(){
     reset_ts: now,
     spent_at_start: spentAtStart
   };
-  // Сбрасываем inBudget-флаги — их сумма уже поглощена в сохранённый amt
-  S.txs.forEach(function(t){ if(t.inBudget) t.inBudget=false; });
+  // Сбрасываем inBudget-флаги — их сумма уже поглощена в сохранённый amt.
+  // Сброс надо донести до сервера, иначе другое устройство продолжит считать
+  // эти доходы прибавкой к новому бюджету.
+  var _cleared=S.txs.filter(function(t){ return t.inBudget; });
+  _cleared.forEach(function(t){ t.inBudget=false; });
 
   _budLockUntil = Date.now() + 30000; // защита 30 сек от перезаписи синком
   saveLocal();
@@ -1071,6 +1122,7 @@ async function saveBudget(){
 
   toast('Бюджет установлен');
   await pushBudget();
+  for(var i=0;i<_cleared.length;i++) await pushTx(_cleared[i]);
   _budLockUntil = Date.now() + 5000;
 }
 
@@ -2017,7 +2069,7 @@ if(import.meta.env.MODE === 'test'){
     todayStr, localDateStr, daysUntil, daysBetween, daysToDeadline,
     determineCtype, getTxsForPeriod, emptyBudget,
     loadLocal, saveLocal, renderMain, renderHistory, renderBudgetScreen, renderCats, setType,
-    setSyncDot, describeSyncErr, txRow,
+    setSyncDot, describeSyncErr, txRow, tsOf, isMissingColumn, inBudgetPeriod, budgetRemaining,
   };
 }
 
