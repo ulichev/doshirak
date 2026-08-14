@@ -68,13 +68,13 @@ describe('главный экран: остаток бюджета', () => {
     t.renderMain();
     expect(txt('today-num').startsWith('−')).toBe(true);
     expect(num(txt('today-num'))).toBe(-5000);
-    expect(txt('budget-pill')).toBe('0 ₽/день · до 30 авг');
+    expect(txt('budget-pill')).toBe('0 ₽/день до 30 авг');
   });
 
   it('₽/день = остаток / оставшихся дней + дата дедлайна', () => {
     seed(t, { txs: [], budget: budget({ amount: 30000, deadline: '2026-08-31' }) });
     t.renderMain();
-    expect(txt('budget-pill')).toBe('1 000 ₽/день · до 31 авг');
+    expect(txt('budget-pill')).toBe('1 000 ₽/день до 31 авг');
   });
 
   it('истёкший бюджет предлагает обновиться', () => {

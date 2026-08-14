@@ -394,14 +394,14 @@ function renderMain(){
       lblEl.style.color='rgba(255,255,255,.38)';
       const daysLeft=Math.max(daysUntil(budgetDeadline),1);
       const perDay=fmt(Math.max(Math.round(Math.max(remaining,0)/daysLeft),0));
-      pill.textContent=perDay+' ₽/день · до '+fmtDeadlineShort(budgetDeadline);
+      pill.textContent=perDay+' ₽/день до '+fmtDeadlineShort(budgetDeadline);
       pill.classList.remove('nav-pill--highlight');
       pill.style.cssText='';
     } else {
       lblEl.textContent='Не останавливайся — вноси траты, чтобы понять реальный перерасход';
       numEl.style.color='rgba(255,90,80,.9)';
       lblEl.style.color='rgba(255,90,80,.65)';
-      pill.textContent='0 ₽/день · до '+fmtDeadlineShort(budgetDeadline);
+      pill.textContent='0 ₽/день до '+fmtDeadlineShort(budgetDeadline);
       pill.classList.remove('nav-pill--highlight');
       pill.style.cssText='';
     }
