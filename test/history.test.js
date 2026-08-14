@@ -166,13 +166,15 @@ describe('история: вёрстка списка', () => {
     expect(histRows().length).toBe(8);
   });
 
-  it('кнопка AI-анализа скрыта, когда записей меньше трёх', async () => {
+  // AI_ENABLED=false — фича выключена рубильником в src/app.js. Когда вернём её,
+  // сюда возвращается прежняя проверка «видна при ≥3 записях».
+  it('кнопка AI-анализа скрыта при выключенной фиче', async () => {
     seed(t, { txs: [tx({ date: '2026-07-05', amount: 100, catId: 'food' })] });
     t.renderHistory();
     expect($('analytics-bar').classList.contains('hidden')).toBe(true);
     seed(t, { txs: DATA });
     t.renderHistory();
-    expect($('analytics-bar').classList.contains('hidden')).toBe(false);
+    expect($('analytics-bar').classList.contains('hidden')).toBe(true);
   });
 
   it('имя категории экранируется в списке', () => {

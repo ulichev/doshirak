@@ -3,7 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
 // Всегда через прокси /sb — в dev Vite проксирует сам, в проде — Vercel
 // Браузер никогда не ходит напрямую на supabase.co (обход РКН)
-const db = createClient(window.location.origin + '/sb', import.meta.env.VITE_SUPABASE_KEY);
+// В нативной сборке (Android APK) страница открыта с https://localhost, прокси там
+// нет — VITE_API_BASE подставляет прод-домен, чтобы /sb и /api остались рабочими.
+const API_BASE = import.meta.env.VITE_API_BASE || window.location.origin;
+const db = createClient(API_BASE + '/sb', import.meta.env.VITE_SUPABASE_KEY);
 let currentUser = null;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -481,6 +484,11 @@ var ANALYTICS_DEMO = {
   ]
 };
 
+// Рубильник AI-анализа. false — фича полностью скрыта от пользователя (кнопка в
+// истории, слайд онбординга, вход в runAnalytics), но весь код остаётся на месте:
+// чтобы вернуть — поставить true, ничего больше менять не нужно.
+var AI_ENABLED = false;
+
 // Кэш последнего анализа + память показанных инсайтов (для «не повторяйся»)
 var ANALYTICS_CACHE_KEY = 'tk_ai_cache';
 var ANALYTICS_SEEN_KEY  = 'tk_ai_seen';
@@ -555,6 +563,7 @@ function renderAnalyticsResult(body, insights, recs, demo, remaining, cachedAt) 
 }
 
 function runAnalytics(force) {
+  if (!AI_ENABLED) return;
   var modal = document.getElementById('analytics-modal');
   var body = document.getElementById('analytics-body');
   if (!modal || !body) return;
@@ -592,7 +601,7 @@ function runAnalytics(force) {
   // Серверная функция пускает к Groq только залогиненных — шлём токен сессии
   db.auth.getSession().then(function(sess) {
     var token = sess && sess.data && sess.data.session ? sess.data.session.access_token : '';
-    return fetch('/api/analyze', {
+    return fetch(API_BASE + '/api/analyze', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + token },
       body: JSON.stringify({
@@ -788,7 +797,7 @@ function renderHistory(){
   var plbl=document.getElementById('hist-period-label');
   if(plbl) plbl.textContent=S.histPeriod?fmtMonthPill(S.histPeriod):'Всё время';
   var aBar=document.getElementById('analytics-bar');
-  if(aBar) aBar.classList.toggle('hidden', S.txs.length < 3);
+  if(aBar) aBar.classList.toggle('hidden', !AI_ENABLED || S.txs.length < 3);
   // Суммы считаются в рамках выбранного периода И выбранной категории
   var totalExp=getTxsForPeriod('expense',S.histCat).reduce(function(s,t){return s+t.amount;},0);
   var totalInc=getTxsForPeriod('income',S.histCat).reduce(function(s,t){return s+t.amount;},0);
@@ -1732,7 +1741,7 @@ function buildObSlides(code){
       btn:'Понятненько'
     },
     {
-      icon:'🤖',
+      icon:'🤖', ai:true,
       title:'AI-анализ трат',
       text:'Накопишь записей — нажми «AI-анализ трат» внизу истории. Нейросеть разберёт твои расходы и скажет, где реально утекают деньги.',
       btn:'Красавчик!'
@@ -1743,7 +1752,7 @@ function buildObSlides(code){
       text:'Вноси каждую трату, даже самую мелкую. Уже через неделю увидишь, куда улетают деньги. И да — единственный доширак, который тебе нужен, это мы 💛',
       btn:'Поехали!'
     }
-  ];
+  ].filter(sl=>!sl.ai||AI_ENABLED);  // слайд про AI показываем только когда фича включена
 }
 
 function _obRenderSlides(){
@@ -1987,7 +1996,9 @@ function applyUpdate(){
   else location.reload();
 }
 
-if('serviceWorker' in navigator){
+// В нативной сборке ассеты лежат в APK — service worker не нужен, а тост
+// «Доступно обновление» там бессмысленен: обновление приходит новым APK.
+if(!import.meta.env.VITE_NATIVE && 'serviceWorker' in navigator){
   // Перезагружаем страницу когда новый SW берёт управление
   var _swRefreshing=false;
   navigator.serviceWorker.addEventListener('controllerchange',function(){

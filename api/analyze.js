@@ -18,7 +18,29 @@ async function verifyUser(req) {
   }
 }
 
+// Нативная Android-сборка открыта с https://localhost и ходит сюда cross-origin,
+// поэтому нужны CORS-заголовки. Список закрытый: эндпоинт тратит квоту Groq,
+// открывать его любому origin ни к чему (за токеном он и так под авторизацией).
+const ALLOWED_ORIGINS = new Set([
+  'https://localhost',        // Capacitor на Android
+  'capacitor://localhost',    // Capacitor на iOS
+  'http://localhost',
+  'https://doshik.vercel.app'
+]);
+
+function applyCors(req, res) {
+  const origin = req.headers.origin;
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return;
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
+  res.setHeader('Access-Control-Max-Age', '86400');
+}
+
 export default async function handler(req, res) {
+  applyCors(req, res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).end();
 
   const user = await verifyUser(req);
