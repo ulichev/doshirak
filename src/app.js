@@ -82,9 +82,21 @@ let _budLockUntil=0; // до этого момента синхронизаци�
 let offlineQueue=[];
 function saveQueue(){ try{localStorage.setItem('tk_oq',JSON.stringify(offlineQueue));}catch(e){} }
 function loadQueue(){ try{offlineQueue=JSON.parse(localStorage.getItem('tk_oq')||'[]');}catch(e){offlineQueue=[];} }
+// Каждая запись очереди помечена владельцем (uid). Без этого после «Войти с другим
+// кодом» неотправленные траты прошлого аккаунта уходили в новый — в чужие данные.
+// Записи другого аккаунта ждут, пока в него снова войдут.
+function enqueue(item){ offlineQueue.push(Object.assign({uid:currentUser?currentUser.id:null},item)); saveQueue(); }
+function isMine(item){ return !item.uid||(currentUser&&item.uid===currentUser.id); }
+// Перед сменой аккаунта: записи без владельца (из версий до 1.11.3) закрепляем за уходящим
+function claimQueue(){
+  if(!currentUser) return;
+  offlineQueue.forEach(function(i){ if(!i.uid) i.uid=currentUser.id; });
+  saveQueue();
+}
 async function processQueue(){
-  if(!currentUser||!navigator.onLine||!offlineQueue.length) return;
-  const q=[...offlineQueue]; offlineQueue=[]; saveQueue();
+  if(!currentUser||!navigator.onLine||!offlineQueue.some(isMine)) return;
+  const q=offlineQueue.filter(isMine);
+  offlineQueue=offlineQueue.filter(function(i){ return !isMine(i); }); saveQueue();
   for(const item of q){
     try{
       if(item.op==='pushTx') await pushTx(item.data,true);
@@ -94,7 +106,7 @@ async function processQueue(){
       else if(item.op==='pushBudget') await pushBudget();
     }catch(e){ offlineQueue.push(item); }
   }
-  saveQueue(); if(offlineQueue.length===0) setSyncDot(true);
+  saveQueue(); if(!offlineQueue.some(isMine)) setSyncDot(true);
 }
 window.addEventListener('online',()=>{ setSyncDot(null); processQueue(); });
 
@@ -143,6 +155,11 @@ async function syncFromSupabase(){
       db.from('budget_settings').select('*').eq('user_id',currentUser.id).maybeSingle(),
       db.from('budget_history').select('*').eq('user_id',currentUser.id),
     ]);
+    // supabase-js не бросает исключений — ошибку надо достать самим. Без этого обрыв
+    // сети выглядел как «Синхронизировано», а упавший запрос категорий — как «категорий
+    // нет»: приложение засевало стандартные поверх удалённых пользователем.
+    var _err=txRes.error||catRes.error||budRes.error;
+    if(_err) throw _err;
     if(txRes.data&&txRes.data.length>0){
       // in_budget приходит с сервера (после миграции). Пока колонки нет — подставляем
       // локальный флаг, иначе доходы «в бюджет» обнулялись бы при каждой синхронизации.
@@ -164,7 +181,7 @@ async function syncFromSupabase(){
       _flagFixups.slice(0,100).forEach(function(t){ pushTx(t); });
       // Не затираем локальные записи, которые ещё не дошли до сервера (ждут в оффлайн-очереди)
       var _srvIds={}; serverTxs.forEach(function(t){ _srvIds[t.id]=true; });
-      var _pendIds={}; offlineQueue.forEach(function(i){ if(i.op==='pushTx'&&i.data) _pendIds[i.data.id]=true; });
+      var _pendIds={}; offlineQueue.forEach(function(i){ if(i.op==='pushTx'&&i.data&&isMine(i)) _pendIds[i.data.id]=true; });
       var localPending=S.txs.filter(function(t){ return _pendIds[t.id]&&!_srvIds[t.id]; });
       S.txs=localPending.concat(serverTxs).sort(function(a,b){ return tsOf(b.date)-tsOf(a.date); });
     }
@@ -203,7 +220,8 @@ async function syncFromSupabase(){
 async function seedDefaultCats(){
   if(!currentUser) return;
   // Проверяем — есть ли уже категории в БД (защита от дублей)
-  const {data:existing}=await db.from('categories').select('id').eq('user_id',currentUser.id);
+  const {data:existing,error:selErr}=await db.from('categories').select('id').eq('user_id',currentUser.id);
+  if(selErr) return; // не знаем, есть ли категории, — не сеем (иначе дубли и «воскрешение» удалённых)
   if(existing&&existing.length>0) return; // уже есть — не сеять повторно
   const rows=DEF_CATS.map((c,i)=>({id:c.id+'_'+currentUser.id.slice(0,8),user_id:currentUser.id,name:c.name,color:c.color,icon:c.icon||'',ctype:c.ctype||'expense',sort_order:i}));
   const {error}=await db.from('categories').upsert(rows);
@@ -244,14 +262,14 @@ async function pushTx(tx,isRetry=false){
     if(error) throw error;
     setSyncDot(true);
   }
-  catch(e){ setSyncDot(false,e); if(isRetry) throw e; offlineQueue.push({op:'pushTx',data:tx}); saveQueue(); }
+  catch(e){ setSyncDot(false,e); if(isRetry) throw e; enqueue({op:'pushTx',data:tx}); }
 }
 async function deleteTxRemote(id,isRetry=false){
   if(!currentUser) return;
   try {
     const {error}=await db.from('transactions').delete().eq('id',id).eq('user_id',currentUser.id);
     if(error) throw error;
-  } catch(e){ if(isRetry) throw e; offlineQueue.push({op:'deleteTx',data:id}); saveQueue(); }
+  } catch(e){ if(isRetry) throw e; enqueue({op:'deleteTx',data:id}); }
 }
 async function pushCats(){
   if(!currentUser) return;
@@ -259,7 +277,7 @@ async function pushCats(){
     const {error}=await db.from('categories').upsert(S.cats.map((c,i)=>({id:c.id,user_id:currentUser.id,name:c.name,color:c.color,icon:c.icon||'',ctype:c.ctype||'expense',sort_order:i})));
     if(error) throw error;
     setSyncDot(true);
-  } catch(e){ setSyncDot(false,e); offlineQueue.push({op:'pushCats'}); saveQueue(); }
+  } catch(e){ setSyncDot(false,e); enqueue({op:'pushCats'}); }
 }
 async function pushCat(cat){
   if(!currentUser) return;
@@ -268,14 +286,14 @@ async function pushCat(cat){
     const {error}=await db.from('categories').upsert({id:cat.id,user_id:currentUser.id,name:cat.name,color:cat.color,icon:cat.icon||'',ctype:cat.ctype||'expense',sort_order:idx>=0?idx:0});
     if(error) throw error;
     setSyncDot(true);
-  } catch(e){ setSyncDot(false,e); offlineQueue.push({op:'pushCats'}); saveQueue(); }
+  } catch(e){ setSyncDot(false,e); enqueue({op:'pushCats'}); }
 }
 async function deleteCatRemote(id,isRetry=false){
   if(!currentUser) return;
   try {
     const {error}=await db.from('categories').delete().eq('id',id).eq('user_id',currentUser.id);
     if(error) throw error;
-  } catch(e){ if(isRetry) throw e; offlineQueue.push({op:'deleteCat',data:id}); saveQueue(); }
+  } catch(e){ if(isRetry) throw e; enqueue({op:'deleteCat',data:id}); }
 }
 // reset_ts — момент запуска периода. Без него другое устройство считает период от
 // даты set_at (с полуночи), и остаток бюджета расходится на траты того же дня.
@@ -295,7 +313,7 @@ async function pushBudget(){
     if(error) throw error;
     setSyncDot(true);
   }
-  catch(e){ setSyncDot(false,e); offlineQueue.push({op:'pushBudget'}); saveQueue(); }
+  catch(e){ setSyncDot(false,e); enqueue({op:'pushBudget'}); }
 }
 // История периодов. Таблица budget_history досталась от старой версии, новые
 // колонки (start_day, end_day, spent, income, result, early) — из db/migrations.sql.
@@ -525,7 +543,10 @@ function snapshotBudgetPeriod(){
 // категорию потом могут переименовать или удалить, а история должна остаться читаемой.
 function topSpendCats(expenses){
   var by={};
-  expenses.forEach(function(t){ var k=t.catId||''; by[k]=(by[k]||0)+t.amount; });
+  // Трата удалённой категории показывается как «Без категории» — и считаться должна
+  // вместе с ними, а не отдельной второй строкой «Без категории»
+  var known={}; S.cats.forEach(function(c){ known[c.id]=true; });
+  expenses.forEach(function(t){ var k=(t.catId&&known[t.catId])?t.catId:''; by[k]=(by[k]||0)+t.amount; });
   return Object.keys(by).sort(function(a,b){ return by[b]-by[a]; }).slice(0,3).map(function(k){
     var c=getCat(k||null);
     return {id:k||null,name:c.name,icon:c.icon||'',color:c.color||'#9E9E9E',amount:Math.round(by[k]*100)/100};
@@ -1481,7 +1502,7 @@ function importData(e){
         const txRows=S.txs.map(t=>txRow(t,currentUser.id));
         if(txRows.length){
           const {error}=await db.from('transactions').upsert(txRows);
-          if(error){ setSyncDot(false,error); S.txs.forEach(t=>offlineQueue.push({op:'pushTx',data:t})); saveQueue(); }
+          if(error){ setSyncDot(false,error); S.txs.forEach(t=>enqueue({op:'pushTx',data:t})); }
         }
         pushCats(); pushBudget(); S.budHist.forEach(r=>pushBudHist(r));
       }
@@ -1925,6 +1946,7 @@ async function recoverWithCode(){
       document.getElementById('auth-err').textContent='Код не найден. Проверьте правильность';
       btn.disabled=false;btn.textContent=orig;return;
     }
+    claimQueue();
     localStorage.setItem(K_CODE,code);currentUser=data.user;
     document.getElementById('s-auth').style.display='none';
     // Не подгружаем локальные данные предыдущего юзера — берём только с сервера
@@ -2009,6 +2031,7 @@ async function submitEnterCode(){
       document.getElementById('enter-code-err').textContent='Код не найден. Проверьте правильность';
       btn.disabled=false;btn.textContent='Войти';return;
     }
+    claimQueue(); // неотправленное прошлого аккаунта остаётся за ним
     localStorage.setItem(K_CODE,code);
     currentUser=data.user;
     hideEnterCodeModal();
@@ -2347,6 +2370,7 @@ if(import.meta.env.MODE === 'test'){
     loadLocal, saveLocal, renderMain, renderHistory, renderBudgetScreen, renderCats, setType,
     setSyncDot, describeSyncErr, txRow, tsOf, isMissingColumn, inBudgetPeriod, budgetRemaining,
     snapshotBudgetPeriod, mergeBudHist, fmtBudHistRange, renderBudHist, isBudHistRec,
+    syncFromSupabase, processQueue, showUpdateToast,
   };
 }
 

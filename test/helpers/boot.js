@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { emptyServer } from '../stubs/supabase.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -17,17 +18,29 @@ export async function tick(ms = 1) {
  * Поднимает приложение в jsdom на «сегодня» = now.
  * Возвращает window.__test — состояние S и внутренние хелперы.
  */
-export async function bootApp({ now = '2026-08-01T10:00:00' } = {}) {
+// В jsdom нет scrollIntoView (им пользуются пикеры иконок/категорий)
+if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = function () {};
+
+export async function bootApp({ now = '2026-08-01T10:00:00', server = null, storage = {}, keepAuth = false } = {}) {
   vi.useFakeTimers({ now: new Date(now) });
   localStorage.clear();
   sessionStorage.clear();
+  // Память телефона до запуска: код входа, прошлые данные, очередь и т.п.
+  Object.entries(storage).forEach(([k, v]) => localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)));
+  // Сервер-заглушка (test/stubs/supabase.js): по умолчанию пустой, без пользователей
+  globalThis.__sb = server || emptyServer();
   document.body.innerHTML = BODY;
   vi.resetModules();
   await import('../../src/app.js');
-  await tick();
+  await settle();
   // Приложение без аккаунта показывает экран входа — убираем его, работаем с основным UI
-  document.getElementById('s-auth').style.display = 'none';
+  if (!keepAuth) document.getElementById('s-auth').style.display = 'none';
   return window.__test;
+}
+
+/** Даёт догореть асинхронным цепочкам (вход, синк, отправки) */
+export async function settle(rounds = 20) {
+  for (let i = 0; i < rounds; i++) await tick();
 }
 
 export function teardown() {
