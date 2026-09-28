@@ -425,7 +425,31 @@
 <div class="modal-bg" id="hist-period-sheet-bg" onclick="if(event.target===this)hideHistPeriodSheet()">
   <div class="modal-sheet">
     <p class="modal-title">Период</p>
-    <div class="hps-list" id="hist-period-sheet-list"></div>
+    <div class="hps-range">
+      <label class="bud-date-tile hps-tile" id="hps-from-tile" for="hps-from">
+        <span class="bud-date-text">
+          <span class="bud-date-cap">С</span>
+          <span class="bud-date-val" id="hps-from-val">Дата</span>
+        </span>
+        <input type="date" id="hps-from" onchange="onHpsDate('from')">
+      </label>
+      <label class="bud-date-tile hps-tile" id="hps-to-tile" for="hps-to">
+        <span class="bud-date-text">
+          <span class="bud-date-cap">По</span>
+          <span class="bud-date-val" id="hps-to-val">Дата</span>
+        </span>
+        <input type="date" id="hps-to" onchange="onHpsDate('to')">
+      </label>
+    </div>
+    <button class="action-btn btn-primary hps-apply" id="hps-apply" onclick="applyHistRange()" disabled>Показать</button>
+    <label class="bud-date-tile hps-tile hps-month" id="hps-month-tile" for="hps-month">
+      <span class="bud-date-text">
+        <span class="bud-date-cap">Месяц</span>
+        <span class="bud-date-val" id="hps-month-val">За всё время</span>
+      </span>
+      <svg class="hps-month-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <select id="hps-month" onchange="onHpsMonth(this.value)"></select>
+    </label>
   </div>
 </div>
 

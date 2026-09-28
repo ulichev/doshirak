@@ -125,8 +125,7 @@ describe('период истории после удаления последн
     window._confOk();
     await p;
     window.showHistPeriodSheet();
-    const options = [...document.querySelectorAll('#hist-period-sheet-list .hps-option.on')];
-    // Выбранный месяц обязан присутствовать в списке выбора
-    expect(options.length).toBe(1);
+    // Выбранный месяц обязан присутствовать в списке выбора и быть выбранным
+    expect(document.getElementById('hps-month').value).toBe('2026-07');
   });
 });

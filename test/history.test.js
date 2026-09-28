@@ -54,12 +54,26 @@ describe('история: фильтр по периоду', () => {
 
   it('в списке месяцев только месяцы с данными плюс текущий', () => {
     window.showHistPeriodSheet();
-    const html = $('hist-period-sheet-list').innerHTML;
+    const html = [...$('hps-month').options].map((o) => o.textContent).join('|');
     expect(html).toContain('Июнь 2026');
     expect(html).toContain('Июль 2026');
     expect(html).toContain('Август 2026');
     expect(html).toContain('За всё время');
     expect(html).not.toContain('Май 2026');
+    expect($('hps-month').options[0].textContent).toBe('За всё время');
+  });
+
+  it('выбор месяца в списке применяет фильтр и закрывает лист', () => {
+    window.showHistPeriodSheet();
+    // inline-обработчики jsdom не исполняет — зовём то же, что стоит в onchange
+    expect($('hps-month').getAttribute('onchange')).toBe('onHpsMonth(this.value)');
+    window.onHpsMonth('2026-06');
+    expect(txt('hist-period-label')).toBe('Июнь');
+    expect(histRows().length).toBe(3);
+    window.showHistPeriodSheet();
+    expect(txt('hps-month-val')).toBe('Июнь 2026');
+    window.onHpsMonth('');
+    expect(t.S.histPeriod).toBe(null);
   });
 });
 

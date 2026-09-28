@@ -837,37 +837,95 @@ var _MONTHS_RU=['Январь','Февраль','Март','Апрель','Ма�
 function fmtMonthYM(ym){ var p=ym.split('-'); return _MONTHS_RU[parseInt(p[1],10)-1]+' '+p[0]; }
 // Короткая подпись для пилюли: «Июнь», но «Июнь 2025» если год не текущий
 function fmtMonthPill(ym){ var p=ym.split('-'); var m=_MONTHS_RU[parseInt(p[1],10)-1]; return p[0]===todayStr().slice(0,4)?m:m+' '+p[0]; }
+// S.histPeriod: null — всё время, 'YYYY-MM' — месяц, {from,to} ('YYYY-MM-DD',
+// включительно) — свой диапазон; from===to — один день.
+function isHistRange(p){ return !!p&&typeof p==='object'&&/^\d{4}-\d{2}-\d{2}$/.test(p.from)&&/^\d{4}-\d{2}-\d{2}$/.test(p.to)&&p.from<=p.to; }
 function getTxsForPeriod(type,catId){
-  var period=S.histPeriod; // null = all time, 'YYYY-MM' = specific month
+  var period=S.histPeriod;
+  var range=isHistRange(period);
   return S.txs.filter(function(t){
     if(type&&t.type!==type) return false;
     if(catId&&t.catId!==catId) return false;
-    if(period&&localDateStr(t.date).slice(0,7)!==period) return false;
+    if(period){
+      var d=localDateStr(t.date);
+      if(range){ if(d<period.from||d>period.to) return false; }
+      else if(d.slice(0,7)!==period) return false;
+    }
     return true;
   });
+}
+// «12 сен», с годом — если он не текущий
+function fmtDayPill(ds){
+  var s=fmtDeadlineShort(ds);
+  return ds.slice(0,4)===todayStr().slice(0,4)?s:s+' '+ds.slice(0,4);
+}
+// «28 августа» для полей листа — там места хватает; год — если не текущий
+function fmtDayFull(ds){
+  var s=new Date(ds+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+  return ds.slice(0,4)===todayStr().slice(0,4)?s:s+' '+ds.slice(0,4);
+}
+// Пилюля в шапке узкая (заголовок по центру), поэтому диапазон — как можно короче:
+// «14 сент», «1–14 сент», «28.08–03.09».
+function fmtHistPeriodPill(p){
+  if(!p) return 'Всё время';
+  if(!isHistRange(p)) return fmtMonthPill(p);
+  var a=p.from, b=p.to;
+  if(a===b) return fmtDayPill(a);
+  if(a.slice(0,7)===b.slice(0,7)&&a.slice(0,4)===todayStr().slice(0,4)) return parseInt(a.slice(8),10)+'–'+fmtDeadlineShort(b);
+  // Через месяцы и годы — только дд.мм: полные даты видны в листе «Период»
+  var dm=function(d){ return d.slice(8)+'.'+d.slice(5,7); };
+  return dm(a)+'–'+dm(b);
 }
 function _histAvailMonths(){
   var set={};
   S.txs.forEach(function(t){ set[localDateStr(t.date).slice(0,7)]=true; });
   set[todayStr().slice(0,7)]=true;
   // Выбранный месяц всегда в списке, даже если из него удалили все записи
-  if(S.histPeriod) set[S.histPeriod]=true;
+  if(S.histPeriod&&!isHistRange(S.histPeriod)) set[S.histPeriod]=true;
   return Object.keys(set).sort().reverse(); // от новых к старым
 }
 function showHistPeriodSheet(){
   var cur=S.histPeriod||null;
-  var html='<button class="hps-option'+(cur===null?' on':'')+'" onclick="selHistPeriodOption(null)">'
-    +'<span>За всё время</span>'+(cur===null?_hpsCheck():'')+'</button>';
-  _histAvailMonths().forEach(function(ym){
-    html+='<button class="hps-option'+(cur===ym?' on':'')+'" onclick="selHistPeriodOption(\''+ym+'\')">'
-      +'<span>'+fmtMonthYM(ym)+'</span>'+(cur===ym?_hpsCheck():'')+'</button>';
-  });
-  document.getElementById('hist-period-sheet-list').innerHTML=html;
+  var isMonth=!!cur&&!isHistRange(cur);
+  // Месяцы — в системном выборе (на телефоне это прокручиваемое колесо/список),
+  // чтобы лист «Период» не рос вверх по мере того, как копится история.
+  var sel=document.getElementById('hps-month');
+  var html='<option value="">За всё время</option>';
+  _histAvailMonths().forEach(function(ym){ html+='<option value="'+ym+'">'+fmtMonthYM(ym)+'</option>'; });
+  sel.innerHTML=html;
+  sel.value=isMonth?cur:'';
+  document.getElementById('hps-month-val').textContent=isMonth?fmtMonthYM(cur):(cur?'Выбрать месяц':'За всё время');
+  document.getElementById('hps-month-tile').classList.toggle('sel',isMonth);
+  var r=isHistRange(cur)?cur:null;
+  document.getElementById('hps-from').value=r?r.from:'';
+  document.getElementById('hps-to').value=r?r.to:'';
+  updateHpsRange();
   document.getElementById('hist-period-sheet-bg').classList.add('vis');
 }
-function _hpsCheck(){ return '<svg class="hps-check" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+// Поля «С» / «По». Выбрали только «С» — «По» подтягивается тем же днём:
+// так одной датой можно просто прыгнуть к нужному дню.
+function onHpsDate(which){
+  var f=document.getElementById('hps-from'), t=document.getElementById('hps-to');
+  if(which==='from'&&f.value&&(!t.value||t.value<f.value)) t.value=f.value;
+  if(which==='to'&&t.value&&(!f.value||f.value>t.value)) f.value=t.value;
+  updateHpsRange();
+}
+function updateHpsRange(){
+  var f=document.getElementById('hps-from').value, t=document.getElementById('hps-to').value;
+  document.getElementById('hps-from-val').textContent=f?fmtDayFull(f):'Дата';
+  document.getElementById('hps-to-val').textContent=t?fmtDayFull(t):'Дата';
+  document.getElementById('hps-from-tile').classList.toggle('sel',!!f);
+  document.getElementById('hps-to-tile').classList.toggle('sel',!!t);
+  document.getElementById('hps-apply').disabled=!(f&&t);
+}
+function applyHistRange(){
+  var f=document.getElementById('hps-from').value, t=document.getElementById('hps-to').value;
+  if(!f||!t) return;
+  selHistPeriodOption(f<=t?{from:f,to:t}:{from:t,to:f});
+}
 function hideHistPeriodSheet(){ document.getElementById('hist-period-sheet-bg').classList.remove('vis'); }
 function selHistPeriodOption(ym){ S.histPeriod=ym; hideHistPeriodSheet(); renderHistory(); }
+function onHpsMonth(v){ selHistPeriodOption(v||null); }
 function selHistType(tp){
   S.histType=(S.histType===tp?null:tp); S.histCat=null;
   updateHistTypeTabs(); renderHistory();
@@ -880,10 +938,10 @@ function updateHistTypeTabs(){
 }
 function renderHistory(){
   updateHistTypeTabs();
-  // histPeriod допускает только null («Всё время») или 'YYYY-MM'
-  if(S.histPeriod && !/^\d{4}-\d{2}$/.test(S.histPeriod)) S.histPeriod=null;
+  // histPeriod допускает только null («Всё время»), 'YYYY-MM' или диапазон {from,to}
+  if(S.histPeriod && !isHistRange(S.histPeriod) && !/^\d{4}-\d{2}$/.test(S.histPeriod)) S.histPeriod=null;
   var plbl=document.getElementById('hist-period-label');
-  if(plbl) plbl.textContent=S.histPeriod?fmtMonthPill(S.histPeriod):'Всё время';
+  if(plbl) plbl.textContent=fmtHistPeriodPill(S.histPeriod);
   var aBar=document.getElementById('analytics-bar');
   if(aBar) aBar.classList.toggle('hidden', !AI_ENABLED || S.txs.length < 3);
   // Суммы считаются в рамках выбранного периода И выбранной категории
@@ -2060,7 +2118,7 @@ Object.assign(window, {
   showOnboarding, obNext, obGoTo, closeOnboarding, obCopyCode, obTouchStart, obTouchEnd, replayOnboarding,
   obBudAmtInput, obBudDateChange, obSaveBudget, obToggleDemo,
   selHistType, selHistTab,
-  showHistPeriodSheet, hideHistPeriodSheet, selHistPeriodOption,
+  showHistPeriodSheet, hideHistPeriodSheet, selHistPeriodOption, onHpsDate, applyHistRange, onHpsMonth,
   showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat, onTxEditAmtInput, onTxEditDateChange,
   _confOk, _confNo,
   toastUndo, fmtCodeInput,

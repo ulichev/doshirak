@@ -18,6 +18,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   -webkit-tap-highlight-color:transparent;transition:background .18s,transform .12s}
 .tb-btn:active,.tb-pill:active{background:rgba(255,255,255,.14);transform:scale(.97)}
 .tb-pill svg{opacity:.6}
+#hist-period-btn{max-width:calc(50% - 44px)} /* 50% — от контентной ширины шапки; 44px ≈ половина «История» + зазор */
+#hist-period-label{overflow:hidden;text-overflow:ellipsis}
 /* правое действие в активном цвете (напр. «Сохранить») */
 .tb-action{background:#F5A623 linear-gradient(#F5A623,#F5A623);border-color:#F5A623;color:#1a1a1a;font-weight:700}
 .tb-action:active{background:#e0941a linear-gradient(#e0941a,#e0941a);border-color:#e0941a}
@@ -548,20 +550,15 @@ html,body,#app,.screen{max-width:100vw}
 }
 
 /* ── HISTORY PERIOD SHEET ── */
-.hps-list{display:flex;flex-direction:column;max-height:252px;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.hps-list::-webkit-scrollbar{display:none}
-.hps-option{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  width:100%;padding:15px 4px;
-  background:none;border:none;border-bottom:1px solid rgba(255,255,255,.06);
-  color:rgba(255,255,255,.82);
-  font-size:16px;text-align:left;
-  cursor:pointer;transition:opacity .15s
-}
-.hps-option:last-child{border-bottom:none}
-.hps-option:active{opacity:.55}
-.hps-option.on{color:#F5A623;font-weight:600}
-.hps-check{flex-shrink:0;color:#F5A623}
+/* Свой диапазон дат над списком месяцев; плитки — как .bud-date-tile */
+.hps-range{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hps-tile{padding:12px 14px}
+.hps-apply{margin:8px 0 16px}
+.hps-apply:disabled{opacity:.35;box-shadow:none}
+/* Месяц — системный select поверх плитки: колесо/список прокручивается сам */
+.hps-month-chev{flex-shrink:0;color:rgba(255,255,255,.4)}
+.hps-month.sel .hps-month-chev{color:#F5A623}
+.hps-month select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;font-size:16px;-webkit-appearance:none;appearance:none}
 
 /* ── BUDGET CHANGE HINT ── */
 .bud-change-hint{
