@@ -16,7 +16,11 @@ if (DEV_NO_PROD) console.info('[Дошик] локальная разработ�
 let currentUser = null;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
-const K = { tx:'tk_tx', cats:'tk_cats', budget:'tk_budget', budHist:'tk_budhist' };
+// budHist — НЕ 'tk_budhist': под этим ключом старые версии хранили свою «историю
+// бюджета» в другом формате (без дат периода и итога). Она пережила обновления на
+// телефонах и ломала экран бюджета и синк (23502: days = null).
+const K = { tx:'tk_tx', cats:'tk_cats', budget:'tk_budget', budHist:'tk_budperiods' };
+const K_LEGACY_BUDHIST='tk_budhist';
 const COLORS = ['#F5A623','#FF6B6B','#3DBD74','#4A9EFF','#AF6FE8','#00C2CB','#FF9500','#F06292','#78909C','#A1887F'];
 const DEF_CATS_EXP = [
   {id:'food',name:'Еда',color:'#F5A623',icon:'🍔',ctype:'expense'},
@@ -113,7 +117,9 @@ function loadLocal(){
       S.budget={amount:Number(_sb.amount)||0,days:Number(_sb.days)||0,deadline:_sb.deadline||null,set_at:_lbSetAt,spent_at_start:_lbBaseline,reset_ts:_sb.reset_ts||null};
     } else { S.budget=emptyBudget(); }
     var _bh=JSON.parse(_load(K.budHist)||'[]');
-    S.budHist=Array.isArray(_bh)?_bh:[];
+    S.budHist=cleanBudHist(_bh);
+    try{ localStorage.removeItem(K_LEGACY_BUDHIST); }catch(e){}
+    try{ sessionStorage.removeItem(K_LEGACY_BUDHIST); }catch(e){}
   } catch(e){ S.txs=[]; S.cats=[...DEF_CATS]; S.budget=emptyBudget(); S.budHist=[]; }
 }
 function _store(k,v){ try{localStorage.setItem(k,v);}catch(e){} try{sessionStorage.setItem(k,v);}catch(e){} }
@@ -301,7 +307,7 @@ function budHistRow(r){
           start_day:r.from,end_day:r.to,spent:r.spent,income:r.income,result:r.result,early:!!r.early,top_cats:r.top||[]};
 }
 async function pushBudHist(r){
-  if(!currentUser||!_colBudHist) return;
+  if(!currentUser||!_colBudHist||!isBudHistRec(r)) return;
   try {
     const {error}=await db.from('budget_history').upsert(budHistRow(r));
     // нет колонки (PGRST204/42703) или самой таблицы (42P01/PGRST205) — ждём миграцию
@@ -320,11 +326,19 @@ function mergeBudHist(rows){
       spent:Number(r.spent)||0,income:Number(r.income)||0,result:Number(r.result)||0,early:!!r.early,closed_at:r.ts||null,
       top:Array.isArray(r.top_cats)?r.top_cats:[]};
   });
-  var missing=(S.budHist||[]).filter(function(r){ return !byId[r.id]; });
+  var missing=(S.budHist||[]).filter(function(r){ return isBudHistRec(r)&&!byId[r.id]; });
   missing.forEach(function(r){ byId[r.id]=r; });
-  S.budHist=sortBudHist(Object.keys(byId).map(function(k){ return byId[k]; }));
+  S.budHist=cleanBudHist(Object.keys(byId).map(function(k){ return byId[k]; }));
   missing.slice(0,50).forEach(function(r){ pushBudHist(r); });
 }
+// Запись истории периода годится, только если у неё есть даты и итог: всё прочее
+// (старый формат, битый импорт) отбрасываем, а не показываем и не шлём на сервер
+function isBudHistRec(r){
+  var d=/^\d{4}-\d{2}-\d{2}$/;
+  return !!r&&typeof r.id==='string'&&d.test(r.from)&&d.test(r.to)&&r.from<=r.to
+    &&isFinite(r.amount)&&isFinite(r.spent)&&isFinite(r.result);
+}
+function cleanBudHist(list){ return Array.isArray(list)?sortBudHist(list.filter(isBudHistRec)):[]; }
 function sortBudHist(list){
   return list.sort(function(a,b){ return a.to<b.to?1:a.to>b.to?-1:tsOf(b.closed_at)-tsOf(a.closed_at); });
 }
@@ -1229,7 +1243,7 @@ function budHistEmptyText(){
 function renderBudHist(){
   var box=document.getElementById('bud-hist');
   if(!box) return;
-  var list=S.budHist||[];
+  var list=(S.budHist||[]).filter(isBudHistRec);
   var has=list.length>0;
   var empty=document.getElementById('bh-empty');
   empty.style.display=has?'none':'';
@@ -1461,7 +1475,7 @@ function importData(e){
       var ibBaseline=(ib.spent_at_start!=null)?Number(ib.spent_at_start)
         :S.txs.filter(t=>{if(t.type!=='expense')return false;if(!ibSetAt)return true;return localDateStr(t.date)<ibSetAt;}).reduce((s,t)=>s+t.amount,0);
       S.budget={amount:Number(ib.amount)||0,days:Number(ib.days)||0,deadline:ib.deadline||null,set_at:ibSetAt,spent_at_start:ibBaseline,reset_ts:ib.reset_ts||null};
-      S.budHist=Array.isArray(d.budHist)?sortBudHist(d.budHist.filter(r=>r&&r.id&&r.from&&r.to)):[];
+      S.budHist=cleanBudHist(d.budHist);
       saveLocal();
       if(currentUser){
         const txRows=S.txs.map(t=>txRow(t,currentUser.id));
@@ -2332,7 +2346,7 @@ if(import.meta.env.MODE === 'test'){
     determineCtype, getTxsForPeriod, emptyBudget,
     loadLocal, saveLocal, renderMain, renderHistory, renderBudgetScreen, renderCats, setType,
     setSyncDot, describeSyncErr, txRow, tsOf, isMissingColumn, inBudgetPeriod, budgetRemaining,
-    snapshotBudgetPeriod, mergeBudHist, fmtBudHistRange, renderBudHist,
+    snapshotBudgetPeriod, mergeBudHist, fmtBudHistRange, renderBudHist, isBudHistRec,
   };
 }
 

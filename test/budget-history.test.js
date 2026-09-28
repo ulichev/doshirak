@@ -157,6 +157,26 @@ describe('прошлые периоды бюджета', () => {
     expect(t.S.budHist[1].result).toBe(-50);
   });
 
+  it('старая «история бюджета» из прошлых версий (tk_budhist) не ломает экран и синк', async () => {
+    const t = await bootApp({ now: '2026-09-28T10:00:00' });
+    // Формат старых версий: без дат периода и итога — так было на реальном iPhone
+    localStorage.setItem('tk_budhist', JSON.stringify([
+      { id: 'b1', ts: '2026-05-28T10:00:00Z', amount: 20000, days: 30, deadline: '2026-06-27', prev_amount: 0 },
+    ]));
+    seed(t, { budget: budget({ deadline: '2026-09-30' }) });
+    expect(t.S.budHist).toEqual([]);
+    expect(localStorage.getItem('tk_budhist')).toBeNull(); // старый ключ вычищен
+    window.goBudget();
+    expect($('bh-empty').style.display).toBe('');
+    expect(document.querySelectorAll('#bh-list .bh-item')).toHaveLength(0);
+
+    // Даже если битая запись окажется в памяти — синк её не шлёт и не показывает
+    t.S.budHist = [{ id: 'bad', amount: 1 }];
+    t.mergeBudHist([]);
+    expect(t.S.budHist).toEqual([]);
+    expect(t.isBudHistRec({ id: 'x', from: '2026-08-01', to: '2026-08-31', amount: 1, spent: 0, result: 1 })).toBe(true);
+  });
+
   it('диапазон дат: один месяц, через месяцы, прошлый год', async () => {
     const t = await bootApp({ now: '2026-09-02T10:00:00' });
     expect(t.fmtBudHistRange('2026-08-01', '2026-08-30')).toBe('1–30 авг');
