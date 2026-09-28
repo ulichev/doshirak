@@ -884,22 +884,25 @@ function _histAvailMonths(){
   if(S.histPeriod&&!isHistRange(S.histPeriod)) set[S.histPeriod]=true;
   return Object.keys(set).sort().reverse(); // от новых к старым
 }
+// Лист «Период» ничего не применяет сам: выбор месяца или дат — черновик,
+// фильтр меняется только по «Показать». Черновик — либо месяц (значение select,
+// '' — всё время), либо даты: тогда select стоит на служебном HPS_RANGE.
+var HPS_RANGE='range';
 function showHistPeriodSheet(){
   var cur=S.histPeriod||null;
-  var isMonth=!!cur&&!isHistRange(cur);
+  var r=isHistRange(cur)?cur:null;
   // Месяцы — в системном выборе (на телефоне это прокручиваемое колесо/список),
-  // чтобы лист «Период» не рос вверх по мере того, как копится история.
+  // чтобы лист не рос вверх по мере того, как копится история. «Свои даты» —
+  // заглушка, пока выбраны даты: без неё повторный выбор «За всё время» не был
+  // бы изменением, и телефон не прислал бы change.
   var sel=document.getElementById('hps-month');
   var html='<option value="">За всё время</option>';
   _histAvailMonths().forEach(function(ym){ html+='<option value="'+ym+'">'+fmtMonthYM(ym)+'</option>'; });
-  sel.innerHTML=html;
-  sel.value=isMonth?cur:'';
-  document.getElementById('hps-month-val').textContent=isMonth?fmtMonthYM(cur):(cur?'Выбрать месяц':'За всё время');
-  document.getElementById('hps-month-tile').classList.toggle('sel',isMonth);
-  var r=isHistRange(cur)?cur:null;
+  sel.innerHTML=html+'<option value="'+HPS_RANGE+'" disabled>Свои даты</option>';
+  sel.value=r?HPS_RANGE:(cur||'');
   document.getElementById('hps-from').value=r?r.from:'';
   document.getElementById('hps-to').value=r?r.to:'';
-  updateHpsRange();
+  updateHpsSheet();
   document.getElementById('hist-period-sheet-bg').classList.add('vis');
 }
 // Поля «С» / «По». Выбрали только «С» — «По» подтягивается тем же днём:
@@ -908,24 +911,35 @@ function onHpsDate(which){
   var f=document.getElementById('hps-from'), t=document.getElementById('hps-to');
   if(which==='from'&&f.value&&(!t.value||t.value<f.value)) t.value=f.value;
   if(which==='to'&&t.value&&(!f.value||f.value>t.value)) f.value=t.value;
-  updateHpsRange();
+  document.getElementById('hps-month').value=(f.value||t.value)?HPS_RANGE:'';
+  updateHpsSheet();
 }
-function updateHpsRange(){
+// Выбрали месяц — даты сбрасываются, применится по «Показать»
+function onHpsMonth(){
+  document.getElementById('hps-from').value='';
+  document.getElementById('hps-to').value='';
+  updateHpsSheet();
+}
+function updateHpsSheet(){
   var f=document.getElementById('hps-from').value, t=document.getElementById('hps-to').value;
+  var m=document.getElementById('hps-month').value;
   document.getElementById('hps-from-val').textContent=f?fmtDayFull(f):'Дата';
   document.getElementById('hps-to-val').textContent=t?fmtDayFull(t):'Дата';
   document.getElementById('hps-from-tile').classList.toggle('sel',!!f);
   document.getElementById('hps-to-tile').classList.toggle('sel',!!t);
-  document.getElementById('hps-apply').disabled=!(f&&t);
+  document.getElementById('hps-month-val').textContent=m===HPS_RANGE?'Выбрать месяц':(m?fmtMonthYM(m):'За всё время');
+  document.getElementById('hps-month-tile').classList.toggle('sel',m!==HPS_RANGE);
+  document.getElementById('hps-apply').disabled=m===HPS_RANGE&&!(f&&t);
 }
-function applyHistRange(){
+function applyHistPeriod(){
+  var m=document.getElementById('hps-month').value;
+  if(m!==HPS_RANGE){ selHistPeriodOption(m||null); return; }
   var f=document.getElementById('hps-from').value, t=document.getElementById('hps-to').value;
   if(!f||!t) return;
   selHistPeriodOption(f<=t?{from:f,to:t}:{from:t,to:f});
 }
 function hideHistPeriodSheet(){ document.getElementById('hist-period-sheet-bg').classList.remove('vis'); }
 function selHistPeriodOption(ym){ S.histPeriod=ym; hideHistPeriodSheet(); renderHistory(); }
-function onHpsMonth(v){ selHistPeriodOption(v||null); }
 function selHistType(tp){
   S.histType=(S.histType===tp?null:tp); S.histCat=null;
   updateHistTypeTabs(); renderHistory();
@@ -2118,7 +2132,7 @@ Object.assign(window, {
   showOnboarding, obNext, obGoTo, closeOnboarding, obCopyCode, obTouchStart, obTouchEnd, replayOnboarding,
   obBudAmtInput, obBudDateChange, obSaveBudget, obToggleDemo,
   selHistType, selHistTab,
-  showHistPeriodSheet, hideHistPeriodSheet, selHistPeriodOption, onHpsDate, applyHistRange, onHpsMonth,
+  showHistPeriodSheet, hideHistPeriodSheet, selHistPeriodOption, onHpsDate, applyHistPeriod, onHpsMonth,
   showTxEdit, hideTxEdit, saveTxEdit, deleteTxFromEdit, selectEditCat, onTxEditAmtInput, onTxEditDateChange,
   _confOk, _confNo,
   toastUndo, fmtCodeInput,

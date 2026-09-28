@@ -63,17 +63,19 @@ describe('история: фильтр по периоду', () => {
     expect($('hps-month').options[0].textContent).toBe('За всё время');
   });
 
-  it('выбор месяца в списке применяет фильтр и закрывает лист', () => {
+  it('выбор месяца — черновик: применяется только по «Показать»', () => {
     window.showHistPeriodSheet();
     // inline-обработчики jsdom не исполняет — зовём то же, что стоит в onchange
-    expect($('hps-month').getAttribute('onchange')).toBe('onHpsMonth(this.value)');
-    window.onHpsMonth('2026-06');
+    expect($('hps-month').getAttribute('onchange')).toBe('onHpsMonth()');
+    $('hps-month').value = '2026-06';
+    window.onHpsMonth();
+    expect(txt('hps-month-val')).toBe('Июнь 2026');
+    expect(txt('hist-period-label')).toBe('Всё время');
+    expect($('hist-period-sheet-bg').classList.contains('vis')).toBe(true);
+    window.applyHistPeriod();
     expect(txt('hist-period-label')).toBe('Июнь');
     expect(histRows().length).toBe(3);
-    window.showHistPeriodSheet();
-    expect(txt('hps-month-val')).toBe('Июнь 2026');
-    window.onHpsMonth('');
-    expect(t.S.histPeriod).toBe(null);
+    expect($('hist-period-sheet-bg').classList.contains('vis')).toBe(false);
   });
 });
 

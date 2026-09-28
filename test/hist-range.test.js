@@ -29,7 +29,7 @@ function pick(from, to) {
 describe('история: свой диапазон дат', () => {
   it('диапазон ограничивает суммы и список, границы включительно', () => {
     pick('2026-06-30', '2026-07-06');
-    window.applyHistRange();
+    window.applyHistPeriod();
     expect(histTotals()).toEqual({ exp: -1700, inc: 0 });
     expect(histRows().length).toBe(3);
     expect(txt('hist-period-label')).toBe('30.06–06.07');
@@ -39,14 +39,14 @@ describe('история: свой диапазон дат', () => {
   it('одна дата «С» — показывается этот день', () => {
     pick('2026-07-07');
     expect($('hps-to').value).toBe('2026-07-07');
-    window.applyHistRange();
+    window.applyHistPeriod();
     expect(histRows().length).toBe(1);
     expect(txt('hist-period-label')).toBe('7 июл');
   });
 
   it('«По» раньше «С» — «С» подтягивается, пустой диапазон не применить', () => {
     window.showHistPeriodSheet();
-    expect($('hps-apply').disabled).toBe(true);
+    expect($('hps-apply').disabled).toBe(false); // «За всё время» — тоже выбор
     pick('2026-07-10', '2026-07-05');
     expect($('hps-from').value).toBe('2026-07-05');
     expect($('hps-apply').disabled).toBe(false);
@@ -54,14 +54,14 @@ describe('история: свой диапазон дат', () => {
 
   it('другой год подписывается с годом', () => {
     pick('2025-12-31', '2025-12-31');
-    window.applyHistRange();
+    window.applyHistPeriod();
     expect(txt('hist-period-label')).toBe('31 дек 2025');
     expect(histTotals().exp).toBe(-100);
   });
 
   it('повторное открытие показывает выбранный диапазон, месяц его сбрасывает', () => {
     pick('2026-07-05', '2026-07-07');
-    window.applyHistRange();
+    window.applyHistPeriod();
     window.showHistPeriodSheet();
     expect($('hps-from').value).toBe('2026-07-05');
     expect($('hps-to').value).toBe('2026-07-07');
@@ -69,6 +69,34 @@ describe('история: свой диапазон дат', () => {
     expect(txt('hist-period-label')).toBe('Июнь');
     window.showHistPeriodSheet();
     expect($('hps-from').value).toBe('');
+  });
+
+  it('после диапазона можно вернуться на «За всё время»', () => {
+    pick('2026-07-05', '2026-07-07');
+    window.applyHistPeriod();
+    window.showHistPeriodSheet();
+    // select стоит на заглушке — выбор «За всё время» будет настоящим изменением
+    expect($('hps-month').value).toBe('range');
+    expect(txt('hps-month-val')).toBe('Выбрать месяц');
+    $('hps-month').value = '';
+    window.onHpsMonth();
+    expect($('hps-from').value).toBe('');
+    expect(txt('hps-month-val')).toBe('За всё время');
+    window.applyHistPeriod();
+    expect(t.S.histPeriod).toBe(null);
+    expect(txt('hist-period-label')).toBe('Всё время');
+    expect(histRows().length).toBe(6);
+  });
+
+  it('даты после выбора месяца перебивают месяц', () => {
+    window.showHistPeriodSheet();
+    $('hps-month').value = '2026-06';
+    window.onHpsMonth();
+    $('hps-from').value = '2026-07-06';
+    window.onHpsDate('from');
+    expect($('hps-month').value).toBe('range');
+    window.applyHistPeriod();
+    expect(txt('hist-period-label')).toBe('6 июл');
   });
 
   it('в полях — полное название месяца', () => {
@@ -81,16 +109,16 @@ describe('история: свой диапазон дат', () => {
 
   it('диапазон внутри месяца и через год подписывается коротко (без года)', () => {
     pick('2026-07-01', '2026-07-07');
-    window.applyHistRange();
+    window.applyHistPeriod();
     expect(txt('hist-period-label')).toMatch(/^1–7 июл/);
     pick('2025-12-28', '2026-07-14');
-    window.applyHistRange();
+    window.applyHistPeriod();
     expect(txt('hist-period-label')).toBe('28.12–14.07');
   });
 
   it('фильтр по категории работает внутри диапазона', () => {
     pick('2026-07-01', '2026-07-31');
-    window.applyHistRange();
+    window.applyHistPeriod();
     window.selHistTab('food');
     expect(histTotals().exp).toBe(-1500);
   });

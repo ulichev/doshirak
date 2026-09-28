@@ -441,14 +441,14 @@
         <input type="date" id="hps-to" onchange="onHpsDate('to')">
       </label>
     </div>
-    <button class="action-btn btn-primary hps-apply" id="hps-apply" onclick="applyHistRange()" disabled>Показать</button>
+    <button class="action-btn btn-primary hps-apply" id="hps-apply" onclick="applyHistPeriod()" disabled>Показать</button>
     <label class="bud-date-tile hps-tile hps-month" id="hps-month-tile" for="hps-month">
       <span class="bud-date-text">
         <span class="bud-date-cap">Месяц</span>
         <span class="bud-date-val" id="hps-month-val">За всё время</span>
       </span>
       <svg class="hps-month-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <select id="hps-month" onchange="onHpsMonth(this.value)"></select>
+      <select id="hps-month" onchange="onHpsMonth()"></select>
     </label>
   </div>
 </div>
