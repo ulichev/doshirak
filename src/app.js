@@ -6,7 +6,13 @@ import { createClient } from '@supabase/supabase-js';
 // В нативной сборке (Android APK) страница открыта с https://localhost, прокси там
 // нет — VITE_API_BASE подставляет прод-домен, чтобы /sb и /api остались рабочими.
 const API_BASE = import.meta.env.VITE_API_BASE || window.location.origin;
-const db = createClient(API_BASE + '/sb', import.meta.env.VITE_SUPABASE_KEY);
+// Второй рубеж (первый — vite.config): в локальной разработке у клиента нет сети
+// вообще, даже если VITE_API_BASE смотрит на прод-домен. Приложение ведёт себя как
+// офлайн: «Начать с нуля» даёт локальный аккаунт, в прод-базу не уходит ничего.
+const DEV_NO_PROD = import.meta.env.DEV && import.meta.env.MODE !== 'test' && !import.meta.env.VITE_DEV_PROD;
+const db = createClient(API_BASE + '/sb', import.meta.env.VITE_SUPABASE_KEY,
+  DEV_NO_PROD ? { global: { fetch: () => Promise.reject(new TypeError('Failed to fetch (dev: прод отключён)')) } } : undefined);
+if (DEV_NO_PROD) console.info('[Дошик] локальная разработка: прод отключён, всё работает офлайн');
 let currentUser = null;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
