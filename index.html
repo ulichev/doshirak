@@ -175,8 +175,21 @@
     </label>
 
     <div class="bud-change-hint" id="bud-change-hint" style="display:none">
-      Будь внимательнее — при установке нового бюджета топ категорий доходов и расходов на главном экране сбросится
+      <span class="bud-change-icon" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <span class="bud-change-text">
+        <b>Новый бюджет — новый период</b>
+        <span id="bud-change-sub"></span>
+      </span>
     </div>
+
+    <section class="bud-hist" id="bud-hist">
+      <div class="bud-hist-title">Прошлые периоды</div>
+      <div class="bh-empty" id="bh-empty"></div>
+      <div class="bh-stats" id="bh-stats"></div>
+      <div class="bh-list" id="bh-list"></div>
+    </section>
 
     <div class="bud-noodles" aria-hidden="true">
       <img src="/noodles.png" alt="" draggable="false">

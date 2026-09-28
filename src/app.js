@@ -10,7 +10,7 @@ const db = createClient(API_BASE + '/sb', import.meta.env.VITE_SUPABASE_KEY);
 let currentUser = null;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
-const K = { tx:'tk_tx', cats:'tk_cats', budget:'tk_budget' };
+const K = { tx:'tk_tx', cats:'tk_cats', budget:'tk_budget', budHist:'tk_budhist' };
 const COLORS = ['#F5A623','#FF6B6B','#3DBD74','#4A9EFF','#AF6FE8','#00C2CB','#FF9500','#F06292','#78909C','#A1887F'];
 const DEF_CATS_EXP = [
   {id:'food',name:'Еда',color:'#F5A623',icon:'🍔',ctype:'expense'},
@@ -64,6 +64,7 @@ let S = {
   histCat:null, histType:null, histPeriod:null, catSettTab:'expense',
   budColor:COLORS[0], budDays:0,
   txs:[], cats:[], budget:emptyBudget(),
+  budHist:[], // итоги прошлых периодов бюджета, новые сверху
 };
 
 let _budLockUntil=0; // до этого момента синхронизация не перезаписывает локальный бюджет
@@ -105,7 +106,9 @@ function loadLocal(){
       // и остаток бюджета менялся сам собой после каждого запуска приложения
       S.budget={amount:Number(_sb.amount)||0,days:Number(_sb.days)||0,deadline:_sb.deadline||null,set_at:_lbSetAt,spent_at_start:_lbBaseline,reset_ts:_sb.reset_ts||null};
     } else { S.budget=emptyBudget(); }
-  } catch(e){ S.txs=[]; S.cats=[...DEF_CATS]; S.budget=emptyBudget(); }
+    var _bh=JSON.parse(_load(K.budHist)||'[]');
+    S.budHist=Array.isArray(_bh)?_bh:[];
+  } catch(e){ S.txs=[]; S.cats=[...DEF_CATS]; S.budget=emptyBudget(); S.budHist=[]; }
 }
 function _store(k,v){ try{localStorage.setItem(k,v);}catch(e){} try{sessionStorage.setItem(k,v);}catch(e){} }
 function _load(k){ try{var v=localStorage.getItem(k);if(v)return v;}catch(e){} try{return sessionStorage.getItem(k);}catch(e){} return null; }
@@ -113,6 +116,7 @@ function saveLocal(){
   _store(K.tx,JSON.stringify(S.txs));
   _store(K.cats,JSON.stringify(S.cats));
   _store(K.budget,JSON.stringify(S.budget));
+  _store(K.budHist,JSON.stringify(S.budHist||[]));
 }
 
 // ── SUPABASE SYNC ─────────────────────────────────────────────────────────────
@@ -121,10 +125,11 @@ async function syncFromSupabase(){
   if(!currentUser||_syncInFlight) return;
   _syncInFlight=true;
   try {
-    const [txRes,catRes,budRes]=await Promise.all([
+    const [txRes,catRes,budRes,bhRes]=await Promise.all([
       db.from('transactions').select('*').eq('user_id',currentUser.id).order('date',{ascending:false}),
       db.from('categories').select('*').eq('user_id',currentUser.id).order('sort_order'),
       db.from('budget_settings').select('*').eq('user_id',currentUser.id).maybeSingle(),
+      db.from('budget_history').select('*').eq('user_id',currentUser.id),
     ]);
     if(txRes.data&&txRes.data.length>0){
       // in_budget приходит с сервера (после миграции). Пока колонки нет — подставляем
@@ -173,6 +178,9 @@ async function syncFromSupabase(){
       S.budget={amount:Number(budRes.data.amount)||0,days:Number(budRes.data.days)||0,deadline:budRes.data.deadline||null,set_at:budSetAt,spent_at_start:_baseline,
                 reset_ts:budRes.data.reset_ts||(S.budget&&S.budget.set_at===budSetAt?S.budget.reset_ts:null)||null};
     }
+    // Ошибку истории не считаем ошибкой синка: пока миграция не применена,
+    // история живёт только локально
+    if(bhRes&&!bhRes.error&&Array.isArray(bhRes.data)) mergeBudHist(bhRes.data);
     saveLocal(); setSyncDot(true); renderMain(); processQueue();
   } catch(e){
     setSyncDot(false,e);
@@ -276,6 +284,43 @@ async function pushBudget(){
     setSyncDot(true);
   }
   catch(e){ setSyncDot(false,e); offlineQueue.push({op:'pushBudget'}); saveQueue(); }
+}
+// История периодов. Таблица budget_history досталась от старой версии, новые
+// колонки (start_day, end_day, spent, income, result, early) — из db/migrations.sql.
+// Пока их нет, запись молча остаётся локальной, а синк до-зальёт её после миграции
+// (см. mergeBudHist) — поэтому в оффлайн-очередь история не кладётся.
+var _colBudHist=true;
+function budHistRow(r){
+  return {id:r.id,user_id:currentUser.id,ts:r.closed_at,amount:r.amount,days:daysBetween(r.from,r.to)+1,deadline:r.deadline,
+          start_day:r.from,end_day:r.to,spent:r.spent,income:r.income,result:r.result,early:!!r.early,top_cats:r.top||[]};
+}
+async function pushBudHist(r){
+  if(!currentUser||!_colBudHist) return;
+  try {
+    const {error}=await db.from('budget_history').upsert(budHistRow(r));
+    // нет колонки (PGRST204/42703) или самой таблицы (42P01/PGRST205) — ждём миграцию
+    if(error&&/^(PGRST204|PGRST205|42703|42P01)$/.test(error.code||'')){ _colBudHist=false; return; }
+    if(error) throw error;
+  } catch(e){ setSyncDot(false,e); }
+}
+// Сервер + локальные записи объединяются по id. Строки старой версии (без result)
+// пропускаем: посчитать их итог уже нельзя. Локальные, которых нет на сервере,
+// до-заливаются — так переживается оффлайн и момент до применения миграции.
+function mergeBudHist(rows){
+  var byId={};
+  rows.forEach(function(r){
+    if(r.result==null||!r.start_day||!r.end_day) return;
+    byId[r.id]={id:r.id,from:r.start_day,to:r.end_day,deadline:r.deadline||r.end_day,amount:Number(r.amount)||0,
+      spent:Number(r.spent)||0,income:Number(r.income)||0,result:Number(r.result)||0,early:!!r.early,closed_at:r.ts||null,
+      top:Array.isArray(r.top_cats)?r.top_cats:[]};
+  });
+  var missing=(S.budHist||[]).filter(function(r){ return !byId[r.id]; });
+  missing.forEach(function(r){ byId[r.id]=r; });
+  S.budHist=sortBudHist(Object.keys(byId).map(function(k){ return byId[k]; }));
+  missing.slice(0,50).forEach(function(r){ pushBudHist(r); });
+}
+function sortBudHist(list){
+  return list.sort(function(a,b){ return a.to<b.to?1:a.to>b.to?-1:tsOf(b.closed_at)-tsOf(a.closed_at); });
 }
 
 // ── SYNC STATUS ──────────────────────────────────────────────────────────────
@@ -386,7 +431,7 @@ function goHistory(){
     if(hc&&_histScrollTop>0) hc.scrollTop=_histScrollTop;
   },0);
 }
-function goBudget(){ show('s-budget'); renderBudgetScreen(); }
+function goBudget(){ show('s-budget'); var sc=document.querySelector('#s-budget .budget-screen-content'); if(sc) sc.scrollTop=0; renderBudgetScreen(); }
 function goSettings(){
   updateSyncCard();
   show('s-settings');
@@ -439,6 +484,38 @@ function budgetRemaining(){
   var amt=Number((S.budget&&S.budget.amount)||0);
   if(!(amt>0)) return 0;
   return amt+incomeInBudgetPeriod()-spentInBudgetPeriod();
+}
+// Итог уходящего периода — снимок в момент смены бюджета. Пересчитать его позже
+// нельзя: флаги inBudget при новом бюджете сбрасываются, а границы старого
+// периода больше нигде не хранятся. null — периода по сути не было.
+function snapshotBudgetPeriod(){
+  var b=S.budget, amt=Number((b&&b.amount)||0);
+  if(!(amt>0)||!b.deadline) return null;
+  var today=todayStr();
+  var from=b.reset_ts?localDateStr(b.reset_ts):(b.set_at||today);
+  var spent=spentInBudgetPeriod(), income=incomeInBudgetPeriod();
+  var early=b.deadline>today;
+  // Бюджет поправили в день запуска или до первой траты — это правка, а не период
+  if(early&&(from===today||(!spent&&!income))) return null;
+  return {id:genUuid(),from:from,to:early?today:b.deadline,deadline:b.deadline,amount:amt,
+          spent:spent,income:income,result:amt+income-spent,early:early,closed_at:new Date().toISOString(),
+          top:topSpendCats(S.txs.filter(function(t){ return t.type==='expense'&&inBudgetPeriod(t); }))};
+}
+// Топ-3 категорий трат периода — «куда ушли деньги». Имя/иконку/цвет пишем в снимок:
+// категорию потом могут переименовать или удалить, а история должна остаться читаемой.
+function topSpendCats(expenses){
+  var by={};
+  expenses.forEach(function(t){ var k=t.catId||''; by[k]=(by[k]||0)+t.amount; });
+  return Object.keys(by).sort(function(a,b){ return by[b]-by[a]; }).slice(0,3).map(function(k){
+    var c=getCat(k||null);
+    return {id:k||null,name:c.name,icon:c.icon||'',color:c.color||'#9E9E9E',amount:Math.round(by[k]*100)/100};
+  });
+}
+function archiveBudgetPeriod(){
+  var rec=snapshotBudgetPeriod();
+  if(!rec) return null;
+  S.budHist=sortBudHist([rec].concat(S.budHist||[]));
+  return rec;
 }
 
 function renderMain(){
@@ -1075,8 +1152,100 @@ function renderBudgetScreen(){
     var _sub=document.getElementById('bud-perday-display');
     if(_sub&&remaining>0) _sub.textContent=fmt(Math.round(remaining/_dLeft))+' ₽ в день · '+S.budDays+' '+pluralDays(S.budDays);
   }
+  // Подпись к «Сохранить»: не пугаем сбросом, а объясняем, что будет. Обещаем итог
+  // в истории, только если он туда правда попадёт (правка в день запуска — нет).
   var hintEl=document.getElementById('bud-change-hint');
-  if(hintEl) hintEl.style.display=(S.budget&&Number(S.budget.amount)>0)?'':'none';
+  if(hintEl){
+    var hasBud=S.budget&&Number(S.budget.amount)>0;
+    hintEl.style.display=hasBud?'':'none';
+    if(hasBud) document.getElementById('bud-change-sub').textContent=
+      'Топ трат на главном начнётся с нуля — будешь видеть, куда уходят деньги уже в новом периоде.'
+      +(snapshotBudgetPeriod()?' Итог текущего сохранится ниже.':'');
+  }
+  renderBudHist();
+}
+
+// ── Прошлые периоды: плитка на экране бюджета + лист со списком ──
+// Бюджет — рамка, которую ты себе ставишь, а не весь личный баланс: зарплата может
+// перекрывать перерасход. Поэтому никаких «плюс/минус/итого» — только «уложился
+// в рамку или нет», сколько осталось или на сколько вылез, и на что ушли деньги.
+function budHistTone(r){ var v=Math.round(r.result); return v>0?'pos':v<0?'neg':'zero'; }
+function budHistVerdict(r){
+  var v=Math.round(r.result);
+  return v<0?'Перерасход '+fmt(-v)+' ₽':v>0?'Осталось '+fmt(v)+' ₽':'Ровно в рамку';
+}
+// «1–30 сент», «28 авг – 3 сент», год — если период не в текущем году
+function fmtBudHistRange(a,b){
+  var y=todayStr().slice(0,4);
+  var tail=b.slice(0,4)!==y?' '+b.slice(0,4):'';
+  if(a===b) return fmtDeadlineShort(a)+tail;
+  if(a.slice(0,7)===b.slice(0,7)) return parseInt(a.slice(8),10)+'–'+fmtDeadlineShort(b)+tail;
+  var headTail=a.slice(0,4)!==b.slice(0,4)?' '+a.slice(0,4):'';
+  return fmtDeadlineShort(a)+headTail+' – '+fmtDeadlineShort(b)+tail;
+}
+function budHistTopHtml(r){
+  var top=r.top||[];
+  if(!top.length) return '';
+  return '<div class="bh-top">'+top.map(function(c){
+    var share=r.spent>0?Math.round(c.amount/r.spent*100):0;
+    return '<div class="bh-cat">'
+      +'<span class="bh-cat-dot" style="background:'+esc((c.color||'#9E9E9E')+'22')+';color:'+esc(c.color||'#9E9E9E')+'">'+(c.icon?esc(c.icon):'●')+'</span>'
+      +'<span class="bh-cat-name">'+esc(c.name||'Без категории')+'</span>'
+      +'<span class="bh-cat-amt">'+esc(fmt(Math.round(c.amount)))+' ₽</span>'
+      +'<span class="bh-cat-share">'+share+'%</span>'
+      +'</div>';
+  }).join('')+'</div>';
+}
+// Одна фраза-вывод + полоска «по сегменту на период» (старые слева): «уложился» и
+// «перерасход» — одна и та же дробь, а порядок сегментов показывает тенденцию —
+// выправляешься или вылезаешь всё чаще. Показываем последние 12 периодов.
+// Цветом — только перерасход: «уложился» серый, иначе получается светофор.
+function budHistSummaryHtml(list){
+  var n=list.length, over=list.filter(function(r){ return budHistTone(r)==='neg'; }).length;
+  var head=over>0
+    ? 'Перерасход в <b>'+over+' из '+n+'</b> '+plural(n,'периода','периодов','периодов')
+    : (n===1?'Уложился в рамку':'Уложился во все <b>'+n+'</b> '+plural(n,'период','периода','периодов'));
+  var segs=list.slice(0,12).reverse().map(function(r){ return '<i class="bh-seg bh-seg--'+budHistTone(r)+'"></i>'; }).join('');
+  return '<div class="bh-summary-head">'+head+'</div><div class="bh-segs">'+segs+'</div>';
+}
+// Лапша остаётся всегда: без истории — внизу экрана, как раньше, с историей —
+// в конце прокрутки, под карточками.
+// Пустое состояние объясняет, когда здесь что-то появится: итог периода
+// записывается в момент, когда задаёшь следующий бюджет.
+function budHistEmptyText(){
+  var b=S.budget, active=b&&Number(b.amount)>0&&b.deadline;
+  if(!active) return 'Задай бюджет — когда период закончится, здесь появится итог: уложился ли в рамку и на что ушли деньги.';
+  if(b.deadline<todayStr()) return 'Период закончился. Задай новый бюджет — и итог прошлого появится здесь.';
+  return 'Здесь появится итог текущего периода — после '+fmtDayFull(b.deadline)+', когда задашь новый бюджет. Уложился ли в рамку и на что ушли деньги.';
+}
+// История — прямо на экране бюджета, под формой. Пока её нет, внизу лапша,
+// чтобы экран новичка не был пустым; с первой записью её место занимают карточки.
+function renderBudHist(){
+  var box=document.getElementById('bud-hist');
+  if(!box) return;
+  var list=S.budHist||[];
+  var has=list.length>0;
+  var empty=document.getElementById('bh-empty');
+  empty.style.display=has?'none':'';
+  document.getElementById('bh-stats').style.display=has?'':'none';
+  if(!has) empty.textContent=budHistEmptyText();
+  var sc=document.querySelector('#s-budget .budget-screen-content');
+  if(sc) sc.classList.toggle('has-hist',has);
+  if(!has){ document.getElementById('bh-list').innerHTML=''; return; }
+  document.getElementById('bh-stats').innerHTML=budHistSummaryHtml(list);
+  document.getElementById('bh-list').innerHTML=list.map(function(r){
+    var tone=budHistTone(r), base=Math.max(r.amount+r.income,1);
+    var fill=Math.min(100,Math.round(r.spent/base*100));
+    var pct=Math.round(Math.abs(r.result)/base*100);
+    var note=tone==='neg'?'на '+pct+'% больше':tone==='pos'?pct+'% не потрачено':'';
+    return '<div class="bh-item bh-item--'+tone+'">'
+      +'<div class="bh-row"><span class="bh-dates">'+esc(fmtBudHistRange(r.from,r.to))+'</span>'
+        +'<b class="bh-res bh-tone--'+tone+'">'+esc(budHistVerdict(r))+'</b></div>'
+      +'<div class="bh-track"><i style="width:'+fill+'%"></i></div>'
+      +'<div class="bh-row bh-sub"><span>Потрачено '+esc(fmt(Math.round(r.spent)))+' из '+esc(fmt(Math.round(base)))+' ₽</span><span>'+note+'</span></div>'
+      +budHistTopHtml(r)
+      +'</div>';
+  }).join('');
 }
 
 function onBudDateChange(){
@@ -1178,6 +1347,8 @@ async function saveBudget(){
 
   var spentAtStart = S.txs.filter(function(t){ return t.type==='expense'; })
                           .reduce(function(sum,t){ return sum+t.amount; }, 0);
+  // До замены бюджета и сброса inBudget-флагов — иначе итог старого периода потерян
+  var _closed = archiveBudgetPeriod();
 
   S.budget = {
     amount: amt,
@@ -1203,6 +1374,7 @@ async function saveBudget(){
 
   toast('Бюджет установлен');
   await pushBudget();
+  if(_closed) await pushBudHist(_closed);
   for(var i=0;i<_cleared.length;i++) await pushTx(_cleared[i]);
   _budLockUntil = Date.now() + 5000;
 }
@@ -1265,7 +1437,7 @@ function deleteCat(id){
   customConfirm('Удалить категорию?').then(ok=>{ if(!ok) return; S.cats=S.cats.filter(c=>c.id!==id);saveLocal();pushCats();deleteCatRemote(id);renderCats();renderSettings();renderCatRow();toast('Удалено'); });
 }
 function exportData(){
-  const blob=new Blob([JSON.stringify({txs:S.txs,cats:S.cats,budget:S.budget,date:new Date().toISOString()},null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({txs:S.txs,cats:S.cats,budget:S.budget,budHist:S.budHist||[],date:new Date().toISOString()},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='doshik-'+todayStr()+'.json';a.click();URL.revokeObjectURL(a.href);toast('Экспортировано');
 }
 function importData(e){
@@ -1283,6 +1455,7 @@ function importData(e){
       var ibBaseline=(ib.spent_at_start!=null)?Number(ib.spent_at_start)
         :S.txs.filter(t=>{if(t.type!=='expense')return false;if(!ibSetAt)return true;return localDateStr(t.date)<ibSetAt;}).reduce((s,t)=>s+t.amount,0);
       S.budget={amount:Number(ib.amount)||0,days:Number(ib.days)||0,deadline:ib.deadline||null,set_at:ibSetAt,spent_at_start:ibBaseline,reset_ts:ib.reset_ts||null};
+      S.budHist=Array.isArray(d.budHist)?sortBudHist(d.budHist.filter(r=>r&&r.id&&r.from&&r.to)):[];
       saveLocal();
       if(currentUser){
         const txRows=S.txs.map(t=>txRow(t,currentUser.id));
@@ -1290,7 +1463,7 @@ function importData(e){
           const {error}=await db.from('transactions').upsert(txRows);
           if(error){ setSyncDot(false,error); S.txs.forEach(t=>offlineQueue.push({op:'pushTx',data:t})); saveQueue(); }
         }
-        pushCats(); pushBudget();
+        pushCats(); pushBudget(); S.budHist.forEach(r=>pushBudHist(r));
       }
       renderMain(); renderSettings(); toast('Данные импортированы');
     }catch(err){ toast('Ошибка чтения файла'); }
@@ -1312,7 +1485,7 @@ async function clearAll(){
     await db.from('budget_history').delete().eq('user_id',currentUser.id); // таблицы может не быть — ошибку игнорируем
   }
   offlineQueue=[]; saveQueue();
-  S.txs=[];S.cats=[...DEF_CATS];S.budget=emptyBudget();
+  S.txs=[];S.cats=[...DEF_CATS];S.budget=emptyBudget();S.budHist=[];
   saveLocal();
   if(currentUser) await seedDefaultCats();
   toast('Данные сброшены');
@@ -1735,7 +1908,7 @@ async function recoverWithCode(){
     localStorage.setItem(K_CODE,code);currentUser=data.user;
     document.getElementById('s-auth').style.display='none';
     // Не подгружаем локальные данные предыдущего юзера — берём только с сервера
-    S.txs=[];S.cats=[];S.budget=emptyBudget();
+    S.txs=[];S.cats=[];S.budget=emptyBudget();S.budHist=[];
     saveLocal();
     goMain();
     await syncFromSupabase();
@@ -1820,7 +1993,7 @@ async function submitEnterCode(){
     currentUser=data.user;
     hideEnterCodeModal();
     // Reset local data and sync from server
-    S.txs=[];S.cats=[];S.budget=emptyBudget();
+    S.txs=[];S.cats=[];S.budget=emptyBudget();S.budHist=[];
     saveLocal();
     await syncFromSupabase();
     renderMain();
@@ -2080,11 +2253,13 @@ async function obSaveBudget(){
   var startDate=todayStr();
   var now=new Date().toISOString();
   var spentAtStart=S.txs.filter(t=>t.type==='expense').reduce((sum,t)=>sum+t.amount,0);
+  var closed=archiveBudgetPeriod(); // повтор онбординга поверх живого бюджета
   S.budget={amount:amt,days:_obBudDays,deadline,set_at:startDate,reset_ts:now,spent_at_start:spentAtStart};
   _budLockUntil=Date.now()+30000;
   saveLocal();
   toast('Бюджет установлен');
   await pushBudget();
+  if(closed) await pushBudHist(closed);
   _budLockUntil=Date.now()+5000;
   obNext();
 }
@@ -2151,6 +2326,7 @@ if(import.meta.env.MODE === 'test'){
     determineCtype, getTxsForPeriod, emptyBudget,
     loadLocal, saveLocal, renderMain, renderHistory, renderBudgetScreen, renderCats, setType,
     setSyncDot, describeSyncErr, txRow, tsOf, isMissingColumn, inBudgetPeriod, budgetRemaining,
+    snapshotBudgetPeriod, mergeBudHist, fmtBudHistRange, renderBudHist,
   };
 }
 

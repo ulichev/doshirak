@@ -48,13 +48,21 @@ where table_schema = 'public'
 order by table_name, column_name;
 
 
--- ── ОПЦИОНАЛЬНО, отдельным шагом ─────────────────────────────────────────────
--- Таблица budget_history пустая, и приложение в неё ничего не пишет: остался
--- только DELETE при сбросе данных. Сначала убедитесь, что она действительно пуста:
---
---   select count(*) from public.budget_history;
---
--- Если 0 — таблицу можно удалить. Клиент это переживёт: удаление истории
--- обёрнуто в игнорирование ошибки.
---
---   drop table if exists public.budget_history;
+-- ── 6. Итоги прошлых периодов бюджета (v1.11.0) ──────────────────────────────
+-- Таблица budget_history осталась от старой версии (RLS «свой user_id» уже есть).
+-- С 1.11.0 клиент при смене бюджета пишет туда итог уходящего периода: границы,
+-- сколько потрачено, доходы «в бюджет», остаток/перерасход и топ-3 категорий — для блока
+-- «Прошлые периоды» на экране бюджета. Пересчитать итог задним числом нельзя,
+-- поэтому храним снимок. Старые строки без result клиент пропускает.
+-- До применения миграции история живёт только локально и до-заливается синком.
+alter table public.budget_history
+  add column if not exists start_day date,
+  add column if not exists end_day   date,
+  add column if not exists spent     numeric,
+  add column if not exists income    numeric,
+  add column if not exists result    numeric,
+  add column if not exists early     boolean not null default false,
+  add column if not exists top_cats  jsonb;   -- топ-3 категорий трат: [{id,name,icon,color,amount}]
+
+create index if not exists budget_history_user_idx
+  on public.budget_history (user_id);
