@@ -537,8 +537,17 @@ function renderMain(){
     cbEl.innerHTML=rows.join('');
   }
 }
+// Частые категории — первыми в ленте, чтобы не листать до них. Считаем операции
+// за последние CAT_USAGE_DAYS дней: привычки меняются, старые траты не должны
+// навсегда держать категорию впереди. При равенстве — ручной порядок из настроек.
+var CAT_USAGE_DAYS = 90;
+function catsByUsage(cats){
+  var since=Date.now()-CAT_USAGE_DAYS*864e5, cnt={};
+  S.txs.forEach(function(t){ if(t.catId&&tsOf(t.date)>=since) cnt[t.catId]=(cnt[t.catId]||0)+1; });
+  return cats.slice().sort(function(a,b){ return (cnt[b.id]||0)-(cnt[a.id]||0); });
+}
 function renderCatRow(){
-  var filtered=S.cats.filter(function(x){return (x.ctype||'expense')===S.type;});
+  var filtered=catsByUsage(S.cats.filter(function(x){return (x.ctype||'expense')===S.type;}));
   document.getElementById('cat-row').innerHTML=filtered.map(function(x){
     var isInc=S.type==='income';
     var iconHtml=x.icon?'<span class="cat-pill-icon-wrap">'+x.icon+'</span>':'';
